@@ -32,7 +32,11 @@ func _ready() -> void:
 	node_code = Router.params.get("node_code", "1-1")
 	node_info = Router.params.get("node", {})
 	claim_key = Api.new_key()
-	_speeds = Game.profile.get("battle_speeds", [1, 2])
+	_speeds = []
+	for s in Game.profile.get("battle_speeds", [1, 2]):  # JSON numbers arrive as floats
+		_speeds.append(int(s))
+	if _speeds.is_empty():
+		_speeds = [1, 2]
 	var saved := int(Config.settings.get("battle_speed", 1))
 	_speed = saved if saved in _speeds else 1
 	var layer := CanvasLayer.new()
@@ -159,7 +163,7 @@ func _load_portrait(tr: TextureRect, code: String) -> void:
 
 
 func _toggle_speed() -> void:
-	var i := _speeds.find(_speed)
+	var i := maxi(0, _speeds.find(_speed))
 	var nxt: int = _speeds[(i + 1) % _speeds.size()]
 	var table: Array = Game.profile.get("vip_speed_table", [])
 	if nxt == _speeds[0] and table.size() > 0:

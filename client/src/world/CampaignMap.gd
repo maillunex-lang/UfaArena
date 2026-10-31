@@ -39,7 +39,8 @@ func setup(region: Dictionary) -> void:
 	for n in nodes:
 		_build_marker(n)
 	camera = Camera3D.new()
-	camera.fov = 46
+	camera.keep_aspect = Camera3D.KEEP_WIDTH
+	camera.fov = 27.0
 	add_child(camera)
 	camera.current = true
 	_cam_max = 2.0

@@ -32,7 +32,8 @@ func _ready() -> void:
 	_build_island()
 	_content_decor()
 	camera = Camera3D.new()
-	camera.fov = 50
+	camera.keep_aspect = Camera3D.KEEP_WIDTH
+	camera.fov = 29.4
 	camera.position = _cam_base
 	add_child(camera)
 	camera.look_at(_look)

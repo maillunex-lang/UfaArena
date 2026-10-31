@@ -11,6 +11,7 @@ const BAR_SHADER := preload("res://src/world/bar.gdshader")
 var camera: Camera3D
 var units := {}  # uid -> {node, bar, data, hp, max_hp, shield, energy, alive, home}
 var _rng := RandomNumberGenerator.new()
+var _float_seq := 0
 var _shake := 0.0
 var _cam_base := Vector3(0, 10.5, 15.5)
 var _look := Vector3(0, 0.6, -0.2)
@@ -60,7 +61,8 @@ func build(territory: String, is_boss: bool) -> void:
 		portal.position = Vector3(6.0, 0.05, -2.6)
 		add_child(portal)
 	camera = Camera3D.new()
-	camera.fov = 44
+	camera.keep_aspect = Camera3D.KEEP_WIDTH  # fixed horizontal view on any phone aspect
+	camera.fov = 25.6
 	add_child(camera)
 	camera.current = true
 	_update_camera()
@@ -286,14 +288,15 @@ func float_text(pos: Vector3, text: String, color: Color, big := false) -> void:
 	var l := Label3D.new()
 	l.text = text
 	l.font = UI.FONT_BOLD
-	l.font_size = 96 if big else 72
+	l.font_size = 84 if big else 60
 	l.pixel_size = 0.008
 	l.outline_size = 18
 	l.outline_modulate = Color(0.05, 0.02, 0.0, 0.9)
 	l.modulate = color
 	l.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	l.no_depth_test = true
-	l.position = pos + Vector3(_rng.randf_range(-0.3, 0.3), 0.6, 0)
+	_float_seq = (_float_seq + 1) % 4
+	l.position = pos + Vector3(_rng.randf_range(-0.7, 0.7), 0.5 + _float_seq * 0.32, 0)
 	add_child(l)
 	l.scale = Vector3.ONE * (0.6 if not big else 0.8)
 	var tw := l.create_tween().set_parallel(true)

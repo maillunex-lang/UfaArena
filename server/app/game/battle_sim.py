@@ -25,11 +25,13 @@ CRIT_CHANCE = 0.12
 CRIT_MULT = 1.5
 FACTION_ADV = 1.3
 STUN_TIME = 2.2
-RANGE = {"guardian": 1.4, "warrior": 1.4, "ranger": 6.5, "mage": 6.0, "healer": 5.5}
+RANGE = {"guardian": 1.8, "warrior": 1.8, "ranger": 6.5, "mage": 6.0, "healer": 5.5}
 WINDUP = {"melee": 0.32, "ranged": 0.55}
 # formation slots: 0,1 front row; 2,3,4 back row. (x for the left side, z = depth lane)
 SLOT_POS = {0: (-2.4, -0.9), 1: (-2.4, 0.9), 2: (-4.4, -1.8), 3: (-4.6, 0.0), 4: (-4.4, 1.8)}
 FRONT_SLOTS = (0, 1)
+SEPARATION = 1.1  # min depth gap between teammates standing at the same x
+Z_LIMIT = 2.6
 MAX_ROUNDS = int(MAX_TIME)  # kept for API compatibility (reported as seconds)
 
 
@@ -225,9 +227,25 @@ class Simulation:
                             "kind": u.skill.get("kind", "") if is_skill else "", "impact": impact,
                             "energy": u.energy, "targets": results})
 
+    def _separate(self) -> None:
+        """Keep allies from stacking on one spot: push overlapping teammates apart along depth (z)."""
+        for side in (0, 1):
+            team = sorted(self.alive(side), key=lambda u: u.slot)
+            for i, a in enumerate(team):
+                for b in team[i + 1:]:
+                    dx, dz = b.x - a.x, b.z - a.z
+                    if abs(dx) < 1.0 and abs(dz) < SEPARATION:
+                        push = (SEPARATION - abs(dz)) / 2 + 0.01
+                        sgn = 1.0 if (dz > 0 or (dz == 0 and b.slot % 2 == 1)) else -1.0
+                        a.z = max(-Z_LIMIT, min(Z_LIMIT, a.z - sgn * push))
+                        b.z = max(-Z_LIMIT, min(Z_LIMIT, b.z + sgn * push))
+                        for u in (a, b):
+                            self._log_pos(u, True)
+
     def run(self) -> dict:
         winner = None
         while self.t < MAX_TIME and winner is None:
+            self._separate()
             # deterministic order each tick: faster units first, then side, then slot
             for u in sorted(self.units, key=lambda x: (-x.spd, x.side, x.slot)):
                 self._step_unit(u)
