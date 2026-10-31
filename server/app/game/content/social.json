@@ -1,0 +1,1274 @@
+{
+  "version": 1,
+  "friends": {
+    "max_friends": 50,
+    "max_pending_out": 30,
+    "gift_send_per_day": 20,
+    "gift_claim_per_day": 30,
+    "gift_contents": {
+      "friend_tokens": 5,
+      "gold": 500
+    },
+    "help_per_day": 5,
+    "help_contents": {
+      "nature_essence": 20
+    },
+    "help_blessing": {
+      "atk_pct": 0.08,
+      "battles": 3
+    },
+    "recent_minutes": 1440,
+    "online_minutes": 3,
+    "token_shop": [
+      {
+        "id": "tok_gold",
+        "name": "Мешок золота",
+        "cost": 20,
+        "contents": {
+          "gold": 6000
+        },
+        "weekly_limit": 5
+      },
+      {
+        "id": "tok_herb",
+        "name": "Связка трав",
+        "cost": 30,
+        "contents": {
+          "nature_essence": 150
+        },
+        "weekly_limit": 5
+      },
+      {
+        "id": "tok_ticket",
+        "name": "Билет рейда",
+        "cost": 40,
+        "contents": {
+          "raid_tickets": 1
+        },
+        "weekly_limit": 3
+      },
+      {
+        "id": "tok_summon",
+        "name": "Эссенция призыва",
+        "cost": 120,
+        "contents": {
+          "summon_essence": 1
+        },
+        "weekly_limit": 2
+      }
+    ]
+  },
+  "guilds": {
+    "max_members": 20,
+    "create_cost": {
+      "gold": 50000
+    },
+    "create_min_level": 5,
+    "roles": [
+      "leader",
+      "deputy",
+      "officer",
+      "veteran",
+      "member",
+      "novice"
+    ],
+    "role_names": {
+      "leader": "Глава",
+      "deputy": "Заместитель",
+      "officer": "Офицер",
+      "veteran": "Ветеран",
+      "member": "Участник",
+      "novice": "Новичок"
+    },
+    "permissions": {
+      "leader": [
+        "edit",
+        "accept",
+        "invite",
+        "kick",
+        "promote",
+        "transfer",
+        "build",
+        "research",
+        "specialize",
+        "expedition",
+        "war",
+        "warn",
+        "disband"
+      ],
+      "deputy": [
+        "edit",
+        "accept",
+        "invite",
+        "kick",
+        "promote",
+        "build",
+        "research",
+        "expedition",
+        "war",
+        "warn"
+      ],
+      "officer": [
+        "accept",
+        "invite",
+        "kick",
+        "build",
+        "expedition",
+        "warn"
+      ],
+      "veteran": [
+        "invite",
+        "expedition"
+      ],
+      "member": [],
+      "novice": []
+    },
+    "novice_promote_days": 3,
+    "inactive_warn_days": 3,
+    "inactive_kick_days": 7,
+    "level_exp": [
+      0,
+      1000,
+      3000,
+      7000,
+      14000,
+      25000,
+      40000,
+      60000,
+      90000,
+      130000
+    ],
+    "donate": {
+      "gold": {
+        "per": 5000,
+        "treasury": 50,
+        "exp": 20,
+        "points": 10,
+        "daily_max": 5
+      }
+    },
+    "buildings": {
+      "hall": {
+        "name": "Зал Совета",
+        "max": 10,
+        "cost": [
+          0,
+          500,
+          1200,
+          2500,
+          4500,
+          7000,
+          10000,
+          14000,
+          19000,
+          25000
+        ],
+        "effect": "Открывает новые постройки и исследования; +1 место в экспедиции за уровень."
+      },
+      "forge": {
+        "name": "Кузня клана",
+        "max": 5,
+        "requires": {
+          "hall": 2
+        },
+        "cost": [
+          0,
+          800,
+          2000,
+          4000,
+          7000
+        ],
+        "effect": "+2% атаки героев участников за уровень (PvE).",
+        "bonus": {
+          "atk_pct": 0.02
+        }
+      },
+      "shrine": {
+        "name": "Святилище предков",
+        "max": 5,
+        "requires": {
+          "hall": 2
+        },
+        "cost": [
+          0,
+          800,
+          2000,
+          4000,
+          7000
+        ],
+        "effect": "+2% здоровья героев участников за уровень (PvE).",
+        "bonus": {
+          "hp_pct": 0.02
+        }
+      },
+      "barracks": {
+        "name": "Казармы",
+        "max": 5,
+        "requires": {
+          "hall": 3
+        },
+        "cost": [
+          0,
+          1200,
+          3000,
+          6000,
+          10000
+        ],
+        "effect": "+1 попытка гильдейского босса в день за 2 уровня; +5% урона по боссам за уровень.",
+        "bonus": {
+          "boss_dmg_pct": 0.05
+        }
+      },
+      "market": {
+        "name": "Торговый двор",
+        "max": 5,
+        "requires": {
+          "hall": 3
+        },
+        "cost": [
+          0,
+          1200,
+          3000,
+          6000,
+          10000
+        ],
+        "effect": "+5% золота с AFK за уровень.",
+        "bonus": {
+          "afk_gold_pct": 0.05
+        }
+      },
+      "walls": {
+        "name": "Стены крепости",
+        "max": 5,
+        "requires": {
+          "hall": 4
+        },
+        "cost": [
+          0,
+          1500,
+          3500,
+          7000,
+          12000
+        ],
+        "effect": "+4% к обороне гильдии в войнах за уровень.",
+        "bonus": {
+          "war_def_pct": 0.04
+        }
+      }
+    },
+    "specializations": {
+      "warriors": {
+        "name": "Путь воина",
+        "desc": "Сильнее в войнах и на арене гильдий: +10% урона в войнах гильдий, исследования «Натиск».",
+        "bonus": {
+          "war_atk_pct": 0.1
+        }
+      },
+      "hunters": {
+        "name": "Путь охотника",
+        "desc": "Сильнее против боссов: +10% урона по рейд-боссам, исследования «Следопыт».",
+        "bonus": {
+          "boss_dmg_pct": 0.1
+        }
+      },
+      "keepers": {
+        "name": "Путь хранителя",
+        "desc": "Экономика и экспедиции: +15% наград экспедиций, исследования «Наследие».",
+        "bonus": {
+          "expedition_pct": 0.15
+        }
+      }
+    },
+    "research": {
+      "r_tactics": {
+        "name": "Тактика отряда",
+        "max": 5,
+        "branch": null,
+        "cost": [
+          0,
+          600,
+          1500,
+          3000,
+          5000
+        ],
+        "effect": "+1% атаки и здоровья (PvE) за уровень",
+        "bonus": {
+          "atk_pct": 0.01,
+          "hp_pct": 0.01
+        }
+      },
+      "r_logistics": {
+        "name": "Снабжение",
+        "max": 3,
+        "branch": null,
+        "cost": [
+          0,
+          1000,
+          3000
+        ],
+        "effect": "+1 участник экспедиции за уровень"
+      },
+      "r_onslaught": {
+        "name": "Натиск",
+        "max": 5,
+        "branch": "warriors",
+        "cost": [
+          0,
+          1500,
+          3500,
+          6000,
+          9000
+        ],
+        "effect": "+3% урона в войнах гильдий за уровень",
+        "bonus": {
+          "war_atk_pct": 0.03
+        }
+      },
+      "r_tracker": {
+        "name": "Следопыт",
+        "max": 5,
+        "branch": "hunters",
+        "cost": [
+          0,
+          1500,
+          3500,
+          6000,
+          9000
+        ],
+        "effect": "+3% урона по боссам за уровень",
+        "bonus": {
+          "boss_dmg_pct": 0.03
+        }
+      },
+      "r_legacy": {
+        "name": "Наследие",
+        "max": 5,
+        "branch": "keepers",
+        "cost": [
+          0,
+          1500,
+          3500,
+          6000,
+          9000
+        ],
+        "effect": "+5% наград экспедиций за уровень",
+        "bonus": {
+          "expedition_pct": 0.05
+        }
+      }
+    },
+    "daily_tasks": [
+      {
+        "code": "g_donate",
+        "name": "Пожертвовать в казну",
+        "target": 1,
+        "points": 10,
+        "reward": {
+          "guild_marks": 20
+        }
+      },
+      {
+        "code": "g_boss",
+        "name": "Атаковать гильдейского босса",
+        "target": 1,
+        "points": 15,
+        "reward": {
+          "guild_marks": 30
+        }
+      },
+      {
+        "code": "g_battles",
+        "name": "Провести 3 боя",
+        "target": 3,
+        "points": 10,
+        "reward": {
+          "guild_marks": 20
+        }
+      },
+      {
+        "code": "g_help",
+        "name": "Помочь другу или соклановцу",
+        "target": 1,
+        "points": 10,
+        "reward": {
+          "guild_marks": 15
+        }
+      }
+    ],
+    "expeditions": {
+      "exp_iremel": {
+        "name": "Тропа на Иремель",
+        "hours": 4,
+        "min_participants": 2,
+        "max_participants": 5,
+        "power_goal": 20000,
+        "reward": {
+          "gold": 15000,
+          "guild_marks": 60
+        },
+        "treasury": 300
+      },
+      "exp_cave": {
+        "name": "Глубины Шульган-Таш",
+        "hours": 8,
+        "min_participants": 3,
+        "max_participants": 6,
+        "power_goal": 45000,
+        "reward": {
+          "gold": 30000,
+          "guild_marks": 120,
+          "nature_essence": 200
+        },
+        "treasury": 700
+      },
+      "exp_plateau": {
+        "name": "Разведка Зилаира",
+        "hours": 12,
+        "min_participants": 4,
+        "max_participants": 8,
+        "power_goal": 80000,
+        "reward": {
+          "gold": 50000,
+          "guild_marks": 200,
+          "summon_essence": 1
+        },
+        "treasury": 1200
+      }
+    },
+    "week_rewards": {
+      "base": {
+        "guild_marks": 100,
+        "gold": 10000
+      },
+      "per_point": {
+        "guild_marks": 1
+      },
+      "max_bonus_marks": 400,
+      "min_points_active": 10
+    },
+    "war": {
+      "hours": 48,
+      "attacks_per_member": 3,
+      "win_points": 3,
+      "loss_points": 1,
+      "win_reward": {
+        "guild_marks": 300
+      },
+      "loss_reward": {
+        "guild_marks": 120
+      },
+      "min_members": 3
+    }
+  },
+  "raids": {
+    "attempts": {
+      "guild": {
+        "max": 3,
+        "regen_hours": 8
+      },
+      "world": {
+        "max": 3,
+        "regen_hours": 8
+      },
+      "seasonal": {
+        "max": 2,
+        "regen_hours": 12
+      },
+      "story": {
+        "max": 3,
+        "regen_hours": 8
+      },
+      "coop": {
+        "max": 2,
+        "regen_hours": 12
+      }
+    },
+    "ticket_currency": "raid_tickets",
+    "battle_seconds": 45,
+    "coop_max_players": 5,
+    "coop_lobby_minutes": 30,
+    "bosses": {
+      "rb_kurgan_colossus": {
+        "name": "Курганный Колосс",
+        "kind": "guild",
+        "hero": "rb_kurgan_colossus",
+        "level": 40,
+        "hp": 2500000,
+        "days": 3,
+        "desc": "Каменный страж древних курганов. Пробудился от шагов кланов.",
+        "phases": [
+          {
+            "from": 1.0,
+            "name": "Каменная кожа",
+            "def_mult": 1.6,
+            "atk_mult": 1.0,
+            "note": "Защита +60%. Уязвим к магам: маги наносят +30% урона.",
+            "vuln_class": "mage",
+            "vuln_mult": 1.3
+          },
+          {
+            "from": 0.6,
+            "name": "Трещины",
+            "def_mult": 1.0,
+            "atk_mult": 1.25,
+            "note": "Защита падает, атака +25%. Уязвим к убийцам (+30%).",
+            "vuln_class": "assassin",
+            "vuln_mult": 1.3
+          },
+          {
+            "from": 0.25,
+            "name": "Последний обвал",
+            "def_mult": 0.8,
+            "atk_mult": 1.6,
+            "note": "Ярость: атака +60%. Защитники снижают урон по отряду (+20% здоровья отряду с защитником).",
+            "need_class": "guardian",
+            "need_bonus_hp": 0.2
+          }
+        ],
+        "base_reward": {
+          "guild_marks": 40,
+          "gold": 8000
+        },
+        "loot": [
+          {
+            "item": {
+              "summon_essence": 2
+            },
+            "chance": 0.15,
+            "rare": true,
+            "name": "Сердце кургана"
+          },
+          {
+            "item": {
+              "crystals": 150
+            },
+            "chance": 0.25,
+            "rare": true,
+            "name": "Кристальная жила"
+          },
+          {
+            "item": {
+              "nature_essence": 300
+            },
+            "chance": 0.6,
+            "rare": false,
+            "name": "Травы кургана"
+          }
+        ]
+      },
+      "rb_azhdaha": {
+        "name": "Аждаха Пепельная",
+        "kind": "world",
+        "hero": "rb_azhdaha",
+        "level": 50,
+        "hp": 20000000,
+        "days": 7,
+        "desc": "Многоголовый змей из башкирских сказаний. Мировой босс: урон всех игроков сервера суммируется.",
+        "phases": [
+          {
+            "from": 1.0,
+            "name": "Пламя",
+            "def_mult": 1.0,
+            "atk_mult": 1.0,
+            "note": "Уязвима к Живому Кураю (+25%).",
+            "vuln_faction": "living_kurai",
+            "vuln_mult": 1.25
+          },
+          {
+            "from": 0.5,
+            "name": "Пепельная буря",
+            "def_mult": 1.2,
+            "atk_mult": 1.35,
+            "note": "Атака +35%. Уязвима к следопытам (+30%).",
+            "vuln_class": "ranger",
+            "vuln_mult": 1.3
+          }
+        ],
+        "base_reward": {
+          "gold": 12000,
+          "nature_essence": 100
+        },
+        "loot": [
+          {
+            "item": {
+              "crystals": 300
+            },
+            "chance": 0.1,
+            "rare": true,
+            "name": "Чешуя Аждахи"
+          },
+          {
+            "item": {
+              "summon_essence": 1
+            },
+            "chance": 0.3,
+            "rare": true,
+            "name": "Огненная искра"
+          }
+        ]
+      },
+      "rb_ancient_root": {
+        "name": "Древний Корень",
+        "kind": "seasonal",
+        "hero": "rb_ancient_root",
+        "level": 45,
+        "hp": 8000000,
+        "days": 14,
+        "desc": "Сезонный босс: древо, отравленное пеплом. Возвращается каждый сезон сильнее.",
+        "phases": [
+          {
+            "from": 1.0,
+            "name": "Цветение",
+            "def_mult": 1.3,
+            "atk_mult": 0.9,
+            "note": "Регенерирует: защита +30%. Уязвим к Пепельному Пределу (+30%).",
+            "vuln_faction": "ashen_reach",
+            "vuln_mult": 1.3
+          },
+          {
+            "from": 0.4,
+            "name": "Увядание",
+            "def_mult": 0.9,
+            "atk_mult": 1.4,
+            "note": "Атака +40%. Уязвим к воинам (+25%).",
+            "vuln_class": "warrior",
+            "vuln_mult": 1.25
+          }
+        ],
+        "base_reward": {
+          "gold": 10000,
+          "guild_marks": 30
+        },
+        "loot": [
+          {
+            "item": {
+              "summon_essence": 2
+            },
+            "chance": 0.12,
+            "rare": true,
+            "name": "Семя Корня"
+          },
+          {
+            "item": {
+              "crystals": 200
+            },
+            "chance": 0.2,
+            "rare": true,
+            "name": "Смола веков"
+          }
+        ]
+      },
+      "rb_shulgan_shade": {
+        "name": "Тень Шульгана",
+        "kind": "story",
+        "hero": "rb_shulgan_shade",
+        "level": 55,
+        "hp": 3000000,
+        "days": 30,
+        "stages": 3,
+        "desc": "Сюжетный многоэтапный рейд: три этапа в подземном царстве Шульгана. Каждый этап сильнее.",
+        "stage_hp_mult": 1.6,
+        "phases": [
+          {
+            "from": 1.0,
+            "name": "Шёпот бездны",
+            "def_mult": 1.2,
+            "atk_mult": 1.1,
+            "note": "Уязвима к Каменному Небу (+25%).",
+            "vuln_faction": "stone_sky",
+            "vuln_mult": 1.25
+          },
+          {
+            "from": 0.5,
+            "name": "Пожиратель света",
+            "def_mult": 1.0,
+            "atk_mult": 1.5,
+            "note": "Атака +50%. Нужна поддержка: отряд с поддержкой получает +20% здоровья.",
+            "need_class": "support",
+            "need_bonus_hp": 0.2
+          }
+        ],
+        "base_reward": {
+          "gold": 15000,
+          "ancient_seals": 1
+        },
+        "loot": [
+          {
+            "item": {
+              "summon_essence": 3
+            },
+            "chance": 0.15,
+            "rare": true,
+            "name": "Осколок бездны"
+          },
+          {
+            "item": {
+              "ancient_seals": 2
+            },
+            "chance": 0.3,
+            "rare": true,
+            "name": "Печать подземья"
+          }
+        ]
+      }
+    },
+    "coop_bosses": [
+      "rb_kurgan_colossus",
+      "rb_shulgan_shade"
+    ],
+    "coop_hp_per_member": 900000,
+    "coop_reward": {
+      "gold": 15000,
+      "guild_marks": 30
+    }
+  },
+  "arena": {
+    "start_rating": 1000,
+    "k": 32,
+    "attempts_per_day": 5,
+    "training_per_day": 10,
+    "candidates": 3,
+    "rating_window": 200,
+    "season_days": 30,
+    "reset_keep": 0.5,
+    "leagues": [
+      {
+        "code": "bronze",
+        "name": "Бронзовая",
+        "min": 0,
+        "reward": {
+          "gold": 20000,
+          "crystals": 50
+        }
+      },
+      {
+        "code": "silver",
+        "name": "Серебряная",
+        "min": 1100,
+        "reward": {
+          "gold": 40000,
+          "crystals": 100
+        }
+      },
+      {
+        "code": "gold",
+        "name": "Золотая",
+        "min": 1250,
+        "reward": {
+          "gold": 70000,
+          "crystals": 200
+        }
+      },
+      {
+        "code": "platinum",
+        "name": "Платиновая",
+        "min": 1400,
+        "reward": {
+          "gold": 100000,
+          "crystals": 300,
+          "cosmetic": "title_arena_platinum"
+        }
+      },
+      {
+        "code": "legend",
+        "name": "Легенда Урала",
+        "min": 1600,
+        "reward": {
+          "gold": 150000,
+          "crystals": 450,
+          "cosmetic": "frame_arena_legend"
+        }
+      }
+    ],
+    "win_reward": {
+      "gold": 3000,
+      "guild_marks": 5
+    },
+    "loss_reward": {
+      "gold": 800
+    },
+    "training_reward": {
+      "gold": 500
+    }
+  },
+  "tournaments": {
+    "templates": {
+      "weekly_open": {
+        "name": "Еженедельный турнир Курултая",
+        "kind": "individual",
+        "format": "points",
+        "scale": "weekly",
+        "reg_hours": 72,
+        "run_hours": 96,
+        "fights": 10,
+        "rules": {}
+      },
+      "weekly_rare": {
+        "name": "Турнир Редких героев",
+        "kind": "individual",
+        "format": "points",
+        "scale": "weekly",
+        "reg_hours": 72,
+        "run_hours": 96,
+        "fights": 8,
+        "rules": {
+          "max_rarity": 3,
+          "note": "Только герои до Редкой редкости"
+        }
+      },
+      "weekly_team": {
+        "name": "Командный турнир троек",
+        "kind": "team",
+        "format": "points",
+        "scale": "weekly",
+        "reg_hours": 72,
+        "run_hours": 96,
+        "fights": 6,
+        "team_size": 3,
+        "rules": {
+          "note": "Команда из 3 игроков, очки суммируются"
+        }
+      },
+      "weekly_guild": {
+        "name": "Турнир гильдий",
+        "kind": "guild",
+        "format": "points",
+        "scale": "weekly",
+        "reg_hours": 72,
+        "run_hours": 96,
+        "fights": 5,
+        "rules": {
+          "note": "Каждый участник гильдии сражается, очки идут гильдии"
+        }
+      },
+      "monthly_cup": {
+        "name": "Кубок Уралии (месячный)",
+        "kind": "individual",
+        "format": "groups",
+        "scale": "monthly",
+        "reg_hours": 120,
+        "run_hours": 168,
+        "size": 16,
+        "rules": {
+          "random_condition": true,
+          "note": "Групповой этап, затем финальная сетка"
+        }
+      },
+      "monthly_bracket": {
+        "name": "Сетка Батыров",
+        "kind": "individual",
+        "format": "bracket",
+        "scale": "monthly",
+        "reg_hours": 120,
+        "run_hours": 168,
+        "size": 16,
+        "rules": {
+          "one_faction": true,
+          "note": "Все герои отряда одной фракции"
+        }
+      }
+    },
+    "conditions": [
+      {
+        "code": "swift",
+        "name": "Быстрый ветер",
+        "desc": "Скорость всех героев +20%",
+        "stat": "spd",
+        "mult": 1.2
+      },
+      {
+        "code": "stone",
+        "name": "Каменная кожа",
+        "desc": "Защита всех героев +40%",
+        "stat": "def",
+        "mult": 1.4
+      },
+      {
+        "code": "fury",
+        "name": "Ярость предков",
+        "desc": "Атака всех героев +25%",
+        "stat": "atk",
+        "mult": 1.25
+      },
+      {
+        "code": "vital",
+        "name": "Живая вода",
+        "desc": "Здоровье всех героев +30%",
+        "stat": "hp",
+        "mult": 1.3
+      }
+    ],
+    "points_win": 3,
+    "points_loss": 1,
+    "rewards": {
+      "1": {
+        "crystals": 400,
+        "gold": 100000,
+        "cosmetic": "title_tournament_champion"
+      },
+      "2": {
+        "crystals": 250,
+        "gold": 70000,
+        "cosmetic": "frame_tournament_silver"
+      },
+      "3": {
+        "crystals": 150,
+        "gold": 50000
+      },
+      "top10": {
+        "crystals": 80,
+        "gold": 30000
+      },
+      "participant": {
+        "gold": 10000
+      }
+    },
+    "ai_fill_to": 8
+  },
+  "chat": {
+    "max_len": 300,
+    "min_interval_s": 3,
+    "burst": 5,
+    "burst_window_s": 30,
+    "duplicate_window_s": 120,
+    "page": 50,
+    "reactions": [
+      "👍",
+      "❤️",
+      "😂",
+      "🔥",
+      "⚔️",
+      "🏔️"
+    ],
+    "auto_mute_minutes": 10,
+    "auto_mute_reports": 3,
+    "bad_words": [
+      "дурак",
+      "идиот",
+      "тупой",
+      "урод",
+      "сволочь",
+      "мразь",
+      "дебил",
+      "лох",
+      "чмо",
+      "бля",
+      "сука",
+      "хуй",
+      "пизд",
+      "ебат",
+      "ебан",
+      "нахуй",
+      "гандон",
+      "пидор",
+      "fuck",
+      "shit",
+      "bitch"
+    ],
+    "dm_ai_per_day": 2
+  },
+  "events": {
+    "templates": {
+      "darkness_invasion": {
+        "name": "Вторжение Тьмы",
+        "kind": "invasion",
+        "scale": "monthly",
+        "days": 7,
+        "goal": 5000000,
+        "desc": "Древняя армия Шульгана поднимается из-под Торатау. Остановите её вместе: каждая победа и каждый урон по боссам приближают общую цель.",
+        "region": "r1_shikhany",
+        "enemy_level_add": 4,
+        "success": {
+          "region_status": {
+            "r1_shikhany": "liberated"
+          },
+          "unlock": [
+            "territory_toratau_depths"
+          ],
+          "story": "Армия Тьмы отброшена. Шиханы освобождены, путь в глубины Торатау открыт.",
+          "chronicle": "Хранители отбросили армию Тьмы от Шиханов"
+        },
+        "failure": {
+          "region_status": {
+            "r1_shikhany": "scorched"
+          },
+          "story": "Тьма опалила Шиханы. Регион станет опаснее, пока его не очистят в следующем событии.",
+          "chronicle": "Тьма опалила Шиханы"
+        },
+        "rewards": {
+          "participant": {
+            "gold": 20000
+          },
+          "per_1000": {
+            "gold": 500
+          },
+          "success_bonus": {
+            "crystals": 100,
+            "summon_essence": 1
+          },
+          "max_bonus_gold": 80000
+        }
+      },
+      "spring_festival": {
+        "name": "Праздник Каргатуй",
+        "kind": "holiday",
+        "scale": "weekly",
+        "days": 7,
+        "goal": 1500000,
+        "desc": "Праздник прилёта грачей. Сообща соберите угощение для всего Курултая: бои, дозоры и помощь друзьям приносят очки.",
+        "success": {
+          "story": "Каргатуй удался: в крепостях висят праздничные ленты.",
+          "decor": [
+            "festival_ribbons"
+          ],
+          "chronicle": "Курултай отпраздновал Каргатуй"
+        },
+        "failure": {
+          "story": "Праздник прошёл скромно.",
+          "chronicle": "Каргатуй прошёл скромно"
+        },
+        "rewards": {
+          "participant": {
+            "gold": 10000
+          },
+          "per_1000": {
+            "gold": 300
+          },
+          "success_bonus": {
+            "crystals": 50
+          },
+          "max_bonus_gold": 40000
+        }
+      },
+      "expedition_iremel": {
+        "name": "Экспедиция к Иремелю",
+        "kind": "expedition",
+        "scale": "weekly",
+        "days": 7,
+        "goal": 2000000,
+        "desc": "Сервер выбирает путь экспедиции. Голосуйте и вносите вклад: выбранная тропа навсегда откроет новую территорию.",
+        "choices": {
+          "north": "Северная тропа (каменные пещеры)",
+          "south": "Южная тропа (священные озёра)"
+        },
+        "success": {
+          "story_by_choice": {
+            "north": "Открыта Каменная пещера Иремеля.",
+            "south": "Открыты священные озёра Иремеля."
+          },
+          "unlock_by_choice": {
+            "north": [
+              "territory_iremel_caves"
+            ],
+            "south": [
+              "territory_iremel_lakes"
+            ]
+          },
+          "chronicle": "Экспедиция достигла Иремеля"
+        },
+        "failure": {
+          "story": "Экспедиция вернулась ни с чем.",
+          "chronicle": "Экспедиция к Иремелю не удалась"
+        },
+        "rewards": {
+          "participant": {
+            "gold": 12000
+          },
+          "per_1000": {
+            "gold": 400
+          },
+          "success_bonus": {
+            "crystals": 80
+          },
+          "max_bonus_gold": 50000
+        }
+      }
+    },
+    "points": {
+      "battle_win": 100,
+      "battle": 30,
+      "raid_damage_per": 1000,
+      "afk_claim": 40,
+      "gift": 20,
+      "help": 30,
+      "arena": 60,
+      "quest": 50
+    },
+    "weekly_rotation": [
+      "spring_festival",
+      "expedition_iremel"
+    ],
+    "monthly": "darkness_invasion"
+  },
+  "progression": {
+    "reputation": {
+      "gift": 2,
+      "help": 4,
+      "raid": 3,
+      "guild_task": 2,
+      "chat": 1,
+      "event": 3,
+      "tournament": 5,
+      "arena_win": 1
+    },
+    "reputation_daily_cap": {
+      "chat": 5,
+      "gift": 20,
+      "help": 20,
+      "arena_win": 10
+    },
+    "chat_meaningful_min_len": 12,
+    "chat_meaningful_min_unique_words": 3,
+    "titles": [
+      {
+        "min": 0,
+        "name": "Путник"
+      },
+      {
+        "min": 50,
+        "name": "Друг Курултая"
+      },
+      {
+        "min": 200,
+        "name": "Опора клана"
+      },
+      {
+        "min": 600,
+        "name": "Голос Уралии"
+      },
+      {
+        "min": 1500,
+        "name": "Хранитель наследия"
+      }
+    ],
+    "achievements": {
+      "first_friend": {
+        "name": "Первый друг",
+        "desc": "Добавьте первого друга",
+        "stat": "friends",
+        "goal": 1,
+        "reward": {
+          "crystals": 20
+        }
+      },
+      "ten_friends": {
+        "name": "Душа компании",
+        "desc": "10 друзей",
+        "stat": "friends",
+        "goal": 10,
+        "reward": {
+          "crystals": 50
+        }
+      },
+      "gifts_50": {
+        "name": "Щедрое сердце",
+        "desc": "Отправьте 50 подарков",
+        "stat": "gifts_sent",
+        "goal": 50,
+        "reward": {
+          "crystals": 50,
+          "cosmetic": "title_generous"
+        }
+      },
+      "helper_30": {
+        "name": "Плечо друга",
+        "desc": "Помогите друзьям 30 раз",
+        "stat": "helps",
+        "goal": 30,
+        "reward": {
+          "crystals": 50
+        }
+      },
+      "guild_join": {
+        "name": "В строю",
+        "desc": "Вступите в гильдию",
+        "stat": "guild_joined",
+        "goal": 1,
+        "reward": {
+          "guild_marks": 50
+        }
+      },
+      "raider_10": {
+        "name": "Охотник на чудовищ",
+        "desc": "10 атак рейд-боссов",
+        "stat": "raid_attacks",
+        "goal": 10,
+        "reward": {
+          "crystals": 40
+        }
+      },
+      "raid_1m": {
+        "name": "Сокрушитель",
+        "desc": "Нанесите боссам 1 000 000 урона",
+        "stat": "raid_damage",
+        "goal": 1000000,
+        "reward": {
+          "crystals": 80,
+          "cosmetic": "frame_raider"
+        }
+      },
+      "arena_10": {
+        "name": "Батыр арены",
+        "desc": "10 побед на арене",
+        "stat": "arena_wins",
+        "goal": 10,
+        "reward": {
+          "crystals": 40
+        }
+      },
+      "arena_100": {
+        "name": "Непобедимый",
+        "desc": "100 побед на арене",
+        "stat": "arena_wins",
+        "goal": 100,
+        "reward": {
+          "crystals": 150,
+          "cosmetic": "title_unbeaten"
+        }
+      },
+      "tournament_1": {
+        "name": "Участник Курултая",
+        "desc": "Сыграйте в турнире",
+        "stat": "tournaments",
+        "goal": 1,
+        "reward": {
+          "crystals": 20
+        }
+      },
+      "event_hero": {
+        "name": "Защитник мира",
+        "desc": "Внесите вклад в мировое событие",
+        "stat": "event_points",
+        "goal": 1000,
+        "reward": {
+          "crystals": 40
+        }
+      },
+      "chatter": {
+        "name": "Собеседник",
+        "desc": "20 содержательных сообщений",
+        "stat": "chat_meaningful",
+        "goal": 20,
+        "reward": {
+          "crystals": 10
+        }
+      }
+    }
+  },
+  "ai": {
+    "target_population": 60,
+    "min_population": 30,
+    "real_players_ratio": 1.5,
+    "tick_seconds": 60,
+    "max_actions_per_tick": 12,
+    "max_actions_per_persona_day": 40,
+    "chat_global_per_hour": 10,
+    "chat_cooldown_s": 240,
+    "ai_guilds": 4,
+    "reply_chance": 0.6
+  },
+  "scheduler": {
+    "enabled": true,
+    "tick_seconds": 30
+  }
+}

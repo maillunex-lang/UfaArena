@@ -211,8 +211,11 @@ def set_formation(body: FormationIn, user: CurrentUser = Depends(player), db: Se
 FACTION_ADV = R.advantage()
 
 
-def _team_units(db: Session, user_id: str, slots: list[str | None]):
-    b = team_bonuses(db, user_id)
+def _team_units(db: Session, user_id: str, slots: list[str | None], extra: dict | None = None):
+    b = dict(team_bonuses(db, user_id))
+    for k, v in (extra or {}).items():
+        if k in ("atk_pct", "hp_pct"):
+            b[k] = b.get(k, 0) + v
     units, snap = [], []
     for slot, pid in enumerate(slots):
         if not pid:
@@ -233,11 +236,13 @@ def _team_units(db: Session, user_id: str, slots: list[str | None]):
 
 
 def _enemy_units(db: Session, node: CampaignNode):
+    from ..social.events import region_status
+    add = 2 if region_status(db, node.region_code) == "scorched" else 0  # world-event consequence
     out = []
     for e in node.enemies:
         hd = hero_dict(db.get(Hero, e["hero_code"]))
-        st = hero_stats(hd, e["level"])
-        out.append(make_unit(1, e["slot"], hd, st, e["level"], FACTION_ADV.get(hd["faction_code"])))
+        st = hero_stats(hd, e["level"] + add)
+        out.append(make_unit(1, e["slot"], hd, st, e["level"] + add, FACTION_ADV.get(hd["faction_code"])))
     return out
 
 
@@ -255,15 +260,23 @@ def battle_validate(body: BattleIn, user: CurrentUser = Depends(player), db: Ses
     if not node_unlocked(db, user.id, node):
         raise GameError("node_locked", "Сначала пройдите предыдущий этап", 403)
     slots = body.slots or _formation(db, user.id).slots
-    team, snap = _team_units(db, user.id, slots)
+    from ..social.friends import consume_blessing
+    from ..social.guilds import guild_bonuses
+    extra = {k: v for k, v in guild_bonuses(db, user.id).items() if k in ("atk_pct", "hp_pct")}
+    bless = consume_blessing(db, user.id)  # "Благословение друга" from friend help
+    extra["atk_pct"] = extra.get("atk_pct", 0) + bless
+    team, snap = _team_units(db, user.id, slots, extra)
     seed = secrets.randbits(48)
     sim = simulate(team, _enemy_units(db, node), seed)
+    sim["bonuses"] = {"guild": {k: round(v, 3) for k, v in extra.items()}, "friend_blessing": bless}
     battle = Battle(user_id=user.id, node_code=node.code, seed=seed, team_snapshot=snap, result=sim["result"],
                     turns=sim["rounds"])
     db.add(battle)
     db.flush()
     quest_event(db, user.id, "battle_fought")
     BP.add_xp(db, user.id, "battle_fought")
+    from ..social import progression as SP
+    SP.on(db, user.id, "battle_win" if sim["result"] == "victory" else "battle_loss", ref=battle.id)
     db.commit()
     return {"battle_id": battle.id, "node": _node_view(node, True, False), "simulation": sim}
 
@@ -331,7 +344,8 @@ def campaign(user: CurrentUser = Depends(player), db: Session = Depends(get_db))
     regions = []
     for r in db.scalars(select(CampaignRegion).order_by(CampaignRegion.order)):
         nodes = [n for n in flat if n.region_code == r.code]
+        from ..social.events import region_status
         regions.append({"code": r.code, "order": r.order, "name": r.name, "real_place": r.real_place,
-                        "description": r.description,
+                        "description": r.description, "world_status": region_status(db, r.code),
                         "nodes": [_node_view(n, prev_cleared[n.code], n.code in cleared) for n in nodes]})
     return {"regions": regions}

@@ -88,6 +88,43 @@ HEROES = [
          skill=dict(kind="aoe", name="Обвал", power=1.2, desc="")),
 ]
 
+# --- raid & world bosses (online systems). Huge HP pools come from the raid config, not from base stats.
+def _boss_kit(basic, roar, grip, ult, passive_val=0.6, aoe_mult=1.3):
+    return {
+        "basic": {"name": basic, "desc": "", "effects": [{"type": "damage", "target": "target", "mult": 0.7, "hits": 2}]},
+        "skills": [
+            {"id": "b_roar", "name": roar, "desc": "", "cooldown": 10, "first": 4, "anim": "skill",
+             "effects": [{"type": "debuff", "target": "all_enemies", "stat": "atk", "value": -0.12, "dur": 6},
+                         {"type": "damage", "target": "all_enemies", "mult": 0.45}]},
+            {"id": "b_grip", "name": grip, "desc": "", "cooldown": 12, "first": 7, "anim": "skill2",
+             "effects": [{"type": "damage", "target": "highest_atk_enemy", "mult": 1.8},
+                         {"type": "stun", "target": "same", "dur": 1.2}]}],
+        "ultimate": {"name": ult, "desc": "", "effects": [{"type": "damage", "target": "all_enemies", "mult": aoe_mult}]},
+        "passive": {"name": "Древняя сила", "desc": "", "type": "cc_resist_static", "params": {"value": passive_val}},
+        "mechanic": None,
+    }
+
+
+RAID_BOSSES = [
+    dict(code="rb_kurgan_colossus", name="Курганный Колосс", title="Страж курганов", faction_code="shulgan",
+         class_code="guardian", rarity=6, base_hp=4200, base_atk=120, base_def=70, base_spd=80,
+         model="skeleton_boss", is_enemy=True, summonable=False, skill=dict(kind="aoe", name="Обвал", power=1.3, desc=""),
+         kit=_boss_kit("Каменный кулак", "Гул земли", "Каменная хватка", "Обвал курганов")),
+    dict(code="rb_azhdaha", name="Аждаха Пепельная", title="Многоголовый змей", faction_code="shulgan",
+         class_code="mage", rarity=6, base_hp=4800, base_atk=135, base_def=55, base_spd=92,
+         model="dragon", is_enemy=True, summonable=False, skill=dict(kind="aoe", name="Пламя", power=1.4, desc=""),
+         kit=_boss_kit("Укус", "Пепельный рёв", "Хвост-плеть", "Огненный шквал", 0.65, 1.45)),
+    dict(code="rb_ancient_root", name="Древний Корень", title="Отравленное древо", faction_code="shulgan",
+         class_code="summoner", rarity=6, base_hp=5200, base_atk=110, base_def=75, base_spd=76,
+         model="tree", is_enemy=True, summonable=False, skill=dict(kind="aoe", name="Шипы", power=1.2, desc=""),
+         kit=_boss_kit("Хлёст ветви", "Пыльца забвения", "Корни-оковы", "Лес шипов", 0.7, 1.2)),
+    dict(code="rb_shulgan_shade", name="Тень Шульгана", title="Владыка подземья", faction_code="shulgan",
+         class_code="mage", rarity=6, base_hp=4500, base_atk=140, base_def=60, base_spd=95,
+         model="skeleton_mage", is_enemy=True, summonable=False, skill=dict(kind="aoe", name="Тьма", power=1.4, desc=""),
+         kit=_boss_kit("Касание тьмы", "Шёпот бездны", "Хватка теней", "Пожиратель света", 0.65, 1.5)),
+]
+HEROES += RAID_BOSSES
+
 # Legacy heroes of the 0.1 slice keep their codes (players own them) but move into official factions.
 for _h in HEROES:
     _h["faction_code"] = _R.map_faction(_h["faction_code"])

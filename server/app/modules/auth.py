@@ -82,8 +82,11 @@ def refresh(body: RefreshIn, request: Request, db: Session = Depends(get_db)):
     if as_utc(sess.expires_at) < utcnow():
         raise GameError("refresh_expired", "Сессия истекла", 401)
     user = db.get(User, sess.user_id)
-    if user is None or user.is_banned:
+    if user is None:
         raise GameError("forbidden", "Доступ запрещён", 403)
+    if user.is_banned:
+        from ..social.moderation import ban_message
+        raise GameError("banned", ban_message(db, user.id), 403)
     sess.rotated_at = utcnow()
     out = _issue(db, user, request, family_id=sess.family_id)
     db.commit()

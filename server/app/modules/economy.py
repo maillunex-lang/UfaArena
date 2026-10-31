@@ -137,6 +137,8 @@ def afk_claim(user: CurrentUser = Depends(player), key: str = Depends(require_ke
         profile.afk_last_claim_at = now
         quest_event(db, user.id, "afk_claim")
         BP.add_xp(db, user.id, "afk_claim")
+        from ..social import progression as SP
+        SP.on(db, user.id, "afk_claim")
         VIP.daily_activity(db, user.id)
         return {"rewards": rewards, "credited_s": prev["credited_s"], "wallet": wallet_dict(db, user.id)}
 
@@ -227,6 +229,8 @@ def quest_claim(code: str, user: CurrentUser = Depends(player), key: str = Depen
         pq.claimed_at = utcnow()
         rewards = grant(db, user.id, q.rewards, "quest_reward", code)
         BP.add_xp(db, user.id, "quest_claim")
+        from ..social import progression as SP
+        SP.on(db, user.id, "quest_claim", ref=code)
         if q.kind in ("main", "side"):  # achievements give VIP XP (free VIP path)
             VIP.add_xp(db, user.id, MCFG()["vip"]["achievement_xp"], "achievement", code)
         return {"rewards": rewards, "wallet": wallet_dict(db, user.id), "quests": _quest_list(db, user.id)}

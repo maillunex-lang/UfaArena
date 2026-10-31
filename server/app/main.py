@@ -11,6 +11,8 @@ from .core.config import get_settings
 from .core.db import Base, get_engine, init_engine
 from .game.seed import seed_static
 from .modules import admin, auth, content, economy, game, health, shop
+from .social import (admin_social, arena, chat, events, friends, guilds, moderation, raids, rankings, scheduler,
+                     tournaments)
 
 API = "/api/v1"
 VERSION = "0.1.0"
@@ -24,17 +26,26 @@ async def lifespan(_: FastAPI):
         Base.metadata.create_all(get_engine())  # Postgres uses Alembic migrations
     with Session(get_engine()) as db:
         seed_static(db)
+    task = None
+    if scheduler.enabled():
+        import asyncio
+        task = asyncio.create_task(scheduler.loop())
     yield
+    if task:
+        task.cancel()
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="URALIA API", version=VERSION, lifespan=lifespan,
                   docs_url="/docs" if get_settings().env != "prod" else None)
-    for r in (auth.router, game.router, economy.router, content.router, shop.router):
+    for r in (auth.router, game.router, economy.router, content.router, shop.router, friends.router, guilds.router,
+              chat.router, moderation.router, raids.router, arena.router, tournaments.router, events.router,
+              rankings.router):
         app.include_router(r, prefix=API)
     app.include_router(health.router)
     app.include_router(admin.router)
     app.include_router(admin.page)
+    app.include_router(admin_social.router)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError):

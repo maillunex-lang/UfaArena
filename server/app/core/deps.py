@@ -14,6 +14,10 @@ from .security import CurrentUser, current_user
 def player(request: Request, user: CurrentUser = Depends(current_user)) -> CurrentUser:
     """Authenticated + per-user rate limited."""
     ratelimit.hit(f"u:{user.id}", get_settings().rate_limit_per_minute)
+    from ..social.anticheat import observe
+    from ..social.common import touch
+    touch(user.id)  # presence (throttled)
+    observe(user.id)  # bot-like timing signal (flags only)
     return user
 
 

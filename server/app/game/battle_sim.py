@@ -898,7 +898,8 @@ class Simulation:
 
     def run(self) -> dict:
         winner = None
-        while self.t < MAX_TIME and winner is None:
+        limit = getattr(self, "max_time", MAX_TIME)  # raids use a shorter, fixed fight window
+        while self.t < limit and winner is None:
             self._separate()
             for u in sorted(list(self.units), key=lambda x: (-x.spd, x.side, x.uid)):
                 self._step_unit(u)

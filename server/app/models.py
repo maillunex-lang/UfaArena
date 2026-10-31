@@ -67,6 +67,12 @@ class PlayerProfile(Base):
     afk_last_claim_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
     summon_pity: Mapped[int] = mapped_column(Integer, default=0)
     settings: Mapped[dict] = mapped_column(JSON, default=dict)
+    # social
+    avatar: Mapped[str] = mapped_column(String(32), default="", server_default="")
+    last_seen_at: Mapped[datetime | None] = mapped_column(TS, index=True)
+    presence_hidden: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+    reputation: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    power: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # cached top-5 power for search/matchmaking
     created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow, onupdate=utcnow)
 
@@ -209,6 +215,8 @@ CURRENCIES = (
     "ancient_seals",
     "guild_marks",
     "nature_essence",
+    "friend_tokens",
+    "raid_tickets",
 )
 
 
@@ -334,21 +342,37 @@ class PlayerMail(Base):
     message: Mapped[MailMessage] = relationship()
 
 
-# ---------------------------------------------------------------- guilds (later block)
+# ---------------------------------------------------------------- guilds
 class Guild(Base):
     __tablename__ = "guilds"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     name: Mapped[str] = mapped_column(String(32), unique=True)
     level: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    tag: Mapped[str] = mapped_column(String(5), default="", server_default="")
+    description: Mapped[str] = mapped_column(String(300), default="", server_default="")
+    emblem: Mapped[str] = mapped_column(String(32), default="stone", server_default="stone")
+    join_mode: Mapped[str] = mapped_column(String(16), default="open", server_default="open")  # open|approval|invite
+    min_level: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    leader_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    is_ai: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")  # system virtual guild
+    exp: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    treasury: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")  # guild resources (stone)
+    specialization: Mapped[str | None] = mapped_column(String(32))
+    week_points: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
+    version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class GuildMember(Base):
     __tablename__ = "guild_members"
     guild_id: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), primary_key=True)
-    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, unique=True)
     role: Mapped[str] = mapped_column(String(16), default="member")
     joined_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    last_active_at: Mapped[datetime | None] = mapped_column(TS)
+    warned_at: Mapped[datetime | None] = mapped_column(TS)
+    contribution_week: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    contribution_total: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
 
 
 class GuildContribution(Base):
@@ -361,7 +385,87 @@ class GuildContribution(Base):
     created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
 
 
-# ---------------------------------------------------------------- AI population (later block)
+class GuildApplication(Base):
+    __tablename__ = "guild_applications"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    guild_id: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # application | invite
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending|accepted|declined|cancelled
+    invited_by: Mapped[str | None] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class GuildLog(Base):
+    __tablename__ = "guild_log"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    guild_id: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), index=True)
+    actor_id: Mapped[str | None] = mapped_column(String(36))
+    action: Mapped[str] = mapped_column(String(32))
+    target_id: Mapped[str | None] = mapped_column(String(36))
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class GuildUpgrade(Base):
+    """Guild building or research level (kind = building | research)."""
+    __tablename__ = "guild_upgrades"
+    guild_id: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16))
+    level: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class GuildTask(Base):
+    """Per-member daily guild task progress."""
+    __tablename__ = "guild_tasks"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    day: Mapped[str] = mapped_column(String(10), primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    guild_id: Mapped[str] = mapped_column(String(36), index=True)
+    progress: Mapped[int] = mapped_column(Integer, default=0)
+    claimed: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class GuildExpedition(Base):
+    __tablename__ = "guild_expeditions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    guild_id: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), index=True)
+    code: Mapped[str] = mapped_column(String(32))
+    status: Mapped[str] = mapped_column(String(16), default="active")  # active | done
+    participants: Mapped[list] = mapped_column(JSON, default=list)  # [{user_id, power}]
+    started_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    ends_at: Mapped[datetime] = mapped_column(TS)
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class GuildWar(Base):
+    __tablename__ = "guild_wars"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    guild_a: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), index=True)
+    guild_b: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), index=True)
+    score_a: Mapped[int] = mapped_column(Integer, default=0)
+    score_b: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(16), default="active")  # active | finished
+    winner: Mapped[str | None] = mapped_column(String(36))
+    starts_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    ends_at: Mapped[datetime] = mapped_column(TS)
+
+
+class GuildWarAttack(Base):
+    __tablename__ = "guild_war_attacks"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    war_id: Mapped[str] = mapped_column(ForeignKey("guild_wars.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    guild_id: Mapped[str] = mapped_column(String(36))
+    target_user_id: Mapped[str] = mapped_column(String(36))
+    result: Mapped[str] = mapped_column(String(16))
+    points: Mapped[int] = mapped_column(Integer, default=0)
+    seed: Mapped[int] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+# ---------------------------------------------------------------- AI population
 class AiPersona(Base):
     __tablename__ = "ai_personas"
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
@@ -370,6 +474,13 @@ class AiPersona(Base):
     temperament: Mapped[dict] = mapped_column(JSON, default=dict)
     backstory: Mapped[str] = mapped_column(Text, default="")
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    style: Mapped[str] = mapped_column(String(24), default="friendly", server_default="friendly")
+    schedule: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")  # {"hours": [..], "tz_shift": n}
+    interests: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
+    next_action_at: Mapped[datetime | None] = mapped_column(TS, index=True)
+    last_action_at: Mapped[datetime | None] = mapped_column(TS)
+    actions_today: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    day: Mapped[str] = mapped_column(String(10), default="", server_default="")
 
 
 class AiActivityLog(Base):
@@ -626,3 +737,374 @@ class AnalyticsEvent(Base):
     props: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
     __table_args__ = (Index("ix_analytics_event_time", "event", "created_at"),)
+
+
+# ---------------------------------------------------------------- social: friends, presence, gifts
+class Friendship(Base):
+    """Symmetric: one row per direction."""
+    __tablename__ = "friendships"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    friend_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
+    source: Mapped[str] = mapped_column(String(16), default="id")
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class FriendRequest(Base):
+    __tablename__ = "friend_requests"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    from_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    to_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    source: Mapped[str] = mapped_column(String(16), default="id")
+    status: Mapped[str] = mapped_column(String(16), default="pending")
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class FriendInvite(Base):
+    __tablename__ = "friend_invites"
+    code: Mapped[str] = mapped_column(String(16), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    uses: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class FriendGift(Base):
+    __tablename__ = "friend_gifts"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    from_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    to_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    day: Mapped[str] = mapped_column(String(10))
+    kind: Mapped[str] = mapped_column(String(16), default="gift")  # gift | help
+    contents: Mapped[dict] = mapped_column(JSON, default=dict)
+    claimed_at: Mapped[datetime | None] = mapped_column(TS)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    __table_args__ = (UniqueConstraint("from_id", "to_id", "day", "kind", name="uq_gift_daily"),)
+
+
+class UserBlock(Base):
+    __tablename__ = "user_blocks"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    blocked_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+# ---------------------------------------------------------------- raids & bosses
+class RaidInstance(Base):
+    __tablename__ = "raid_instances"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    kind: Mapped[str] = mapped_column(String(16), index=True)  # guild | world | seasonal | story
+    boss_code: Mapped[str] = mapped_column(String(32))
+    guild_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    stage: Mapped[int] = mapped_column(Integer, default=1)  # multi-stage raids
+    hp_max: Mapped[int] = mapped_column(BigInteger)
+    hp_left: Mapped[int] = mapped_column(BigInteger)
+    status: Mapped[str] = mapped_column(String(16), default="active")  # active | defeated | expired
+    starts_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    ends_at: Mapped[datetime] = mapped_column(TS)
+    defeated_at: Mapped[datetime | None] = mapped_column(TS)
+    loot_done: Mapped[bool] = mapped_column(Boolean, default=False)
+    version: Mapped[int] = mapped_column(Integer, default=0)
+    __mapper_args__ = {"version_id_col": version}
+
+
+class RaidAttack(Base):
+    __tablename__ = "raid_attacks"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    raid_id: Mapped[str] = mapped_column(ForeignKey("raid_instances.id", ondelete="CASCADE"), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    damage: Mapped[int] = mapped_column(BigInteger)
+    phase: Mapped[int] = mapped_column(Integer, default=1)
+    seed: Mapped[int] = mapped_column(BigInteger)
+    team_snapshot: Mapped[list] = mapped_column(JSON, default=list)
+    lobby_id: Mapped[str | None] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class RaidAttemptState(Base):
+    __tablename__ = "raid_attempt_state"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    attempts: Mapped[float] = mapped_column(Float, default=0)
+    updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class RaidLobby(Base):
+    """Co-op raid: up to N players fight one boss together in one server-computed battle."""
+    __tablename__ = "raid_lobbies"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    boss_code: Mapped[str] = mapped_column(String(32))
+    leader_id: Mapped[str] = mapped_column(String(36), index=True)
+    members: Mapped[list] = mapped_column(JSON, default=list)  # [user_id]
+    status: Mapped[str] = mapped_column(String(16), default="open")  # open | done | cancelled
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class RaidLoot(Base):
+    __tablename__ = "raid_loot"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    raid_id: Mapped[str] = mapped_column(String(36), index=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    slot: Mapped[str] = mapped_column(String(24))  # base | rare:<item>
+    item: Mapped[dict] = mapped_column(JSON, default=dict)
+    rare: Mapped[bool] = mapped_column(Boolean, default=False)
+    probability: Mapped[float] = mapped_column(Float, default=1.0)
+    roll: Mapped[float | None] = mapped_column(Float)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    __table_args__ = (UniqueConstraint("raid_id", "user_id", "slot", name="uq_raid_loot"),)
+
+
+# ---------------------------------------------------------------- arena
+class ArenaSeason(Base):
+    __tablename__ = "arena_seasons"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    starts_at: Mapped[datetime] = mapped_column(TS)
+    ends_at: Mapped[datetime] = mapped_column(TS)
+    status: Mapped[str] = mapped_column(String(16), default="active")  # active | closed
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class ArenaProfile(Base):
+    __tablename__ = "arena_profiles"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    rating: Mapped[int] = mapped_column(Integer, default=1000, index=True)
+    best_rating: Mapped[int] = mapped_column(Integer, default=1000)
+    wins: Mapped[int] = mapped_column(Integer, default=0)
+    losses: Mapped[int] = mapped_column(Integer, default=0)
+    def_wins: Mapped[int] = mapped_column(Integer, default=0)
+    def_losses: Mapped[int] = mapped_column(Integer, default=0)
+    defense: Mapped[list] = mapped_column(JSON, default=list)  # frozen unit snapshots
+    defense_power: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    is_ai: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
+    day: Mapped[str] = mapped_column(String(10), default="")
+    attempts_used: Mapped[int] = mapped_column(Integer, default=0)
+    training_used: Mapped[int] = mapped_column(Integer, default=0)
+    season_id: Mapped[int] = mapped_column(Integer, default=1)
+    updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class ArenaMatch(Base):
+    __tablename__ = "arena_matches"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    season_id: Mapped[int] = mapped_column(Integer, index=True)
+    kind: Mapped[str] = mapped_column(String(16), default="ranked")  # ranked | training
+    attacker_id: Mapped[str] = mapped_column(String(36), index=True)
+    defender_id: Mapped[str] = mapped_column(String(36), index=True)
+    result: Mapped[str] = mapped_column(String(16))  # victory|defeat (attacker perspective)
+    delta_att: Mapped[int] = mapped_column(Integer, default=0)
+    delta_def: Mapped[int] = mapped_column(Integer, default=0)
+    seed: Mapped[int] = mapped_column(BigInteger)
+    attacker_snapshot: Mapped[list] = mapped_column(JSON, default=list)
+    defender_snapshot: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow, index=True)
+
+
+class SeasonResult(Base):
+    """Permanent per-season history (arena, tournaments, raids, events) - never deleted at season end."""
+    __tablename__ = "season_results"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    category: Mapped[str] = mapped_column(String(16))  # arena | tournament | raid | event
+    season_id: Mapped[int] = mapped_column(Integer, default=0)
+    ref: Mapped[str | None] = mapped_column(String(64))
+    result: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    __table_args__ = (UniqueConstraint("user_id", "category", "season_id", "ref", name="uq_season_result"),)
+
+
+# ---------------------------------------------------------------- tournaments
+class Tournament(Base):
+    __tablename__ = "tournaments"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    code: Mapped[str] = mapped_column(String(48), unique=True)  # template + period, e.g. weekly_open:2026-W44
+    template: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(64))
+    kind: Mapped[str] = mapped_column(String(16))  # individual | team | guild
+    format: Mapped[str] = mapped_column(String(16))  # points | bracket | groups
+    rules: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(16), default="registration")  # registration|running|finished
+    reg_ends_at: Mapped[datetime] = mapped_column(TS)
+    ends_at: Mapped[datetime] = mapped_column(TS)
+    current_round: Mapped[int] = mapped_column(Integer, default=0)
+    results: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class TournamentEntry(Base):
+    __tablename__ = "tournament_entries"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tournament_id: Mapped[str] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), index=True)
+    owner_id: Mapped[str] = mapped_column(String(36), index=True)  # player / captain / guild leader
+    guild_id: Mapped[str | None] = mapped_column(String(36))
+    name: Mapped[str] = mapped_column(String(48))
+    members: Mapped[list] = mapped_column(JSON, default=list)  # [user_id]
+    snapshot: Mapped[list] = mapped_column(JSON, default=list)  # frozen squads [[units...]]
+    points: Mapped[int] = mapped_column(Integer, default=0)
+    wins: Mapped[int] = mapped_column(Integer, default=0)
+    losses: Mapped[int] = mapped_column(Integer, default=0)
+    group_no: Mapped[int] = mapped_column(Integer, default=0)
+    eliminated: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_ai: Mapped[bool] = mapped_column(Boolean, default=False)
+    fights_used: Mapped[int] = mapped_column(Integer, default=0)
+    __table_args__ = (UniqueConstraint("tournament_id", "owner_id", name="uq_tournament_owner"),)
+
+
+class TournamentMatch(Base):
+    __tablename__ = "tournament_matches"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tournament_id: Mapped[str] = mapped_column(ForeignKey("tournaments.id", ondelete="CASCADE"), index=True)
+    round: Mapped[int] = mapped_column(Integer)
+    stage: Mapped[str] = mapped_column(String(16), default="main")  # points | group | bracket
+    a_entry: Mapped[str] = mapped_column(String(36))
+    b_entry: Mapped[str | None] = mapped_column(String(36))
+    winner_entry: Mapped[str | None] = mapped_column(String(36))
+    seed: Mapped[int] = mapped_column(BigInteger, default=0)
+    summary: Mapped[dict] = mapped_column(JSON, default=dict)
+    played_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+# ---------------------------------------------------------------- chat & moderation
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    channel: Mapped[str] = mapped_column(String(80))  # global | guild:<id> | dm:<a>:<b>
+    user_id: Mapped[str | None] = mapped_column(String(36), index=True)  # None = system
+    text: Mapped[str] = mapped_column(String(400))
+    reactions: Mapped[dict] = mapped_column(JSON, default=dict)  # emoji -> [user_id]
+    is_ai: Mapped[bool] = mapped_column(Boolean, default=False)
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False)
+    filtered: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    __table_args__ = (Index("ix_chat_channel_id", "channel", "id"),)
+
+
+class ChatRead(Base):
+    __tablename__ = "chat_reads"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    channel: Mapped[str] = mapped_column(String(80), primary_key=True)
+    last_id: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class ChatReport(Base):
+    __tablename__ = "chat_reports"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    message_id: Mapped[int | None] = mapped_column(BigInteger, index=True)
+    target_id: Mapped[str] = mapped_column(String(36), index=True)
+    reporter_id: Mapped[str] = mapped_column(String(36), index=True)
+    reason: Mapped[str] = mapped_column(String(32))
+    comment: Mapped[str] = mapped_column(String(300), default="")
+    status: Mapped[str] = mapped_column(String(16), default="open")  # open | actioned | dismissed
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    __table_args__ = (UniqueConstraint("reporter_id", "message_id", "target_id", name="uq_report_once"),)
+
+
+class Sanction(Base):
+    __tablename__ = "sanctions"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(16))  # warning | mute | temp_ban | perm_ban
+    reason: Mapped[str] = mapped_column(String(300))
+    source: Mapped[str] = mapped_column(String(16), default="moderator")  # auto | moderator
+    starts_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    ends_at: Mapped[datetime | None] = mapped_column(TS)
+    status: Mapped[str] = mapped_column(String(16), default="active")  # active | revoked | expired
+    created_by: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class Appeal(Base):
+    __tablename__ = "appeals"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    sanction_id: Mapped[int] = mapped_column(ForeignKey("sanctions.id", ondelete="CASCADE"), unique=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    text: Mapped[str] = mapped_column(String(1000))
+    status: Mapped[str] = mapped_column(String(16), default="open")  # open | accepted | rejected
+    resolution: Mapped[str] = mapped_column(String(300), default="")
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class SuspicionFlag(Base):
+    """Anti-cheat signal. Never triggers a permanent ban by itself; moderators review."""
+    __tablename__ = "suspicion_flags"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(String(36), index=True)
+    kind: Mapped[str] = mapped_column(String(32))
+    score: Mapped[int] = mapped_column(Integer, default=1)
+    details: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(16), default="open")  # open | reviewed | dismissed
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+# ---------------------------------------------------------------- world events & state
+class WorldEvent(Base):
+    __tablename__ = "world_events"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    code: Mapped[str] = mapped_column(String(48), unique=True)  # template:period
+    template: Mapped[str] = mapped_column(String(32))
+    name: Mapped[str] = mapped_column(String(64))
+    kind: Mapped[str] = mapped_column(String(16))
+    scale: Mapped[str] = mapped_column(String(16), default="weekly")
+    status: Mapped[str] = mapped_column(String(16), default="active")  # active | finished
+    starts_at: Mapped[datetime] = mapped_column(TS)
+    ends_at: Mapped[datetime] = mapped_column(TS)
+    goal: Mapped[int] = mapped_column(BigInteger)
+    progress: Mapped[int] = mapped_column(BigInteger, default=0)
+    outcome: Mapped[str | None] = mapped_column(String(16))  # success | failure
+    choice_votes: Mapped[dict] = mapped_column(JSON, default=dict)
+    version: Mapped[int] = mapped_column(Integer, default=0)
+    __mapper_args__ = {"version_id_col": version}
+
+
+class WorldEventContribution(Base):
+    __tablename__ = "world_event_contrib"
+    event_id: Mapped[str] = mapped_column(ForeignKey("world_events.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    guild_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    points: Mapped[int] = mapped_column(BigInteger, default=0)
+    choice: Mapped[str | None] = mapped_column(String(32))
+    rewarded: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class WorldState(Base):
+    """Versioned world state. The highest version is current; any version can be restored by admins."""
+    __tablename__ = "world_state"
+    version: Mapped[int] = mapped_column(Integer, primary_key=True)
+    state: Mapped[dict] = mapped_column(JSON, default=dict)
+    reason: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+# ---------------------------------------------------------------- progression
+class Achievement(Base):
+    __tablename__ = "achievements"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    code: Mapped[str] = mapped_column(String(48), primary_key=True)
+    achieved_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class ReputationLog(Base):
+    __tablename__ = "reputation_log"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(24))
+    amount: Mapped[int] = mapped_column(Integer)
+    day: Mapped[str] = mapped_column(String(10), index=True)
+    ref: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class StatCounter(Base):
+    """Permanent counters for achievements/records (never reset by seasons)."""
+    __tablename__ = "stat_counters"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    value: Mapped[int] = mapped_column(BigInteger, default=0)
+
+
+class JobRun(Base):
+    """Scheduler lease + status per background job (safe with several API workers)."""
+    __tablename__ = "job_runs"
+    name: Mapped[str] = mapped_column(String(48), primary_key=True)
+    lease_until: Mapped[datetime | None] = mapped_column(TS)
+    last_run_at: Mapped[datetime | None] = mapped_column(TS)
+    last_status: Mapped[str] = mapped_column(String(200), default="")
+    runs: Mapped[int] = mapped_column(Integer, default=0)
