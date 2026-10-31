@@ -118,3 +118,13 @@ def test_deterministic_with_kits():
     a = battle(["arslan_kara", "sumbel", "morai"], ["ur_kaan", "ak_bure"], seed=99)
     b = battle(["arslan_kara", "sumbel", "morai"], ["ur_kaan", "ak_bure"], seed=99)
     assert a == b
+
+
+def test_skill_level_scales_abilities():
+    def dmg(level):
+        t = team(0, ["morai"], 10)
+        t[0].skill_level = level
+        r = simulate(t, team(1, ["e_warrior", "e_warrior"], 1), 4)
+        return sum(x.get("dmg", 0) for e in r["events"] if e["type"] in ("skill", "ultimate") and e["actor"] == "p0"
+                   for x in e["targets"])
+    assert dmg(6) > dmg(1)

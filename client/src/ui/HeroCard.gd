@@ -26,7 +26,7 @@ func setup(h: Dictionary, selected := false, compact := false) -> void:
 	_tex.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_tex)
 	var stripe := ColorRect.new()
-	stripe.color = Game.FACTION_COLORS.get(h.get("faction", ""), Color.GRAY)
+	stripe.color = Game.faction_color(h.get("faction", ""))
 	stripe.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	stripe.offset_top = -44
 	stripe.offset_bottom = -38
@@ -42,6 +42,12 @@ func setup(h: Dictionary, selected := false, compact := false) -> void:
 	lv.position = Vector2(14, 6)
 	lv.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(lv)
+	var em := GameIcon.new()
+	em.kind = String(h.get("faction", ""))
+	em.size = Vector2(52, 52) if not compact else Vector2(42, 42)
+	em.position = Vector2(custom_minimum_size.x - em.size.x - 6, 6)
+	em.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(em)
 	var st_l := UI.stars(int(h.get("stars", 0)), 22)
 	st_l.position = Vector2(14, 40)
 	st_l.mouse_filter = Control.MOUSE_FILTER_IGNORE

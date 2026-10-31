@@ -205,7 +205,9 @@ def _team_units(db: Session, user_id: str, slots: list[str | None]):
             raise GameError("not_owned", "Отряд содержит чужого героя", 403)
         hd = hero_dict(ph.hero)
         st = hero_stats(hd, ph.level, ph.stars, **b)
-        units.append(make_unit(0, slot, hd, st, ph.level, FACTION_ADV.get(hd["faction_code"])))
+        unit = make_unit(0, slot, hd, st, ph.level, FACTION_ADV.get(hd["faction_code"]))
+        unit.skill_level = 1 + ph.stars
+        units.append(unit)
         snap.append({"slot": slot, "player_hero_id": pid, "hero_code": hd["code"], "level": ph.level,
                      "stars": ph.stars, "power": power_rating(st)})
     if not units:

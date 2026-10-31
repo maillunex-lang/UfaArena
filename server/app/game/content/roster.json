@@ -128,7 +128,8 @@
     "control_immunity_after": 1.5,
     "delay_max": 1.8,
     "max_stacks_default": 5,
-    "summon_limit_per_owner": 2
+    "summon_limit_per_owner": 2,
+    "skill_power_per_level": 0.05
   },
   "summons": {
     "root_guardian": {

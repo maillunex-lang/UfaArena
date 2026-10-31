@@ -90,6 +90,7 @@ class Unit:
     taunt_until: float = 0.0
     moving: bool = False
     last_pos_log: float = -1.0
+    skill_level: int = 1  # 1 + stars; scales skills and ultimate (+skill_power_per_level each)
     summon_of: str | None = None
     expires: float = 0.0
     mech: dict = field(default_factory=dict)
@@ -482,7 +483,7 @@ class Simulation:
                 self._hook(ally, "on_ally_support", src)
 
     # ------------------------------------------------------------------ effects
-    def run_effects(self, actor: Unit, effects: list[dict], target: Unit | None) -> list[dict]:
+    def run_effects(self, actor: Unit, effects: list[dict], target: Unit | None, power: float = 1.0) -> list[dict]:
         results: list[dict] = []
         prev: list[Unit] = []
         dispelled = 0
@@ -504,16 +505,16 @@ class Simulation:
                             for mk, bv in (eff.get("bonus_vs_mark") or {}).items():
                                 if mk in t.marks:
                                     bonus += bv
-                            r = self.damage(actor, t, float(eff.get("mult", 1.0)), {"bonus": bonus})
+                            r = self.damage(actor, t, float(eff.get("mult", 1.0)) * power, {"bonus": bonus})
                             results.append(r)
                             if eff.get("mark") and t.alive:
                                 self.add_mark(actor, t, eff["mark"], 1, 8)
                 elif et == "heal":
                     for t in tg:
-                        results.append(self.heal(actor, t, self.atk(actor) * float(eff.get("mult", 1.0))))
+                        results.append(self.heal(actor, t, self.atk(actor) * float(eff.get("mult", 1.0)) * power))
                 elif et == "shield":
                     for t in tg:
-                        amt = int(actor.max_hp * eff["hp_mult"]) if "hp_mult" in eff else int(self.atk(actor) * eff.get("mult", 1.0))
+                        amt = int((actor.max_hp * eff["hp_mult"] if "hp_mult" in eff else self.atk(actor) * eff.get("mult", 1.0)) * power)
                         t.shield += amt
                         results.append({"uid": t.uid, "shield": t.shield, "hp": t.hp})
                     self._support_event(actor)
@@ -817,7 +818,8 @@ class Simulation:
             u.x = tgt.x + (-1.2 if u.side == 0 else 1.2)
             u.z = tgt.z
             self._log_pos(u, True, leap=True)
-        results = self.run_effects(u, ability.get("effects", []), tgt)
+        power = 1.0 if kind == "attack" else 1 + self.cfg.get("skill_power_per_level", 0.05) * (u.skill_level - 1)
+        results = self.run_effects(u, ability.get("effects", []), tgt, power)
         if kind == "attack":
             self._hook(u, "on_basic", tgt)
             u.energy = min(100, u.energy + self.cfg["energy_per_basic"])

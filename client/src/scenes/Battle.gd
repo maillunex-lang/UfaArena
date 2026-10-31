@@ -112,6 +112,12 @@ func _build_hud() -> void:
 	pw_row.add_child(UI.label("VS", 30, UI.GOLD, true))
 	pw_row.add_child(UI.label("%s ⚔" % Game.fmt(pw[1]), 30, Color("#ff9f9f"), true))
 	pw_row.add_child(UI.expand())
+	var syn: Dictionary = sim.get("synergy", {}).get("0", {})
+	if float(syn.get("bonus", 0)) > 0:
+		var sy := UI.label(" %s +%d%%" % [Game.faction_name(String(syn.faction)), int(float(syn.bonus) * 100)], 22,
+			Game.faction_color(String(syn.faction)), true)
+		sy.tooltip_text = "Бонус фракции: атака и здоровье"
+		pw_row.add_child(sy)
 	_timer_lbl = UI.label("1:30", 28, UI.MUTED)
 	pw_row.add_child(_timer_lbl)
 	tv.add_child(pw_row)
@@ -160,6 +166,12 @@ func _build_hud() -> void:
 		var en := UI.bar(0, 100, Color("#ffcf4a"), 10)
 		v.add_child(hp)
 		v.add_child(en)
+		var emb := GameIcon.new()
+		emb.kind = String(u.get("faction", ""))
+		emb.size = Vector2(40, 40)
+		emb.position = Vector2(136, 6)
+		emb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		tex.add_child(emb)
 		var nm := UI.label(String(u.name), 22, UI.TEXT, true)
 		nm.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(nm)
@@ -215,7 +227,8 @@ func _process(delta: float) -> void:
 		if float(_impacts[i].t) <= _clock:
 			var imp: Dictionary = _impacts[i]
 			_impacts.remove_at(i)
-			_apply_targets(arena.units[imp.ev.actor], imp.ev.targets, imp.ev.type == "skill")
+			if arena.units.has(imp.ev.actor):
+				_apply_targets(arena.units[imp.ev.actor], imp.ev.targets, imp.ev.type in ["skill", "ultimate", "mechanic"])
 		else:
 			i += 1
 	_move_units(delta)
@@ -247,16 +260,30 @@ func _move_units(delta: float) -> void:
 
 
 func _dispatch(ev: Dictionary) -> void:
+	if ev.type == "summon":
+		_spawn_summon(ev)
+		return
+	if ev.type == "despawn":
+		if arena.units.has(ev.actor) and arena.units[ev.actor].alive:
+			_kill(ev.actor)
+		return
 	var actor: Dictionary = arena.units.get(ev.actor, {})
 	if actor.is_empty() or not actor.alive:
 		return
 	if ev.type == "pos":
 		actor.target_pos = arena.sim_pos(float(ev.x), float(ev.z))
+		if ev.get("leap", false):  # assassin leap: instant reposition with a dust burst
+			arena.burst(actor.node.position + Vector3(0, 0.3, 0), Color(0.9, 0.9, 1.0), 16, 2.0, true)
+			actor.node.position = actor.target_pos
 		return
-	# attack / skill
-	var is_skill: bool = ev.type == "skill"
+	if ev.type == "mechanic":
+		_mechanic(ev, actor)
+		return
+	# attack / skill / ultimate
+	var is_skill: bool = ev.type in ["skill", "ultimate"]
+	var is_ult: bool = ev.type == "ultimate"
 	var cls := String(actor.data.get("class", ""))
-	var ranged := cls in ["ranger", "mage", "healer"]
+	var ranged := float(actor.data.get("range", 1.8)) > 3.0
 	actor.energy = int(ev.get("energy", 0))
 	arena.set_bar(ev.actor)
 	_sync_card(ev.actor)
@@ -269,16 +296,24 @@ func _dispatch(ev: Dictionary) -> void:
 	if arena.units.has(tgt_uid):
 		actor.node.rotation.y = arena.yaw_to(actor.node.position, arena.units[tgt_uid].node.position)
 	var windup := float(ev.impact) - float(ev.t)
-	var alen := Models.play(actor.node, "skill" if is_skill else "attack", 0.08)
+	var alen := Models.play(actor.node, String(ev.get("anim", "attack")) if is_skill else "attack", 0.08)
 	Models.queue_idle(actor.node)
 	actor.busy_until = _clock + minf(alen, 1.2)
 	actor.moving = false
+	if is_ult:
+		_banner(String(ev.get("name", "")), actor.side == 0, true)
+	elif is_skill:
+		arena.float_text(arena.chest(ev.actor) + Vector3(0, 1.1, 0), String(ev.get("name", "")),
+			Color(1.0, 0.92, 0.6) if actor.side == 0 else Color(1.0, 0.7, 0.7))
 	if is_skill:
-		_banner(String(ev.get("name", "")), actor.side == 0)
-		Sfx.play("spell" if ranged else "swing3")
-		arena.burst(arena.chest(ev.actor), Color(1, 0.9, 0.5), 30, 2.5, true)
-		if targets.size() > 1:
-			arena.shake(0.25)
+		Sfx.play("spell" if ranged or is_ult else "swing3")
+		var fc := Game.faction_color(String(actor.data.get("faction", "")))
+		arena.burst(arena.chest(ev.actor), fc.lightened(0.3) if is_ult else Color(1, 0.9, 0.5), 44 if is_ult else 26, 2.8, true)
+		if is_ult:
+			arena.shockwave(actor.node.position, fc, 2.6)
+			arena.shake(0.35)
+		elif targets.size() > 1:
+			arena.shake(0.2)
 	else:
 		Sfx.play(("magic" if cls == "mage" else "swing") if ranged else ("swing" if randi() % 2 == 0 else "swing2"), 0.1)
 	if ranged and not ally_target and arena.units.has(tgt_uid) and targets.size() == 1:
@@ -317,6 +352,24 @@ func _apply_targets(actor: Dictionary, targets: Array, is_skill: bool) -> void:
 			continue
 		var u: Dictionary = arena.units[t.uid]
 		var pos: Vector3 = arena.chest(t.uid)
+		if t.get("miss", false):
+			arena.float_text(pos, "Промах", Color(0.75, 0.8, 0.9))
+			continue
+		for rd in t.get("redirect", []):  # Bai-Tash / root guardian / Arslan take part of the hit
+			if arena.units.has(rd.uid):
+				var ru: Dictionary = arena.units[rd.uid]
+				ru.hp = int(rd.hp)
+				arena.float_text(arena.chest(rd.uid), "%d" % int(rd.dmg), Color(0.6, 0.9, 1.0))
+				arena.set_bar(rd.uid)
+				_sync_card(rd.uid)
+				if ru.hp <= 0 and ru.alive:
+					_kill(rd.uid)
+		for tag in t.get("applied", []):
+			_status_text(pos, String(tag))
+		if t.get("removed", []).size() > 0:
+			arena.float_text(pos + Vector3(0, 0.4, 0), "Снято: %d" % t.removed.size(), Color(1.0, 0.85, 0.6))
+		if t.get("delayed", false):
+			arena.float_text(pos + Vector3(0, 0.5, 0), "Задержка", Color(0.75, 0.6, 1.0))
 		if t.has("dmg"):
 			var crit: bool = t.get("crit", false)
 			var txt := str(int(t.dmg))
@@ -352,6 +405,39 @@ func _apply_targets(actor: Dictionary, targets: Array, is_skill: bool) -> void:
 		_sync_card(t.uid)
 
 
+func _status_text(pos: Vector3, tag: String) -> void:
+	if tag.begins_with("mark:"):
+		var parts := tag.split(":")
+		var names := {"trail": "След", "wind": "Знак ветра", "prey": "Добыча", "rift": "Разлом", "ash": "Пепел"}
+		arena.float_text(pos + Vector3(0, 0.7, 0), "%s ×%s" % [names.get(parts[1], parts[1]), parts[2] if parts.size() > 2 else "1"],
+			Color(1.0, 0.75, 0.35))
+		return
+	var txt: String = Game.STATUS_NAMES.get(tag, "")
+	if txt != "":
+		var good := tag.ends_with("+") or tag == "guard"
+		arena.float_text(pos + Vector3(0, 0.7, 0), txt, Color(0.55, 1.0, 0.7) if good else Color(1.0, 0.6, 0.55))
+
+
+func _mechanic(ev: Dictionary, actor: Dictionary) -> void:
+	var fc := Game.faction_color(String(actor.data.get("faction", "")))
+	arena.burst(arena.chest(ev.actor), fc.lightened(0.4), 30, 2.4, true)
+	arena.float_text(arena.chest(ev.actor) + Vector3(0, 1.0, 0), String(ev.get("name", "")), fc.lightened(0.5), true)
+	_impacts.append({"t": float(ev.get("impact", ev.t)), "ev": ev})
+
+
+func _spawn_summon(ev: Dictionary) -> void:
+	var data: Dictionary = ev.unit
+	if arena.units.has(data.uid):
+		return
+	arena.add_unit(data)
+	var u: Dictionary = arena.units[data.uid]
+	u.node.scale *= 0.2
+	u.node.create_tween().tween_property(u.node, "scale", u.node.scale * 5.0, 0.35).set_trans(Tween.TRANS_BACK)
+	arena.burst(u.node.position + Vector3(0, 0.4, 0), Game.faction_color(String(data.get("faction", ""))), 30, 2.6, true)
+	arena.float_text(arena.chest(data.uid) + Vector3(0, 0.6, 0), String(data.get("name", "")), Color(1.0, 0.9, 0.6), true)
+	Sfx.play("magic")
+
+
 func _kill(uid: String) -> void:
 	var u: Dictionary = arena.units[uid]
 	u.alive = false
@@ -373,9 +459,9 @@ func _skip() -> void:
 	_playing = false
 	_impacts.clear()
 	for ev in events:
-		if ev.type == "pos":
+		if ev.type in ["pos", "summon", "despawn"]:
 			continue
-		for t in ev.targets:
+		for t in ev.get("targets", []):
 			if not arena.units.has(t.uid):
 				continue
 			var u: Dictionary = arena.units[t.uid]
@@ -388,7 +474,7 @@ func _skip() -> void:
 	_finish()
 
 
-func _banner(text: String, ally: bool) -> void:
+func _banner(text: String, ally: bool, big := false) -> void:
 	if text == "":
 		return
 	_skill_banner.text = text

@@ -11,18 +11,44 @@ const CURRENCY_NAMES := {
 	"gold": "Золото", "crystals": "Кристаллы", "summon_essence": "Эссенция призыва",
 	"ancient_seals": "Древние печати", "guild_marks": "Знаки гильдии", "nature_essence": "Эссенция природы",
 }
+## Fallbacks; the server catalog (factions[].color/name) overrides these at runtime.
 const FACTION_COLORS := {
-	"uraltau": Color("#8fb3d9"), "agidel": Color("#5fd1c4"), "steppe": Color("#e8c26a"),
-	"shulgan": Color("#b06cff"), "ancients": Color("#ffe9a8"),
+	"stone_sky": Color("#5fb8b0"), "living_kurai": Color("#7cb860"), "ashen_reach": Color("#a35bc9"),
+	"shulgan": Color("#8a5bd6"),
 }
 const RARITY_COLORS := {
 	1: Color("#a7b0bd"), 2: Color("#6fd08c"), 3: Color("#5aa9ff"), 4: Color("#b87cff"),
 	5: Color("#ffb347"), 6: Color("#ff5f7e"),
 }
-const CLASS_NAMES := {"guardian": "Страж", "warrior": "Батыр", "ranger": "Следопыт", "mage": "Мудрец",
-	"healer": "Знахарь"}
-const FACTION_NAMES := {"uraltau": "Хранители Урал-тау", "agidel": "Дети Агидели", "steppe": "Ветра Степи",
-	"shulgan": "Порождения Шульгана", "ancients": "Древние"}
+const CLASS_NAMES := {"warrior": "Воин", "guardian": "Защитник", "mage": "Маг", "healer": "Поддержка",
+	"ranger": "Следопыт", "summoner": "Призыватель", "assassin": "Убийца", "hybrid": "Гибрид"}
+const FACTION_NAMES := {"stone_sky": "Каменное Небо", "living_kurai": "Живой Курай", "ashen_reach": "Пепельный Предел",
+	"shulgan": "Порождения Шульгана"}
+const STATUS_NAMES := {"atk+": "Атака ↑", "atk-": "Атака ↓", "def+": "Защита ↑", "def-": "Защита ↓", "spd+": "Скорость ↑",
+	"spd-": "Замедление", "dr+": "Урон ↓", "cc_resist+": "Стойкость", "accuracy-": "Точность ↓", "heal_received-": "Лечение ↓",
+	"regen+": "Восстановление", "dodge+": "Уклонение", "taunt": "Провокация", "guard": "Заслон"}
+
+
+func faction_color(code: String) -> Color:
+	for f in catalog.get("factions", []):
+		if f.code == code and f.has("color"):
+			return Color(f.color)
+	return FACTION_COLORS.get(code, Color.GRAY)
+
+
+func faction_name(code: String) -> String:
+	for f in catalog.get("factions", []):
+		if f.code == code:
+			return f.name
+	return FACTION_NAMES.get(code, code)
+
+
+func playable_factions() -> Array:
+	var out := []
+	for f in catalog.get("factions", []):
+		if f.get("playable", true):
+			out.append(f)
+	return out
 
 var profile := {}
 var wallet := {}

@@ -41,6 +41,10 @@ func _draw() -> void:
 		"arena": _swords(c, r)
 		"profile": _people(c, r)
 		"lock": _lock(c, r)
+		"stone_sky": _em_stone_sky(c, r)
+		"living_kurai": _em_living_kurai(c, r)
+		"ashen_reach": _em_ashen_reach(c, r)
+		"shulgan": _em_shulgan(c, r)
 		_: draw_circle(c, r, Color.WHITE)
 
 
@@ -231,3 +235,74 @@ func _lock(c: Vector2, r: float) -> void:
 	draw_arc(c + Vector2(0, -r * 0.2), r * 0.42, PI, TAU, 24, Color("#c9d4e6"), r * 0.16, true)
 	draw_rect(Rect2(c + Vector2(-r * 0.6, -r * 0.2), Vector2(r * 1.2, r * 0.95)), Color("#c9d4e6"))
 	draw_circle(c + Vector2(0, r * 0.25), r * 0.14, Color("#33405a"))
+
+
+# ------------------------------------------------------------------ faction emblems (original vector art)
+func _medallion(c: Vector2, r: float, rim: Color, fill: Color) -> void:
+	var pts := PackedVector2Array()
+	for i in 6:
+		pts.append(c + Vector2.from_angle(-PI / 2 + TAU * i / 6.0) * r)
+	draw_colored_polygon(pts, rim)
+	var inner := PackedVector2Array()
+	for p in pts:
+		inner.append(c + (p - c) * 0.84)
+	draw_colored_polygon(inner, fill)
+
+
+## Каменное Небо: twin peaks under a star, geometric mountain ornament, graphite / turquoise / amber
+func _em_stone_sky(c: Vector2, r: float) -> void:
+	_medallion(c, r, Color("#e0a64a"), Color("#2e3338"))
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.62, r * 0.42), c + Vector2(-r * 0.18, -r * 0.3),
+		c + Vector2(r * 0.05, r * 0.05), c + Vector2(r * 0.25, -r * 0.45), c + Vector2(r * 0.66, r * 0.42)]), Color("#5a6672"))
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.18, -r * 0.3), c + Vector2(-r * 0.05, -r * 0.1),
+		c + Vector2(-r * 0.3, -r * 0.1)]), Color("#d8e2e6"))
+	draw_colored_polygon(PackedVector2Array([c + Vector2(r * 0.25, -r * 0.45), c + Vector2(r * 0.4, -r * 0.2),
+		c + Vector2(r * 0.12, -r * 0.2)]), Color("#d8e2e6"))
+	draw_line(c + Vector2(-r * 0.55, r * 0.5), c + Vector2(r * 0.55, r * 0.5), Color("#5fb8b0"), r * 0.09)
+	_star4(c + Vector2(0, -r * 0.62), r * 0.17, Color("#5fb8b0"))
+
+
+## Живой Курай: kurai flute crossed by a sprouting leaf, moss green / ochre / amber
+func _em_living_kurai(c: Vector2, r: float) -> void:
+	_medallion(c, r, Color("#d6a24e"), Color("#2c3d22"))
+	draw_line(c + Vector2(-r * 0.15, r * 0.62), c + Vector2(r * 0.18, -r * 0.62), Color("#c9a26a"), r * 0.16)
+	for k in [-0.25, 0.0, 0.25]:
+		draw_circle(c + Vector2(r * 0.015 + r * k * -0.26, r * k * -2.0 * 0.5), r * 0.05, Color("#5a3d1e"))
+	var leaf := PackedVector2Array()
+	for i in 17:
+		var t := float(i) / 16.0
+		var w := sin(t * PI) * r * 0.24
+		var p := Vector2(lerpf(-r * 0.55, r * 0.15, t), lerpf(r * 0.2, -r * 0.35, t))
+		leaf.append(c + p + Vector2(0.6, 0.8) * w)
+	for i in range(16, -1, -1):
+		var t := float(i) / 16.0
+		var w := sin(t * PI) * r * 0.24
+		var p := Vector2(lerpf(-r * 0.55, r * 0.15, t), lerpf(r * 0.2, -r * 0.35, t))
+		leaf.append(c + p - Vector2(0.6, 0.8) * w)
+	draw_colored_polygon(leaf, Color("#7cb860"))
+	draw_circle(c + Vector2(r * 0.4, -r * 0.42), r * 0.1, Color("#f2c46a"))
+
+
+## Пепельный Предел: obsidian shard split by an amber rift, ash / burgundy / violet
+func _em_ashen_reach(c: Vector2, r: float) -> void:
+	_medallion(c, r, Color("#7a2536"), Color("#16141a"))
+	var shard := PackedVector2Array([c + Vector2(0, -r * 0.7), c + Vector2(r * 0.38, -r * 0.05),
+		c + Vector2(r * 0.12, r * 0.68), c + Vector2(-r * 0.3, r * 0.3), c + Vector2(-r * 0.36, -r * 0.2)])
+	draw_colored_polygon(shard, Color("#4b3a5c"))
+	draw_polyline(PackedVector2Array([c + Vector2(-r * 0.05, -r * 0.62), c + Vector2(r * 0.08, -r * 0.2),
+		c + Vector2(-r * 0.08, r * 0.05), c + Vector2(r * 0.06, r * 0.55)]), Color("#e3a33c"), r * 0.08, true)
+	draw_circle(c + Vector2(-r * 0.5, -r * 0.5), r * 0.06, Color("#a35bc9"))
+	draw_circle(c + Vector2(r * 0.5, r * 0.45), r * 0.05, Color("#a35bc9"))
+
+
+func _em_shulgan(c: Vector2, r: float) -> void:
+	_medallion(c, r, Color("#5b2aa8"), Color("#1a1024"))
+	draw_circle(c, r * 0.35, Color("#d9d2e6"))
+	draw_circle(c + Vector2(-r * 0.12, -r * 0.03), r * 0.08, Color("#1a1024"))
+	draw_circle(c + Vector2(r * 0.12, -r * 0.03), r * 0.08, Color("#1a1024"))
+
+
+func _star4(c: Vector2, r: float, col: Color) -> void:
+	draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.3, -r * 0.3), c + Vector2(r, 0),
+		c + Vector2(r * 0.3, r * 0.3), c + Vector2(0, r), c + Vector2(-r * 0.3, r * 0.3), c + Vector2(-r, 0),
+		c + Vector2(-r * 0.3, -r * 0.3)]), col)
