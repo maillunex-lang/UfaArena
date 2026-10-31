@@ -10,7 +10,7 @@ const GOLD := Color("#f4cf7a")
 const GOLD_DARK := Color("#9a6b22")
 const INK := Color("#0d1424")
 const TEXT := Color("#f5f1e6")
-const MUTED := Color("#b8c3d6")
+const MUTED := Color("#d3dcea")
 const ACCENT := Color("#7fd4ff")
 
 static var _theme: Theme
@@ -23,14 +23,24 @@ static func theme() -> Theme:
 	t.default_font = FONT_REG
 	t.default_font_size = 34
 	t.set_color("font_color", "Label", TEXT)
-	t.set_color("font_outline_color", "Label", Color(0, 0, 0, 0.55))
-	t.set_constant("outline_size", "Label", 6)
+	t.set_color("font_outline_color", "Label", Color(0.02, 0.03, 0.07, 0.9))
+	t.set_constant("outline_size", "Label", 8)
+	t.set_color("font_outline_color", "Button", Color(0.02, 0.03, 0.07, 0.85))
+	t.set_constant("outline_size", "Button", 7)
+	t.set_color("font_outline_color", "CheckButton", Color(0.02, 0.03, 0.07, 0.85))
+	t.set_constant("outline_size", "CheckButton", 6)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(1, 1, 1, 0.06)
 	sb.set_corner_radius_all(18)
 	t.set_stylebox("panel", "PanelContainer", StyleBoxEmpty.new())
-	t.set_stylebox("normal", "LineEdit", _flat(Color(0, 0, 0, 0.35), Color(1, 1, 1, 0.3), 18, 2))
-	t.set_stylebox("focus", "LineEdit", _flat(Color(0, 0, 0, 0.45), GOLD, 18, 2))
+	var le_n := _flat(Color(0.02, 0.03, 0.07, 0.55), Color(1, 1, 1, 0.35), 18, 2)
+	var le_f := _flat(Color(0.02, 0.03, 0.07, 0.65), GOLD, 18, 2)
+	for st in [le_n, le_f]:
+		st.content_margin_left = 22
+		st.content_margin_right = 22
+	t.set_stylebox("normal", "LineEdit", le_n)
+	t.set_stylebox("focus", "LineEdit", le_f)
+	t.set_color("font_placeholder_color", "LineEdit", Color(1, 1, 1, 0.55))
 	t.set_color("font_color", "LineEdit", TEXT)
 	t.set_stylebox("slider", "HSlider", _flat(Color(0, 0, 0, 0.45), Color(1, 1, 1, 0.35), 10, 2))
 	t.set_stylebox("grabber_area", "HSlider", _flat(GOLD, Color.TRANSPARENT, 10, 0))
@@ -64,7 +74,10 @@ static func _flat(bg: Color, border: Color, radius: int, bw: int) -> StyleBoxFla
 
 
 static func glass_style(tint := Color("#bfe3ff"), radius := 34) -> StyleBoxFlat:
-	var s := _flat(Color(tint.r, tint.g, tint.b, 0.16), Color(1, 1, 1, 0.55), radius, 3)
+	# dark smoky fill (also the fallback look when the blur shader is off)
+	var fill := Color(0.05, 0.08, 0.14).lerp(tint, 0.18)
+	# with the blur shader the fill alpha must stay low (shader reads high alpha as border)
+	var s := _flat(Color(fill.r, fill.g, fill.b, 0.16 if Gfx.setting("blur") else 0.68), Color(1, 1, 1, 0.55), radius, 3)
 	s.border_color = Color(tint.lightened(0.5), 0.75)
 	s.shadow_color = Color(0, 0, 0, 0.28)
 	s.shadow_size = 18
@@ -83,6 +96,16 @@ static func glass_panel(tint := Color("#bfe3ff"), radius := 34) -> PanelContaine
 	return p
 
 
+## Opaque dark panel for overlays that sit on top of busy UI (hero card, pickers).
+static func solid_panel(tint := Color("#bfe3ff"), radius := 34) -> PanelContainer:
+	var p := PanelContainer.new()
+	var st := glass_style(tint, radius)
+	var fill := Color(0.05, 0.07, 0.12).lerp(tint, 0.10)
+	st.bg_color = Color(fill.r, fill.g, fill.b, 0.96)
+	p.add_theme_stylebox_override("panel", st)
+	return p
+
+
 static func apply_glass(c: CanvasItem, tint := Color("#bfe3ff")) -> void:
 	if not Gfx.setting("blur"):
 		return
@@ -95,12 +118,27 @@ static func apply_glass(c: CanvasItem, tint := Color("#bfe3ff")) -> void:
 static func label(text: String, size := 34, color := TEXT, bold := false) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", size)
+	l.add_theme_font_size_override("font_size", maxi(size, 26))  # phone readability floor
 	l.add_theme_color_override("font_color", color)
 	if bold:
 		l.add_theme_font_override("font", FONT_BOLD)
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	return l
+
+
+## Turns on word wrap for long labels stacked in VBoxes under `root` (they get the column width),
+## so bigger fonts never push a screen wider than the phone.
+static func autowrap_tree(root: Node) -> void:
+	for c in root.get_children():
+		if c is Label and c.autowrap_mode == TextServer.AUTOWRAP_OFF and c.get_parent() is VBoxContainer \
+				and c.text.length() > 16:
+			c.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		autowrap_tree(c)
+
+
+## Keeps autowrap_tree applied as content is added later (async renders).
+static func keep_wrapped(root: Container) -> void:
+	root.sort_children.connect(func(): autowrap_tree(root))
 
 
 static func title(text: String, size := 52) -> Label:
@@ -128,10 +166,10 @@ static func button(text: String, kind := "glass", min_w := 0, h := 104) -> Butto
 		"danger":
 			normal = _flat(Color("#b6474a"), Color("#ffb3a8"), 28, 3)
 		"dim":
-			normal = _flat(Color(1, 1, 1, 0.08), Color(1, 1, 1, 0.25), 28, 2)
+			normal = _flat(Color(0.04, 0.05, 0.09, 0.45), Color(1, 1, 1, 0.25), 28, 2)
 			b.add_theme_color_override("font_color", MUTED)
 		_:
-			normal = _flat(Color(0.55, 0.7, 0.95, 0.22), Color(1, 1, 1, 0.6), 28, 3)
+			normal = _flat(Color(0.10, 0.17, 0.30, 0.74), Color(1, 1, 1, 0.6), 28, 3)
 	normal.shadow_color = Color(0, 0, 0, 0.3)
 	normal.shadow_size = 10
 	normal.shadow_offset = Vector2(0, 5)
@@ -150,7 +188,7 @@ static func button(text: String, kind := "glass", min_w := 0, h := 104) -> Butto
 	b.add_theme_stylebox_override("pressed", pressed)
 	b.add_theme_stylebox_override("disabled", disabled)
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.45))
+	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.72))
 	b.pressed.connect(func(): Sfx.play("click"))
 	b.button_down.connect(func(): b.pivot_offset = b.size / 2; b.create_tween().tween_property(b, "scale", Vector2(0.96, 0.96), 0.06))
 	b.button_up.connect(func(): b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.1))

@@ -153,6 +153,63 @@ NODES = [
                 dict(speaker="ai_tulgan", text="Держитесь вместе. Если мы победим, Агидель снова станет светлой.")]),
 ]
 
+# ---------------------------------------------------------------- chapters 2-7 (temporary extension)
+# 60 extra stages so testers have room to progress. Real places of Bashkortostan; stage content is
+# procedurally laid out and will be replaced by hand-made chapters (see roadmap).
+EXTRA_CHAPTERS = [
+    ("r2_iremel", "Склоны Иремеля", "хребет Иремель, Учалинский и Белорецкий районы",
+     ["Подножие Иремеля", "Курумник", "Каменные реки", "Таганайский перевал", "Ущелье ветров", "Плато Иремеля",
+      "Ледяной ручей", "Старый скит", "Туман вершины", "Вершина Иремеля"]),
+    ("r3_shulgantash", "Пещера Шульган-Таш", "Капова пещера, Бурзянский район",
+     ["Вход в Шульган-Таш", "Зал Знаков", "Голубое озеро", "Купольный зал", "Галерея рисунков", "Подземная река",
+      "Зал Хаоса", "Бриллиантовый зал", "Сердце пещеры", "Трон Шульгана"]),
+    ("r4_nugush", "Долина Нугуша", "р. Нугуш и Нугушское водохранилище, Мелеузовский район",
+     ["Берег Нугуша", "Бортевые леса", "Водохранилище", "Утёс Кузгун", "Брод у Ташасты", "Медовые поляны",
+      "Скала Ташбаш", "Затопленная деревня", "Плотина", "Омут Нугуша"]),
+    ("r5_yangantau", "Горящая гора Янгантау", "гора Янгантау, Салаватский район",
+     ["Дорога на Янгантау", "Тёплые камни", "Курортная тропа", "Дымящиеся трещины", "Пещера жара",
+      "Огненный склон", "Источник Кургазак", "Обугленный лес", "Жерло горы", "Сердце огня"]),
+    ("r6_ufa_plateau", "Уфимское плато", "Уфимское плато, Караидельский район",
+     ["Край плато", "Карстовые воронки", "Павловское водохранилище", "Лесная дорога", "Красный ключ",
+      "Скалы Уфы", "Сплавная река", "Охотничья заимка", "Обрыв плато", "Ворота разлома"]),
+    ("r7_zilair", "Зилаирское плато", "Зилаирское плато, Зилаирский и Баймакский районы",
+     ["Степной подъём", "Ковыльное море", "Курганы", "Стоянка кочевников", "Перевал Ирендык",
+      "Солёное озеро", "Каменная баба", "Пепельная степь", "Предел разлома", "Сердце Предела"]),
+]
+_TERR = ["nature", "settlements", "dungeons", "nature", "complexes", "resources", "nature", "dungeons", "dimensions", "dimensions"]
+_SQUADS = [
+    ["e_minion", "e_warrior", "e_rogue"], ["e_warrior", "e_minion", "e_rogue", "e_mage"],
+    ["e_warrior", "e_warrior", "e_mage", "e_rogue"], ["e_warrior", "e_minion", "e_rogue", "e_mage", "e_rogue"],
+    ["e_warrior", "e_warrior", "e_rogue", "e_mage", "e_mage"],
+]
+_SLOTS = {"e_warrior": [0, 1], "e_minion": [1, 0], "e_rogue": [2, 4, 3], "e_mage": [3, 4, 2]}
+
+for _ci, (_rc, _rn, _place, _names) in enumerate(EXTRA_CHAPTERS):
+    REGIONS.append(dict(code=_rc, order=_ci + 2, name=_rn, real_place=_place + ", Республика Башкортостан",
+                        description="Временная глава для тестирования прогрессии."))
+    for _k, _nm in enumerate(_names):
+        _idx = _ci * 10 + _k + 1          # 1..60 after chapter 1
+        _lvl = int(15 + _idx * 0.85)      # enemy level 15 -> 66
+        _boss = _k == 9
+        if _boss:
+            _en = [_e("e_boss_toratau", _lvl + 4, 0), _e("e_warrior", _lvl, 1), _e("e_mage", _lvl, 3), _e("e_rogue", _lvl, 4)]
+        else:
+            _used, _en = set(), []
+            for _h in _SQUADS[min(4, _k // 2 + _ci // 3)]:
+                _slot = next(s for s in _SLOTS[_h] if s not in _used)
+                _used.add(_slot)
+                _en.append(_e(_h, _lvl, _slot))
+        _first = dict(crystals=60 + 2 * _idx)
+        if _k % 5 == 4:
+            _first["summon_essence"] = 1 + _ci // 2
+        if _boss:
+            _first.update(crystals=300 + 20 * _ci, summon_essence=3 + _ci, ancient_seals=2)
+        NODES.append(dict(code=f"{_ci + 2}-{_k + 1}", region_code=_rc, order=_k + 1, name=_nm, territory=_TERR[_k],
+                          real_place=_place.split(",")[0], map_pos=[_k, -((_k // 2) % 2)], is_boss=_boss,
+                          enemies=_en, rewards=dict(gold=400 + 25 * _idx), first_clear_rewards=_first,
+                          story=[dict(speaker="narrator", text=f"Глава {_ci + 2}: {_rn}. Тени Шульгана уходят всё дальше — "
+                                      "хранители идут следом.")] if _k == 0 else []))
+
 SUMMON_POOLS = [
     dict(code="standard", name="Зов предков",
          rates={"1": 0.40, "2": 0.30, "3": 0.18, "4": 0.09, "5": 0.027, "6": 0.003},
@@ -169,7 +226,7 @@ SHARDS_PER_STAR = 10
 MAX_STARS = 5
 STAR_MULT = 0.08
 
-LEVEL_CAP_MVP = 60
+LEVEL_CAP_MVP = 80  # raised with the temporary chapters 2-7
 
 
 def level_up_cost(level: int) -> dict:

@@ -62,7 +62,11 @@ func _river_x(z: float) -> float:
 
 
 func _build_terrain(occupied: Array[Vector3]) -> void:
-	for r in range(-20, 6):
+	var min_z := -20.0
+	for o in occupied:
+		min_z = minf(min_z, o.z)
+	var r_min := int(floor(min_z / Hex.SQ3)) - 6
+	for r in range(r_min, 6):
 		for q in range(-16, 22):
 			var p := Hex.to_world(q, r)
 			if p.x < -11.5 or p.x > 12.5:
@@ -97,9 +101,16 @@ func _build_terrain(occupied: Array[Vector3]) -> void:
 				Hex.put(self, "decoration/props/resource_stone.gltf", pos + Vector3(1.8, 0, 0.6), 0.0, 1.2)
 			"1-7":
 				Hex.put(self, "decoration/nature/hills_C_trees.gltf", pos + Vector3(0, 0, -2.2), 0.0, 1.8)
+			_:
+				if n.code.begins_with("1-"):
+					pass
+				elif n.is_boss:
+					Hex.put(self, "decoration/nature/mountain_B_grass_trees.gltf", pos + Vector3(0, 0, -2.6), 0.4, 2.6)
+				elif int(n.order) % 3 == 0:
+					Hex.put(self, "decoration/nature/hills_C_trees.gltf", pos + Vector3(0, 0, -2.2), 0.0, 1.6)
 	# distant Ural ridge on the far edge
 	for i in 9:
-		Hex.put(self, Hex.MOUNTAINS[i % Hex.MOUNTAINS.size()], Vector3(-12 + i * 3.2, -0.4, -40 - _rng.randf() * 4), _rng.randf() * TAU, 3.0)
+		Hex.put(self, Hex.MOUNTAINS[i % Hex.MOUNTAINS.size()], Vector3(-12 + i * 3.2, -0.4, min_z - 18 - _rng.randf() * 4), _rng.randf() * TAU, 3.0)
 
 
 func _build_path() -> void:

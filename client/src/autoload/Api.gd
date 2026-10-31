@@ -55,6 +55,8 @@ static func new_key() -> String:
 
 
 # --------------------------------------------------------------------- auth
+## Restores the stored session. Without one returns code "need_login": Boot then asks the
+## player to start a new guest game or to sign in by email (never silently replaces an account).
 func login() -> Dictionary:
 	if refresh_token != "":
 		var r := await refresh()
@@ -62,7 +64,10 @@ func login() -> Dictionary:
 			return r
 		if r.status != 401:
 			return r  # offline or server error: keep the stored session for later
-		# 401: the stored session is gone (revoked/expired) -> fall through to a new guest
+	return {"ok": false, "status": 401, "code": "need_login", "message": "Нужен вход", "data": {}}
+
+
+func login_guest() -> Dictionary:
 	var device := OS.get_unique_id()
 	if device.length() < 8:
 		device = "dev-" + new_key()
@@ -71,6 +76,14 @@ func login() -> Dictionary:
 	if g.ok:
 		_apply_tokens(g.data)
 	return g
+
+
+func login_email(email: String, password: String) -> Dictionary:
+	var r := await _raw("POST", "/api/v1/auth/login", {"email": email.strip_edges().to_lower(),
+		"password": password}, {}, true)
+	if r.ok:
+		_apply_tokens(r.data)
+	return r
 
 
 func refresh() -> Dictionary:

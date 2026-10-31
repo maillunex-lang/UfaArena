@@ -3,7 +3,7 @@ extends Control
 
 var main: Node
 const MODES := [
-	["campaign", "Кампания: Шиханы Приагиделья", "Доступно", true],
+	["campaign", "Кампания: 7 глав Башкортостана", "Доступно", true],
 	["arena", "Арена хранителей (PvP)", "Блок «PvP/рейды» — после закрытого MVP", false],
 	["quests", "Башня испытаний", "Блок «Режимы» — закрытая бета", false],
 	["guild", "Гильдейский босс", "Блок «Социальные режимы» — закрытая бета", false],
@@ -29,7 +29,7 @@ func setup(m: Node, _p: Dictionary) -> void:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(0, 140)
 		b.focus_mode = Control.FOCUS_NONE
-		var sb := UI._flat(Color(0, 0, 0, 0.32), UI.GOLD if md[3] else Color(1, 1, 1, 0.2), 24, 3 if md[3] else 2)
+		var sb := UI._flat(Color(0.02, 0.03, 0.07, 0.5), UI.GOLD if md[3] else Color(1, 1, 1, 0.2), 24, 3 if md[3] else 2)
 		for st in ["normal", "hover", "pressed"]:
 			b.add_theme_stylebox_override(st, sb)
 		var h := HBoxContainer.new()

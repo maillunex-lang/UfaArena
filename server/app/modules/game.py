@@ -23,7 +23,7 @@ from ..monetization.mode import is_test
 from ..game.battle_sim import hero_stats, make_unit, power_rating, simulate
 from ..models import (
     Battle, CampaignNode, CampaignRegion, Faction, Formation, Hero, HeroClass, PlayerCampaignProgress, PlayerHero,
-    PlayerProfile,
+    PlayerProfile, User,
 )
 from ..services import (
     afk_preview, grant, hero_dict, hero_view, next_node, node_unlocked, quest_event, spend, team_bonuses, wallet_dict,
@@ -34,8 +34,16 @@ BATTLE_TTL = timedelta(minutes=30)
 
 
 # ------------------------------------------------------------------ player
-def profile_view(p: PlayerProfile) -> dict:
-    return {"uralia_id": p.uralia_id, "nickname": p.nickname, "level": p.level, "exp": p.exp,
+def _mask_email(e: str | None) -> str:
+    if not e or "@" not in e:
+        return ""
+    name, dom = e.split("@", 1)
+    return (name[:2] + "***" if len(name) > 2 else name[:1] + "***") + "@" + dom
+
+
+def profile_view(p: PlayerProfile, u: User | None = None) -> dict:
+    return {"account_kind": (u.kind if u else "guest"), "email_masked": _mask_email(u.email if u else None),
+            "uralia_id": p.uralia_id, "nickname": p.nickname, "level": p.level, "exp": p.exp,
             "onboarding_step": p.onboarding_step, "is_ai": p.is_ai, "settings": p.settings or {},
             "vip_level": p.vip_level or 0, "vip_xp": p.vip_xp or 0, "battle_speeds": VIP.battle_speeds(p.vip_level or 0),
             "vip_speed_table": [{"vip": int(k), "speeds": s} for k, s in MCFG()["vip"]["battle_speeds"].items()],
@@ -45,7 +53,7 @@ def profile_view(p: PlayerProfile) -> dict:
 @router.get("/player/me")
 def me(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
     p = db.get(PlayerProfile, user.id)
-    return {"user_id": user.id, "profile": profile_view(p), "wallet": wallet_dict(db, user.id)}
+    return {"user_id": user.id, "profile": profile_view(p, db.get(User, user.id)), "wallet": wallet_dict(db, user.id)}
 
 
 @router.get("/player/bootstrap")
@@ -60,7 +68,7 @@ def bootstrap(user: CurrentUser = Depends(player), db: Session = Depends(get_db)
         "cosmetics": equipped_view(db, user.id),
         "test_mode": is_test(db),
         "server_time": utcnow().isoformat(),
-        "profile": profile_view(p),
+        "profile": profile_view(p, db.get(User, user.id)),
         "wallet": wallet_dict(db, user.id),
         "heroes": _player_heroes(db, user.id),
         "formation": _formation(db, user.id).slots,
@@ -317,11 +325,13 @@ def _node_view(n: CampaignNode, unlocked: bool, cleared: bool) -> dict:
 def campaign(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
     cleared = set(db.scalars(select(PlayerCampaignProgress.node_code)
                              .where(PlayerCampaignProgress.user_id == user.id)))
+    from ..services import ordered_nodes
+    flat = ordered_nodes(db)
+    prev_cleared = {n.code: (i == 0 or flat[i - 1].code in cleared) for i, n in enumerate(flat)}
     regions = []
     for r in db.scalars(select(CampaignRegion).order_by(CampaignRegion.order)):
-        nodes = db.scalars(select(CampaignNode).where(CampaignNode.region_code == r.code)
-                           .order_by(CampaignNode.order)).all()
-        regions.append({"code": r.code, "name": r.name, "real_place": r.real_place, "description": r.description,
-                        "nodes": [_node_view(n, n.order == 1 or nodes[i - 1].code in cleared, n.code in cleared)
-                                  for i, n in enumerate(nodes)]})
+        nodes = [n for n in flat if n.region_code == r.code]
+        regions.append({"code": r.code, "order": r.order, "name": r.name, "real_place": r.real_place,
+                        "description": r.description,
+                        "nodes": [_node_view(n, prev_cleared[n.code], n.code in cleared) for n in nodes]})
     return {"regions": regions}

@@ -127,6 +127,10 @@ def test_link_and_login(client, newplayer):
     assert bad.status_code == 401
     ok = client.post("/api/v1/auth/login", json={"email": email, "password": "secret-pass-1"})
     assert ok.status_code == 200 and ok.json()["user_id"] == p.tokens["user_id"]
+    # the profile tells the client this is a linked account (email is masked)
+    prof = client.get("/api/v1/player/me", headers={"Authorization": "Bearer " + ok.json()["access_token"]}).json()["profile"]
+    assert prof["account_kind"] == "linked" and prof["email_masked"].startswith(email[:2] + "***@")
+    assert email not in str(prof)
 
 
 def test_signed_manifest(client):
@@ -147,3 +151,26 @@ def test_rate_limit(client, monkeypatch):
     monkeypatch.setattr(config.get_settings(), "auth_rate_limit_per_minute", 3)
     codes = [client.post("/api/v1/auth/guest", json={"device_id": "rl-device-0001"}).status_code for _ in range(5)]
     assert codes[:3] == [200, 200, 200] and 429 in codes[3:]
+
+
+def test_campaign_chapters(newplayer):
+    p = newplayer()
+    regions = p.get("/campaign").json()["regions"]
+    assert len(regions) == 7 and sum(len(r["nodes"]) for r in regions) == 68
+    assert [r["order"] for r in regions] == sorted(r["order"] for r in regions)
+    assert all(len(r["nodes"]) == 10 for r in regions[1:]) and regions[-1]["nodes"][-1]["is_boss"]
+    assert regions[0]["nodes"][0]["unlocked"] and not regions[1]["nodes"][0]["unlocked"]
+    # chapter 2 opens exactly when the last stage of chapter 1 is cleared
+    from app.core.db import get_db
+    from app.models import PlayerCampaignProgress
+    gen = get_db()
+    db = next(gen)
+    try:
+        for n in regions[0]["nodes"]:
+            db.add(PlayerCampaignProgress(user_id=p.tokens["user_id"], node_code=n["code"], best_turns=1))
+        db.commit()
+    finally:
+        gen.close()
+    regions = p.get("/campaign").json()["regions"]
+    assert regions[1]["nodes"][0]["unlocked"] and not regions[1]["nodes"][1]["unlocked"]
+    assert p.get("/player/bootstrap").json()["campaign"]["next_node"] == "2-1"

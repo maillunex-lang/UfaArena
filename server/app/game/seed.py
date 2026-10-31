@@ -30,7 +30,7 @@ def seed_static(db: Session) -> None:
         db.merge(CampaignRegion(**r))
     db.flush()
     for n in D.NODES:
-        db.merge(CampaignNode(region_code="r1_shikhany", **{"is_boss": False, **n}))
+        db.merge(CampaignNode(**{"region_code": "r1_shikhany", "is_boss": False, **n}))
     for p in D.SUMMON_POOLS:
         db.merge(SummonPool(**p))
     for q in D.QUESTS:

@@ -41,7 +41,7 @@ func _load() -> void:
 		_list.add_child(UI.label("Писем нет", 30, UI.MUTED))
 	for msg in r.data.mail:
 		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", UI._flat(Color(0, 0, 0, 0.3), Color(1, 1, 1, 0.22), 22, 2))
+		card.add_theme_stylebox_override("panel", UI._flat(Color(0.02, 0.03, 0.07, 0.5), Color(1, 1, 1, 0.22), 22, 2))
 		var vv := VBoxContainer.new()
 		vv.add_theme_constant_override("separation", 8)
 		vv.add_child(UI.label(msg.title, 34, UI.GOLD, true))

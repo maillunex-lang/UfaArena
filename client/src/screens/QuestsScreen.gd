@@ -45,7 +45,7 @@ func _render(quests: Array) -> void:
 			last_kind = q.kind
 			_list.add_child(UI.label(KIND_NAMES.get(q.kind, q.kind), 30, UI.ACCENT, true))
 		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", UI._flat(Color(0, 0, 0, 0.3), Color(1, 1, 1, 0.22), 22, 2))
+		card.add_theme_stylebox_override("panel", UI._flat(Color(0.02, 0.03, 0.07, 0.5), Color(1, 1, 1, 0.22), 22, 2))
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 16)
 		var info := VBoxContainer.new()

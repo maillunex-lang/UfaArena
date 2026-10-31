@@ -1,5 +1,5 @@
 extends Node
-## Boot: content manifest check -> login (refresh token or new guest) -> bootstrap -> Main.
+## Boot: content manifest check -> login (stored session, or choice: new guest / email) -> bootstrap -> Main.
 
 const HubWorld := preload("res://src/world/HubWorld.gd")
 
@@ -9,6 +9,10 @@ var _bar: ProgressBar
 var _url_row: HBoxContainer
 var _url_edit: LineEdit
 var _ui: Control
+var _pv: VBoxContainer
+var _login_box: VBoxContainer
+var _email: LineEdit
+var _pw: LineEdit
 
 
 func _ready() -> void:
@@ -66,6 +70,7 @@ func _ready() -> void:
 	_url_row.add_child(save)
 	_url_row.visible = false
 	pv.add_child(_url_row)
+	_build_login(pv)
 	panel.add_child(pv)
 	v.add_child(panel)
 	Sfx.music("hub")
@@ -103,9 +108,20 @@ func _run() -> void:
 		Content.pending = Content._set_from_manifest()
 	_status.text = "Вход в Крепость хранителей…"
 	var r := await Api.login()
+	if not r.ok and r.code == "need_login":
+		if _auto_guest():
+			r = await Api.login_guest()
+		else:
+			_show_login()
+			return
 	if not r.ok:
 		_fail("Не удалось войти: %s" % r.message)
 		return
+	await _enter()
+
+
+func _enter() -> void:
+	_login_box.visible = false
 	_status.text = "Загружаем прогресс с сервера…"
 	var b := await Game.bootstrap()
 	if not b.ok:
@@ -116,7 +132,75 @@ func _run() -> void:
 
 
 func _fail(msg: String) -> void:
+	_login_box.visible = false
 	_status.text = msg
 	_retry.visible = true
 	_url_edit.text = Config.server_url
 	_url_row.visible = true
+
+
+## Dev E2E runs start from a fresh guest without the login choice.
+func _auto_guest() -> bool:
+	for k in ["URALIA_E2E", "URALIA_E2E_SHOP", "URALIA_E2E_UPDATE"]:
+		if OS.get_environment(k) != "":
+			return true
+	return false
+
+
+func _build_login(pv: VBoxContainer) -> void:
+	_login_box = VBoxContainer.new()
+	_login_box.add_theme_constant_override("separation", 14)
+	_login_box.visible = false
+	var guest := UI.button("Начать новую игру", "primary", 0, 110)
+	guest.pressed.connect(_guest)
+	_login_box.add_child(guest)
+	var or_l := UI.label("или войдите в аккаунт с привязанным email", 28, UI.TEXT)
+	or_l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	or_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_login_box.add_child(or_l)
+	_email = LineEdit.new()
+	_email.placeholder_text = "email"
+	_email.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_EMAIL_ADDRESS
+	_email.custom_minimum_size = Vector2(0, 96)
+	_email.add_theme_font_size_override("font_size", 32)
+	_login_box.add_child(_email)
+	_pw = LineEdit.new()
+	_pw.placeholder_text = "пароль"
+	_pw.secret = true
+	_pw.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_PASSWORD
+	_pw.custom_minimum_size = Vector2(0, 96)
+	_pw.add_theme_font_size_override("font_size", 32)
+	_pw.text_submitted.connect(func(_t: String): _email_login())
+	_login_box.add_child(_pw)
+	var lb := UI.button("Войти по email", "glass", 0, 110)
+	lb.pressed.connect(_email_login)
+	_login_box.add_child(lb)
+	pv.add_child(_login_box)
+
+
+func _show_login() -> void:
+	_status.text = "Добро пожаловать, хранитель!"
+	_login_box.visible = true
+
+
+func _guest() -> void:
+	_login_box.visible = false
+	_status.text = "Создаём нового хранителя…"
+	var r := await Api.login_guest()
+	if not r.ok:
+		_fail("Не удалось войти: %s" % r.message)
+		return
+	await _enter()
+
+
+func _email_login() -> void:
+	if _email.text.strip_edges() == "" or _pw.text == "":
+		_status.text = "Введите email и пароль"
+		return
+	_status.text = "Входим…"
+	var r := await Api.login_email(_email.text, _pw.text)
+	if not r.ok:
+		_status.text = r.message if r.status == 401 else "Не удалось войти: %s" % r.message
+		return
+	_pw.text = ""
+	await _enter()

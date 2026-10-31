@@ -47,6 +47,7 @@ func setup(m: Node, p: Dictionary) -> void:
 	_body = VBoxContainer.new()
 	_body.add_theme_constant_override("separation", 12)
 	v.add_child(UI.scroll(_body))
+	UI.keep_wrapped(_body)
 	_load()
 
 
@@ -131,7 +132,7 @@ func _contents_text(c: Dictionary) -> String:
 
 func _card(it: Dictionary) -> Control:
 	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", UI._flat(Color(0, 0, 0, 0.32), UI.GOLD if it.discount_pct > 0 else Color(1, 1, 1, 0.22), 22, 2))
+	card.add_theme_stylebox_override("panel", UI._flat(Color(0.02, 0.03, 0.07, 0.5), UI.GOLD if it.discount_pct > 0 else Color(1, 1, 1, 0.22), 22, 2))
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 14)
 	var info := VBoxContainer.new()
@@ -246,7 +247,7 @@ func _pick_hero(it: Dictionary) -> String:
 	dlg.color = Color(0, 0, 0, 0.7)
 	dlg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	main.modal(dlg)
-	var p := UI.glass_panel()
+	var p := UI.solid_panel()
 	p.set_anchors_preset(Control.PRESET_FULL_RECT)
 	p.offset_left = 40
 	p.offset_right = -40
@@ -287,17 +288,19 @@ func _render_lavka() -> void:
 		" UTC, еженедельное — по понедельникам", 24, UI.MUTED))
 	for it in r.data.items:
 		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", UI._flat(Color(0, 0, 0, 0.3), Color(1, 1, 1, 0.2), 22, 2))
+		card.add_theme_stylebox_override("panel", UI._flat(Color(0.02, 0.03, 0.07, 0.5), Color(1, 1, 1, 0.2), 22, 2))
 		var h := HBoxContainer.new()
+		h.add_theme_constant_override("separation", 10)
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		info.custom_minimum_size.x = 200
 		info.add_child(UI.label("%s  ·  %s" % [it.name, "день" if it.kind == "daily" else "неделя"], 28, UI.GOLD, true))
 		info.add_child(UI.label(_contents_text(it.contents) + "   (%d/%d)" % [int(it.bought), int(it.limit)], 23))
 		h.add_child(info)
 		var cost := HBoxContainer.new()
 		cost.add_child(UI.rewards_row(it.cost, 26))
 		h.add_child(cost)
-		var b := UI.button("Купить", "primary" if int(it.bought) < int(it.limit) else "dim", 180, 84)
+		var b := UI.button("Купить", "primary" if int(it.bought) < int(it.limit) else "dim", 170, 84)
 		b.disabled = int(it.bought) >= int(it.limit)
 		var item: Dictionary = it
 		b.pressed.connect(func(): _buy_lavka(item))
@@ -362,7 +365,8 @@ func _render_vip() -> void:
 	if v.history.size() > 0:
 		var hist := []
 		for hrow in v.history.slice(0, 6):
-			hist.append("%+d %s" % [int(hrow.delta), hrow.source])
+			hist.append("%+d %s" % [int(hrow.delta), {"purchase": "покупка", "purchase_test": "тест-покупка",
+				"daily": "активность", "achievement": "достижение"}.get(String(hrow.source), String(hrow.source))])
 		vv.add_child(UI.label("История: " + ", ".join(hist), 20, UI.MUTED))
 	box.add_child(vv)
 	_body.add_child(box)
@@ -408,8 +412,10 @@ func _render_battlepass() -> void:
 	bp["claimed_premium"] = _ints(bp.claimed_premium)
 	var head := VBoxContainer.new()
 	head.add_child(UI.title("Сезон «%s»" % bp.name, 40))
-	head.add_child(UI.label("Уровень %d · опыт %d (уровень = %d опыта) · до %s" % [int(bp.level), int(bp.xp), int(bp.xp_per_level),
-		String(bp.ends).substr(0, 10)], 24))
+	var lv_l := UI.label("Уровень %d · опыт %d (уровень = %d опыта) · до %s" % [int(bp.level), int(bp.xp), int(bp.xp_per_level),
+		String(bp.ends).substr(0, 10)], 24)
+	lv_l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	head.add_child(lv_l)
 	var lvl_xp := int(bp.xp) - int(bp.level) * int(bp.xp_per_level)
 	head.add_child(UI.bar(lvl_xp, int(bp.xp_per_level), UI.GOLD, 16))
 	var src := UI.label("Опыт: бой +%d, прохождение +%d, задание +%d, дозор +%d, призыв +%d, ежедневный вход +%d" % [
@@ -421,13 +427,16 @@ func _render_battlepass() -> void:
 	for lvl in bp.levels:
 		var n := int(lvl.level)
 		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
+		row.add_theme_constant_override("separation", 14)
 		row.add_child(UI.label("%2d" % n, 30, UI.GOLD if n <= int(bp.level) else UI.MUTED, true))
 		for track in ["free", "premium"]:
 			var col := VBoxContainer.new()
 			col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-			col.add_child(UI.label(("Бесплатно: " if track == "free" else "Premium: ") + _contents_text(lvl[track]), 21,
-				UI.TEXT if track == "free" or bp.premium else UI.MUTED))
+			var tl := UI.label(("Бесплатно: " if track == "free" else "Premium: ") + _contents_text(lvl[track]), 24,
+				UI.TEXT if track == "free" or bp.premium else UI.MUTED)
+			tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			tl.custom_minimum_size.x = 120
+			col.add_child(tl)
 			var claimed: bool = n in (bp.claimed_free if track == "free" else bp.claimed_premium)
 			var can: bool = n <= int(bp.level) and not claimed and (track == "free" or bp.premium)
 			if claimed:

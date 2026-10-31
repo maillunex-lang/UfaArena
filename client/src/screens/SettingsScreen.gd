@@ -17,6 +17,7 @@ func setup(m: Node, _p: Dictionary) -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 16)
 	panel.add_child(UI.scroll(v))
+	UI.keep_wrapped(v)
 	var head := HBoxContainer.new()
 	head.add_child(UI.title("Профиль и настройки", 46))
 	head.add_child(UI.expand())
@@ -85,25 +86,38 @@ func setup(m: Node, _p: Dictionary) -> void:
 	srv_row.add_child(sb)
 	v.add_child(srv_row)
 	v.add_child(UI.spacer(8))
-	v.add_child(UI.label("Привязка аккаунта (URALIA ID по email)", 32, UI.ACCENT, true))
-	var hint := UI.label("Гостевой прогресс хранится на сервере. Привяжите email, чтобы войти на другом устройстве.", 26, UI.MUTED)
-	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	v.add_child(hint)
-	var email := LineEdit.new()
-	email.placeholder_text = "email"
-	email.custom_minimum_size = Vector2(0, 90)
-	email.add_theme_font_size_override("font_size", 30)
-	v.add_child(email)
-	var pw := LineEdit.new()
-	pw.placeholder_text = "пароль (от 8 символов)"
-	pw.secret = true
-	pw.custom_minimum_size = Vector2(0, 90)
-	pw.add_theme_font_size_override("font_size", 30)
-	v.add_child(pw)
-	var lb := UI.button("Привязать email", "primary")
-	lb.pressed.connect(func(): _link(email.text, pw.text))
-	v.add_child(lb)
-	v.add_child(UI.spacer(8))
+	v.add_child(UI.label("Аккаунт", 32, UI.ACCENT, true))
+	var linked := String(Game.profile.get("account_kind", "guest")) == "linked"
+	var acc_txt := "URALIA ID: %s" % Game.profile.get("uralia_id", "")
+	if linked:
+		acc_txt += "\nВход по email: %s" % Game.profile.get("email_masked", "")
+	else:
+		acc_txt += "\nГостевой аккаунт. Привяжите email, чтобы не потерять прогресс и входить с другого телефона."
+	var acc := UI.label(acc_txt, 28, UI.TEXT)
+	acc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(acc)
+	if not linked:
+		var email := LineEdit.new()
+		email.placeholder_text = "email"
+		email.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_EMAIL_ADDRESS
+		email.custom_minimum_size = Vector2(0, 90)
+		email.add_theme_font_size_override("font_size", 30)
+		v.add_child(email)
+		var pw := LineEdit.new()
+		pw.placeholder_text = "пароль (от 8 символов)"
+		pw.secret = true
+		pw.custom_minimum_size = Vector2(0, 90)
+		pw.add_theme_font_size_override("font_size", 30)
+		v.add_child(pw)
+		var lb := UI.button("Привязать email", "primary")
+		lb.pressed.connect(func(): _link(email.text, pw.text))
+		v.add_child(lb)
+	var sw := UI.button("Войти в другой аккаунт", "glass")
+	sw.pressed.connect(func(): _logout(sw))
+	v.add_child(sw)
+	var how := UI.label("На новом телефоне: установите игру и на стартовом экране выберите «Войти по email».", 24, UI.MUTED)
+	how.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(how)
 	v.add_child(UI.spacer(8))
 	v.add_child(UI.label("Обновления контента", 32, UI.ACCENT, true))
 	var cs := UI.label(Content.summary(), 24, UI.MUTED)
@@ -134,7 +148,7 @@ func setup(m: Node, _p: Dictionary) -> void:
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(about)
 	var lo := UI.button("Выйти из аккаунта", "danger")
-	lo.pressed.connect(_logout)
+	lo.pressed.connect(func(): _logout(lo))
 	v.add_child(lo)
 
 
@@ -177,10 +191,20 @@ func _link(email: String, pw: String) -> void:
 	if not r.ok:
 		Router.error(r)
 		return
-	Router.toast("Email привязан к аккаунту")
+	Game.profile["account_kind"] = "linked"
+	var e := email.strip_edges()
+	Game.profile["email_masked"] = e.substr(0, 2) + "***" + e.substr(e.find("@"))
+	Router.toast("Email привязан. Теперь можно входить с любого телефона")
+	main.open("settings")
 
 
-func _logout() -> void:
+func _logout(btn: Button) -> void:
+	# guests have no way back without email: require a second tap with an explicit warning
+	if String(Game.profile.get("account_kind", "guest")) != "linked" and not btn.has_meta("armed"):
+		btn.set_meta("armed", true)
+		btn.text = "Точно выйти? Без email гостевой прогресс не вернуть"
+		Router.toast("Сначала привяжите email, иначе вернуться в этот аккаунт будет нельзя", true)
+		return
 	await Api.post_json("/auth/logout", {})
 	Api.clear_session()
 	Game.loaded = false

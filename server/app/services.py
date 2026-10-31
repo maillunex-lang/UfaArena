@@ -221,18 +221,24 @@ def create_player(db: Session, device_id: str | None) -> User:
     return user
 
 
+def ordered_nodes(db: Session) -> list[CampaignNode]:
+    """All stages in play order: chapter (region order), then stage order."""
+    from .models import CampaignRegion
+    rorder = {r.code: r.order for r in db.scalars(select(CampaignRegion))}
+    return sorted(db.scalars(select(CampaignNode)), key=lambda n: (rorder.get(n.region_code, 99), n.order))
+
+
 def next_node(db: Session, user_id: str) -> CampaignNode | None:
     cleared = set(db.scalars(select(PlayerCampaignProgress.node_code).where(PlayerCampaignProgress.user_id == user_id)))
-    for n in db.scalars(select(CampaignNode).order_by(CampaignNode.region_code, CampaignNode.order)):
+    for n in ordered_nodes(db):
         if n.code not in cleared:
             return n
     return None
 
 
 def node_unlocked(db: Session, user_id: str, node: CampaignNode) -> bool:
-    if node.order == 1:
-        return True
-    prev = db.scalar(select(CampaignNode).where(CampaignNode.region_code == node.region_code,
-                                                CampaignNode.order == node.order - 1))
-    return prev is None or db.get(PlayerCampaignProgress, (user_id, prev.code)) is not None
+    """A stage opens when the previous stage in play order is cleared (also across chapters)."""
+    nodes = ordered_nodes(db)
+    i = next(k for k, n in enumerate(nodes) if n.code == node.code)
+    return i == 0 or db.get(PlayerCampaignProgress, (user_id, nodes[i - 1].code)) is not None
 

@@ -42,7 +42,7 @@ func _render(buildings: Array) -> void:
 		c.queue_free()
 	for b in buildings:
 		var card := PanelContainer.new()
-		card.add_theme_stylebox_override("panel", UI._flat(Color(0, 0, 0, 0.3), Color(1, 1, 1, 0.25), 24, 2))
+		card.add_theme_stylebox_override("panel", UI._flat(Color(0.02, 0.03, 0.07, 0.5), Color(1, 1, 1, 0.25), 24, 2))
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", 16)
 		var ic := GameIcon.new()

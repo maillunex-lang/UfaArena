@@ -215,7 +215,7 @@ func _show_detail(h: Dictionary, cat: Dictionary, owned: bool) -> void:
 	if _detail:
 		_detail.queue_free()
 	var rarity := int(cat.get("rarity", 1))
-	_detail = UI.glass_panel(Game.RARITY_COLORS.get(rarity, Color.WHITE))
+	_detail = UI.solid_panel(Game.RARITY_COLORS.get(rarity, Color.WHITE))
 	_detail.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	_detail.offset_left = 20
 	_detail.offset_right = -20
@@ -310,7 +310,7 @@ func _ability(parent: Control, kind: String, ab: Variant, note: String) -> void:
 	if not (ab is Dictionary) or String(ab.get("name", "")) == "":
 		return
 	var box := PanelContainer.new()
-	box.add_theme_stylebox_override("panel", UI._flat(Color(0, 0, 0, 0.28), Color(1, 1, 1, 0.16), 18, 2))
+	box.add_theme_stylebox_override("panel", UI._flat(Color(0.02, 0.03, 0.07, 0.5), Color(1, 1, 1, 0.16), 18, 2))
 	var vv := VBoxContainer.new()
 	var h := HBoxContainer.new()
 	h.add_child(UI.label(kind + ":", 24, UI.MUTED))

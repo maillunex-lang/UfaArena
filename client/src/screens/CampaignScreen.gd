@@ -5,6 +5,8 @@ var main: Node
 var map: Node3D
 var region := {}
 var _card: PanelContainer
+var _head: PanelContainer
+var _chapter := 0
 
 
 func setup(m: Node, _p: Dictionary) -> void:
@@ -15,32 +17,80 @@ func setup(m: Node, _p: Dictionary) -> void:
 	if not r.ok:
 		Router.error(r)
 		return
-	region = Game.campaign.regions[0]
+	var regions: Array = Game.campaign.regions
+	_chapter = 0
+	if _p.has("chapter"):
+		_chapter = clampi(int(_p.chapter), 0, regions.size() - 1)
+	else:
+		for i in regions.size():
+			if regions[i].nodes.size() > 0 and bool(regions[i].nodes[0].unlocked):
+				_chapter = i
+			if _has_open(regions[i]):
+				break
+	_open_chapter(_chapter)
+
+
+func _has_open(r: Dictionary) -> bool:
+	for n in r.nodes:
+		if n.unlocked and not n.cleared:
+			return true
+	return false
+
+
+func _open_chapter(i: int) -> void:
+	var regions: Array = Game.campaign.regions
+	_chapter = i
+	region = regions[i]
+	if _card:
+		_card.queue_free()
+		_card = null
+	if _head:
+		_head.queue_free()
 	main.world_kind = ""
 	map = main.use_world("campaign")
 	map.setup(region)
 	map.node_selected.connect(_show_node)
-	var head := UI.glass_panel()
-	head.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	head.offset_left = 30
-	head.offset_right = -30
+	_head = UI.glass_panel()
+	_head.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_head.offset_left = 30
+	_head.offset_right = -30
 	var hv := VBoxContainer.new()
-	hv.add_child(UI.title("Глава 1. " + region.name, 44))
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 12)
+	var prev := UI.button("◀", "glass" if i > 0 else "dim", 96, 84)
+	prev.disabled = i <= 0
+	prev.pressed.connect(func(): _open_chapter(i - 1))
+	top.add_child(prev)
+	var t := UI.title("Глава %d/%d. %s" % [i + 1, regions.size(), region.name], 40)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	top.add_child(t)
+	var can_next := i < regions.size() - 1 and bool(regions[i + 1].nodes[0].unlocked)
+	var nxt := UI.button("▶", "glass" if can_next else "dim", 96, 84)
+	nxt.disabled = not can_next
+	nxt.pressed.connect(func(): _open_chapter(i + 1))
+	top.add_child(nxt)
+	hv.add_child(top)
 	var sub := UI.label(region.real_place, 26, UI.MUTED)
 	sub.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hv.add_child(sub)
 	var cleared := 0
 	for n in region.nodes:
 		if n.cleared:
 			cleared += 1
 	hv.add_child(UI.bar(cleared, region.nodes.size(), UI.GOLD, 16))
-	head.add_child(hv)
-	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	add_child(head)
+	_head.add_child(hv)
+	add_child(_head)
+	var shown := false
 	for n in region.nodes:
 		if n.unlocked and not n.cleared:
 			_show_node(n.code)
+			shown = true
 			break
+	if not shown and region.nodes.size() > 0:
+		_show_node(region.nodes[-1].code)
 
 
 func _show_node(code: String) -> void:
