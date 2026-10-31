@@ -103,8 +103,18 @@ func _build_hud() -> void:
 	var title := UI.glass_panel()
 	var tv := VBoxContainer.new()
 	tv.add_child(UI.label("%s  %s" % [node_info.get("code", ""), node_info.get("name", "")], 32, UI.GOLD, true))
+	var pw := [0, 0]
+	for u in sim.units:
+		pw[int(u.side)] += int(float(u.max_hp) * 0.25 + float(u.atk) * 2.2 + float(u.get("def", 0)) * 1.5)
+	var pw_row := HBoxContainer.new()
+	pw_row.add_theme_constant_override("separation", 14)
+	pw_row.add_child(UI.label("⚔ %s" % Game.fmt(pw[0]), 30, Color("#9fe0ff"), true))
+	pw_row.add_child(UI.label("VS", 30, UI.GOLD, true))
+	pw_row.add_child(UI.label("%s ⚔" % Game.fmt(pw[1]), 30, Color("#ff9f9f"), true))
+	pw_row.add_child(UI.expand())
 	_timer_lbl = UI.label("1:30", 28, UI.MUTED)
-	tv.add_child(_timer_lbl)
+	pw_row.add_child(_timer_lbl)
+	tv.add_child(pw_row)
 	title.add_child(tv)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(title)

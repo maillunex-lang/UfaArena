@@ -2,9 +2,10 @@ extends Node3D
 ## Side-view 3D battle arena (player's team on the left, enemies on the right, camera slightly
 ## above — AFK-style). Unit positions come straight from the server's real-time simulation.
 
-const UNIT_SCALE := 1.0
-const SIM_X := 0.78  # portrait screen: compress the battle line horizontally
-const SIM_Z := 1.5   # ...and stretch formation depth so rows read vertically
+const UNIT_SCALE := 0.78
+const SIM_X := 0.8  # portrait screen: compress the battle line horizontally
+const SIM_Z := 1.6   # ...and stretch formation depth so the two lines read as columns
+const ARENA_R := 6.3
 const FACE_BIAS := 0.55  # turn models 3/4 towards the camera
 const BAR_SHADER := preload("res://src/world/bar.gdshader")
 
@@ -13,8 +14,8 @@ var units := {}  # uid -> {node, bar, data, hp, max_hp, shield, energy, alive, h
 var _rng := RandomNumberGenerator.new()
 var _float_seq := 0
 var _shake := 0.0
-var _cam_base := Vector3(0, 10.5, 15.5)
-var _look := Vector3(0, 0.6, -0.2)
+var _cam_base := Vector3(0, 12.0, 13.6)
+var _look := Vector3(0, 0.0, -0.6)
 
 
 func build(territory: String, is_boss: bool) -> void:
@@ -40,32 +41,109 @@ func build(territory: String, is_boss: bool) -> void:
 			var p := Hex.to_world(q, r)
 			if abs(p.x) > 14.0 or p.z > 16.0 or p.z < -16.0:
 				continue
-			Hex.tile(self, "base/hex_grass", q, r, 0, tint if abs(p.z) < 4.5 and abs(p.x) < 9.0 else tint.darkened(0.08))
-			# backdrop: decoration behind the battle line and at the far sides, never in front of the camera
-			if (p.z < -4.5 or (abs(p.x) > 8.5 and p.z < 2.0)) and _rng.randf() < 0.6:
+			Hex.tile(self, "base/hex_grass", q, r, 0, tint.darkened(0.05))
+			# backdrop decoration only outside the arena circle, mostly behind it
+			var rr := Vector2(p.x, p.z * 1.15).length()
+			if rr > ARENA_R + 1.6 and p.z < 5.0 and _rng.randf() < 0.55:
 				_decorate(territory, p)
-	if mood != "day":
-		for p in [Vector3(-6.5, 0, -3.2), Vector3(6.5, 0, -3.2), Vector3(-2.5, 0, -3.6), Vector3(2.5, 0, -3.6)]:
-			var torch: Node3D = load("res://assets/third_party/kaykit_dungeon/torch_lit.gltf.glb").instantiate()
-			torch.position = p
-			torch.scale = Vector3.ONE * 1.6
-			add_child(torch)
-			var l := OmniLight3D.new()
-			l.light_color = Color(1.0, 0.65, 0.3)
-			l.light_energy = 2.2
-			l.omni_range = 6.0
-			l.position = p + Vector3(0, 2.0, 0)
-			add_child(l)
+	_build_circle(territory, mood)
 	if is_boss:
 		var portal := _ring_mesh(Color(0.7, 0.25, 1.0), 2.4, 2.75)
-		portal.position = Vector3(6.0, 0.05, -2.6)
+		portal.position = Vector3(0, 0.2, 0)
 		add_child(portal)
 	camera = Camera3D.new()
 	camera.keep_aspect = Camera3D.KEEP_WIDTH  # fixed horizontal view on any phone aspect
-	camera.fov = 25.6
+	camera.fov = 37.0
 	add_child(camera)
 	camera.current = true
 	_update_camera()
+
+
+## Round stone arena with engraved rings, rune rays and a golden rim; torches and banners around it.
+func _build_circle(territory: String, mood: String) -> void:
+	var stone := Color(0.52, 0.56, 0.64)
+	match territory:
+		"dungeons", "resources":
+			stone = Color(0.48, 0.45, 0.52)
+		"dimensions", "complexes":
+			stone = Color(0.52, 0.48, 0.6)
+		"settlements":
+			stone = Color(0.66, 0.6, 0.52)
+	var disc := MeshInstance3D.new()
+	var cyl := CylinderMesh.new()
+	cyl.top_radius = ARENA_R
+	cyl.bottom_radius = ARENA_R + 0.25
+	cyl.height = 0.3
+	cyl.radial_segments = 64
+	disc.mesh = cyl
+	var m := StandardMaterial3D.new()
+	m.albedo_color = stone
+	m.roughness = 0.85
+	disc.material_override = m
+	disc.position.y = 0.05
+	add_child(disc)
+	var line := StandardMaterial3D.new()
+	line.albedo_color = stone.darkened(0.28)
+	line.roughness = 1.0
+	for r in [2.2, ARENA_R - 0.8]:
+		var ring := MeshInstance3D.new()
+		var t := TorusMesh.new()
+		t.inner_radius = r - 0.06
+		t.outer_radius = r + 0.06
+		t.rings = 64
+		ring.mesh = t
+		ring.scale = Vector3(1, 0.2, 1)
+		ring.material_override = line
+		ring.position.y = 0.21
+		add_child(ring)
+	for i in 8:  # rune rays between the inner and outer rings
+		var ray := MeshInstance3D.new()
+		var b := BoxMesh.new()
+		b.size = Vector3(0.1, 0.02, ARENA_R - 3.2)
+		ray.mesh = b
+		ray.material_override = line
+		var ang := TAU * i / 8.0
+		var mid := (2.2 + ARENA_R - 0.8) / 2.0
+		ray.position = Vector3(sin(ang) * mid, 0.21, cos(ang) * mid)
+		ray.rotation.y = ang
+		add_child(ray)
+	var rim := MeshInstance3D.new()
+	var tr := TorusMesh.new()
+	tr.inner_radius = ARENA_R - 0.05
+	tr.outer_radius = ARENA_R + 0.22
+	tr.rings = 96
+	rim.mesh = tr
+	rim.scale = Vector3(1, 0.45, 1)
+	var gold := StandardMaterial3D.new()
+	gold.albedo_color = Color(0.95, 0.76, 0.38)
+	gold.metallic = 0.7
+	gold.roughness = 0.35
+	rim.material_override = gold
+	rim.position.y = 0.2
+	add_child(rim)
+	# torches around the circle (lit everywhere; brighter at dusk/dungeon)
+	var torch_scene: PackedScene = load("res://assets/third_party/kaykit_dungeon/torch_lit.gltf.glb")
+	for i in 6:
+		var ang := PI + TAU * (i + 0.5) / 6.0
+		var p := Vector3(sin(ang) * (ARENA_R + 0.7), 0, cos(ang) * (ARENA_R + 0.7))
+		if p.z > 3.0:
+			continue  # keep the camera side open
+		var torch: Node3D = torch_scene.instantiate()
+		torch.position = p
+		torch.scale = Vector3.ONE * 1.4
+		add_child(torch)
+		var l := OmniLight3D.new()
+		l.light_color = Color(1.0, 0.65, 0.3)
+		l.light_energy = 1.2 if mood == "day" else 2.4
+		l.omni_range = 5.0
+		l.position = p + Vector3(0, 1.8, 0)
+		add_child(l)
+	var banner_scene: PackedScene = load("res://assets/third_party/kaykit_dungeon/banner_patternA_blue.gltf.glb")
+	for x in [-3.2, 3.2]:
+		var bnr: Node3D = banner_scene.instantiate()
+		bnr.position = Vector3(x, 0, -ARENA_R - 1.2)
+		bnr.scale = Vector3.ONE * 0.75
+		add_child(bnr)
 
 
 func _decorate(territory: String, p: Vector3) -> void:
@@ -107,7 +185,7 @@ func shake(amount := 0.35) -> void:
 
 
 func sim_pos(x: float, z: float) -> Vector3:
-	return Vector3(x * SIM_X, 0, z * SIM_Z)
+	return Vector3(x * SIM_X, 0.2, z * SIM_Z)  # y: top of the arena disc
 
 
 func rest_yaw(side: int) -> float:
@@ -132,7 +210,7 @@ func add_unit(data: Dictionary) -> void:
 	add_child(node)
 	var bar := MeshInstance3D.new()
 	var quad := QuadMesh.new()
-	quad.size = Vector2(1.5, 0.24)
+	quad.size = Vector2(1.05, 0.17)
 	bar.mesh = quad
 	var mat := ShaderMaterial.new()
 	mat.shader = BAR_SHADER
@@ -152,7 +230,8 @@ func add_unit(data: Dictionary) -> void:
 	lv.outline_size = 10
 	lv.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	lv.no_depth_test = true
-	lv.position = Vector3(-0.92, 0, 0.01)
+	lv.position = Vector3(-0.68, 0, 0.01)
+	lv.font_size = 36
 	lv.modulate = Color(1, 0.9, 0.6)
 	bar.add_child(lv)
 	var ring := _ring_mesh(Game.RARITY_COLORS.get(int(data.rarity), Color.WHITE) if side == 0 else Color(0.9, 0.3, 0.3), 0.55, 0.65)
