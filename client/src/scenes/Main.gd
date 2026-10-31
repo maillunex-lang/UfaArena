@@ -15,6 +15,7 @@ const SCREENS := {
 	"mail": preload("res://src/screens/MailScreen.gd"),
 	"settings": preload("res://src/screens/SettingsScreen.gd"),
 	"formation": preload("res://src/screens/FormationScreen.gd"),
+	"shop": preload("res://src/screens/ShopScreen.gd"),
 }
 const NAV := [["campaign", "Кампания"], ["heroes", "Герои"], ["home", "Крепость"], ["summon", "Призыв"],
 	["modes", "Режимы"]]
@@ -30,6 +31,7 @@ var _nav_buttons := {}
 var _guide: PanelContainer
 var _guide_label: Label
 var _profile_lbl: Label
+var _avatar: PanelContainer
 
 
 func _ready() -> void:
@@ -128,6 +130,7 @@ func _build_top() -> void:
 	ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ph.add_theme_constant_override("separation", 12)
 	var av := PanelContainer.new()
+	_avatar = av
 	av.add_theme_stylebox_override("panel", UI._round_glass())
 	av.custom_minimum_size = Vector2(108, 108)
 	av.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -177,7 +180,24 @@ func _update_chips() -> void:
 
 func _update_profile() -> void:
 	var p := Game.profile
-	_profile_lbl.text = "%s\nУр. %d" % [p.get("nickname", "Хранитель"), int(p.get("level", 1))]
+	var title := ""
+	var t: Variant = Game.cosmetics.get("title")
+	if t is Dictionary:
+		title = "\n«%s»" % String(t.get("data", {}).get("text", ""))
+	var vipl := int(p.get("vip_level", 0))
+	_profile_lbl.text = "%s%s\nУр. %d%s" % [p.get("nickname", "Хранитель"), title, int(p.get("level", 1)),
+		("  · VIP %d" % vipl) if vipl > 0 else ""]
+	if _avatar:
+		var sb := UI._round_glass()
+		var fr: Variant = Game.cosmetics.get("frame")
+		if fr is Dictionary:
+			sb.border_color = Color(String(fr.get("data", {}).get("color", "#ffffff")))
+			sb.set_border_width_all(6)
+		var fx: Variant = Game.cosmetics.get("profile_effect")
+		if fx is Dictionary:
+			sb.shadow_color = Color(String(fx.get("data", {}).get("color", "#ffffff")), 0.8)
+			sb.shadow_size = 22
+		_avatar.add_theme_stylebox_override("panel", sb)
 
 
 func _build_nav() -> void:

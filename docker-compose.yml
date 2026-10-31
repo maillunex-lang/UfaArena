@@ -24,6 +24,8 @@ services:
       URALIA_DATABASE_URL: postgresql+psycopg://uralia:${URALIA_DB_PASSWORD}@db:5432/uralia
       URALIA_REDIS_URL: redis://redis:6379/0
       URALIA_JWT_SECRET: ${URALIA_JWT_SECRET:?set URALIA_JWT_SECRET}
+      URALIA_ADMIN_TOKEN: ${URALIA_ADMIN_TOKEN:-}            # empty = admin panel disabled
+      URALIA_PAYMENTS_COMMERCIAL_ALLOWED: "${URALIA_PAYMENTS_COMMERCIAL_ALLOWED:-0}"  # real payments OFF
     volumes:
       - apikeys:/srv/keys
       - contentstore:/srv/var/content_store     # published content packages (by SHA-256)

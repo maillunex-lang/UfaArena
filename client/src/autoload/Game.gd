@@ -59,6 +59,8 @@ var afk := {}
 var rarities := {}
 var catalog := {}
 var server_time_offset := 0.0
+var cosmetics := {}  # equipped cosmetics resolved by the server (frame, title, hero_skins, ...)
+var test_mode := true
 var loaded := false
 
 
@@ -74,6 +76,8 @@ func bootstrap() -> Dictionary:
 	campaign = d.campaign
 	afk = d.afk
 	rarities = d.rarities
+	cosmetics = d.get("cosmetics", {})
+	test_mode = d.get("test_mode", true)
 	var st := Time.get_unix_time_from_datetime_string(d.server_time)
 	server_time_offset = st - Time.get_unix_time_from_system()
 	if catalog.is_empty():
@@ -150,6 +154,21 @@ func save_formation(slots: Array) -> Dictionary:
 		formation = r.data.slots
 		heroes_changed.emit()
 	return r
+
+
+func set_cosmetics(c: Variant) -> void:
+	if c is Dictionary:
+		cosmetics = c
+		Models.clear_cache()
+		profile_changed.emit()
+
+
+static func rub(kopecks: Variant) -> String:
+	var v := int(kopecks) / 100
+	var s := str(v)
+	if v >= 1000:
+		s = "%d %03d" % [v / 1000, v % 1000]
+	return s + " ₽"
 
 
 static func fmt(n: Variant) -> String:

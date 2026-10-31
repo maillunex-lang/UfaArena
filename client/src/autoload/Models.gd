@@ -131,6 +131,12 @@ func look(code: String) -> Dictionary:
 			lk[k] = ov[k]
 	if lk.is_empty():
 		lk = LOOKS["azamat"].duplicate()
+	var skins: Variant = Game.cosmetics.get("hero_skins", {})
+	if skins is Dictionary and skins.has(code) and skins[code] is Dictionary:
+		var sd: Dictionary = skins[code].get("data", {})
+		for k in ["tint", "glow"]:
+			if sd.has(k):
+				lk[k] = sd[k]
 	for ck in ["tint", "glow"]:
 		if lk.get(ck) is Array and (lk[ck] as Array).size() >= 3:
 			lk[ck] = Color(float(lk[ck][0]), float(lk[ck][1]), float(lk[ck][2]))

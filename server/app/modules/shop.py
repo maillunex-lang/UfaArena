@@ -48,14 +48,16 @@ def shop(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
 
 
 class ViewIn(BaseModel):
-    sku: str = Field(max_length=64)
+    skus: list[str] = Field(default_factory=list, max_length=60)
 
 
 @router.post("/shop/offer-view")
 def offer_view(body: ViewIn, user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
-    analytics.track(db, user.id, "offer_view", body.sku)
+    """Batched offer impressions (one request per shop section render)."""
+    for sku in body.skus:
+        analytics.track(db, user.id, "offer_view", sku[:64])
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "tracked": len(body.skus)}
 
 
 class OrderIn(BaseModel):

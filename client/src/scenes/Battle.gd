@@ -327,6 +327,11 @@ func _dispatch(ev: Dictionary) -> void:
 
 
 func _color_for(actor: Dictionary) -> Color:
+	var fx: Variant = Game.cosmetics.get("ability_effects", {})
+	if actor.side == 0 and fx is Dictionary and fx.has(String(actor.data.code)) and fx[actor.data.code] is Dictionary:
+		var c: Array = fx[actor.data.code].get("data", {}).get("color", [])
+		if c.size() >= 3:
+			return Color(float(c[0]), float(c[1]), float(c[2]))
 	match String(actor.data.get("class", "")):
 		"mage":
 			return Color(0.65, 0.45, 1.0) if actor.side == 0 else Color(0.6, 0.2, 0.9)

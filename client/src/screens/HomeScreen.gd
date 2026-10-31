@@ -40,13 +40,16 @@ func setup(m: Node, _p: Dictionary) -> void:
 	right.position = Vector2(-164, 40)
 	right.add_theme_constant_override("separation", 6)
 	add_child(right)
-	for it in [["fortress", "Здания", "fortress"], ["events", "События", ""], ["guild", "Гильдия", ""],
-			["shop", "Магазины", ""], ["friends", "Друзья", ""]]:
+	for it in [["fortress", "Здания", "fortress"], ["shop", "Магазин", "shop"], ["events", "Пропуск", "shop:battlepass"],
+			["guild", "Гильдия", ""], ["friends", "Друзья", ""]]:
 		var b := UI.icon_button(it[0], it[1])
 		var target: String = it[2]
 		if target == "":
 			b.modulate = Color(0.75, 0.75, 0.8)
 			b.pressed.connect(func(): Router.toast("«%s» откроется в следующем функциональном блоке" % it[1]))
+		elif target.begins_with("shop:"):
+			var tab := target.substr(5)
+			b.pressed.connect(func(): main.open("shop", {"tab": tab}))
 		else:
 			b.pressed.connect(func(): main.open(target))
 		right.add_child(b)
@@ -72,6 +75,21 @@ func setup(m: Node, _p: Dictionary) -> void:
 	var nxt := UI.button("▶", "dim", 90, 84)
 	nxt.pressed.connect(func(): _cycle(1))
 	plate.add_child(nxt)
+	var emo: Variant = Game.cosmetics.get("emote")
+	if emo is Dictionary:
+		var eb := UI.button("Эмоция", "glass", 170, 84)
+		eb.add_theme_font_size_override("font_size", 26)
+		var anim := String(emo.get("data", {}).get("anim", "cheer"))
+		eb.pressed.connect(func():
+			var hn: Node3D = main.world.hero
+			if hn:
+				var ap: AnimationPlayer = hn.get_meta("ap", null)
+				if ap and ap.has_animation(anim):
+					ap.play(anim)
+				else:
+					Models.play(hn, anim)
+				Models.queue_idle(hn))
+		plate.add_child(eb)
 	bottom.add_child(plate)
 	_battle_btn = UI.button("", "primary", 0, 124)
 	_battle_btn.add_theme_font_size_override("font_size", 40)

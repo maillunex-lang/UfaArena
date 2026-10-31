@@ -31,6 +31,7 @@ func _ready() -> void:
 	Hex.sun(self)
 	_build_island()
 	_content_decor()
+	_fortress_cosmetics()
 	camera = Camera3D.new()
 	camera.keep_aspect = Camera3D.KEEP_WIDTH
 	camera.fov = 29.4
@@ -127,6 +128,23 @@ func _content_decor() -> void:
 			l.omni_range = 4.0
 			l.position = n.position + Vector3(0, 1.6, 0)
 			add_child(l)
+
+
+func _fortress_cosmetics() -> void:
+	var f: Variant = Game.cosmetics.get("fortress")
+	if not (f is Dictionary):
+		return
+	var d: Dictionary = f.get("data", {})
+	if d.has("flag"):
+		for p in [Vector3(-2.2, 0, 1.8), Vector3(2.2, 0, 1.8), Vector3(-3.4, 0, -3.0), Vector3(3.4, 0, -3.0)]:
+			Hex.put(self, String(d.flag), p, 0.0, 1.7)
+	if d.has("aura"):
+		var l := OmniLight3D.new()
+		l.light_color = Color(String(d.aura))
+		l.light_energy = 2.5
+		l.omni_range = 9.0
+		l.position = Vector3(0, 3.0, -8.0)
+		add_child(l)
 
 
 func _free(p: Vector3) -> bool:
