@@ -1,0 +1,53 @@
+"""URALIA backend — modular monolith (FastAPI)."""
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session
+
+from .core.config import get_settings
+from .core.db import Base, get_engine, init_engine
+from .game.seed import seed_static
+from .modules import auth, content, economy, game, health
+
+API = "/api/v1"
+VERSION = "0.1.0"
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    s = get_settings()
+    init_engine(s.database_url)
+    if s.env in ("dev", "test") and s.database_url.startswith("sqlite"):
+        Base.metadata.create_all(get_engine())  # Postgres uses Alembic migrations
+    with Session(get_engine()) as db:
+        seed_static(db)
+    yield
+
+
+def create_app() -> FastAPI:
+    app = FastAPI(title="URALIA API", version=VERSION, lifespan=lifespan,
+                  docs_url="/docs" if get_settings().env != "prod" else None)
+    for r in (auth.router, game.router, economy.router, content.router):
+        app.include_router(r, prefix=API)
+    app.include_router(health.router)
+
+    @app.exception_handler(RequestValidationError)
+    async def _validation(_: Request, exc: RequestValidationError):
+        return JSONResponse(status_code=422, content={"detail": {"code": "validation_error", "message":
+                            "Некорректные данные запроса", "errors": jsonable_encoder(exc.errors()[:5], custom_encoder={Exception: str})}})
+
+    @app.middleware("http")
+    async def _security_headers(request: Request, call_next):
+        resp = await call_next(request)
+        resp.headers["X-Content-Type-Options"] = "nosniff"
+        resp.headers["Cache-Control"] = "no-store"
+        resp.headers["X-Server-Version"] = VERSION
+        return resp
+
+    return app
+
+
+app = create_app()

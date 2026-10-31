@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+server/.venv/
+server/*.db
+server/.pytest_cache/
+server/var/
+# Godot
+client/.godot/
+client/export/
+*.apk
+*.aab
+*.keystore
+!client/android/debug.keystore.README
+# Secrets
+.env
+server/keys/*.pem

@@ -1,0 +1,229 @@
+"""Static MVP content (seeded into the DB, later delivered as balance/content packages).
+
+ДИЗАЙН-ПОМЕТКИ. Буквенные решения ранних этапов (фракции «структура C», классы «D»,
+формация «C», дубликаты «D» и т.д.) не имеют исходных формулировок в комплекте
+документов. Значения ниже — ВРЕМЕННЫЕ (provisional) для вертикального среза и
+помечены в docs/GDD_OPEN_QUESTIONS.md как требующие уточнения.
+"""
+
+RARITIES = {
+    1: "Обычный",
+    2: "Необычный",
+    3: "Редкий",
+    4: "Эпический",
+    5: "Легендарный",
+    6: "Мифический",
+}
+RARITY_MULT = {1: 1.0, 2: 1.12, 3: 1.25, 4: 1.42, 5: 1.62, 6: 1.85}
+
+# provisional: 4 main factions in a cycle + 1 rare special faction + enemy faction
+FACTIONS = [
+    dict(code="uraltau", name="Хранители Урал-тау", strong_against="steppe",
+         description="Каменные стражи хребта, клятвенники древних гор."),
+    dict(code="agidel", name="Дети Агидели", strong_against="uraltau",
+         description="Народ реки Белой, владеющий магией воды и трав."),
+    dict(code="steppe", name="Ветра Степи", strong_against="shulgan",
+         description="Быстрые всадники и следопыты южных степей."),
+    dict(code="shulgan", name="Порождения Шульгана", strong_against="agidel",
+         description="Тени подземного мира, пробудившиеся после Раскола."),
+    dict(code="ancients", name="Древние", is_rare=True, strong_against=None,
+         description="Редкая фракция духов-предков. Не уязвима к циклу стихий."),
+]
+
+CLASSES = [
+    dict(code="guardian", name="Страж", role="tank"),
+    dict(code="warrior", name="Батыр", role="damage"),
+    dict(code="ranger", name="Следопыт", role="damage"),
+    dict(code="mage", name="Мудрец", role="control"),
+    dict(code="healer", name="Знахарь", role="support"),
+]
+
+# skill.kind: strike | aoe | heal | shield | stun ; power = multiplier of ATK
+HEROES = [
+    # --- playable
+    dict(code="ilgiz", name="Ильгиз", title="Ополченец заставы", faction_code="uraltau", class_code="guardian",
+         rarity=1, base_hp=980, base_atk=62, base_def=48, base_spd=88, model="knight",
+         skill=dict(kind="shield", name="Каменный заслон", power=1.2, desc="Щит союзнику с наименьшим здоровьем."),
+         lore="Сын кузнеца из Стерлитамака, первым встал у ворот крепости."),
+    dict(code="mirgali", name="Миргали", title="Лесоруб Ашкадара", faction_code="agidel", class_code="warrior",
+         rarity=1, base_hp=820, base_atk=86, base_def=30, base_spd=96, model="barbarian",
+         skill=dict(kind="strike", name="Удар топора", power=1.9, desc="Мощный удар по ближайшему врагу."),
+         lore="Рубит сухостой в борах у Ашкадара и сухие корни Шульгана."),
+    dict(code="gulnaz", name="Гульназ", title="Травница Агидели", faction_code="agidel", class_code="healer",
+         rarity=2, base_hp=700, base_atk=58, base_def=26, base_spd=104, model="mage",
+         skill=dict(kind="heal", name="Отвар чабреца", power=1.6, desc="Лечит союзника с наименьшим здоровьем."),
+         lore="Собирает травы на склонах шиханов и помнит песни бабушки."),
+    dict(code="ramil", name="Рамиль", title="Дозорный степи", faction_code="steppe", class_code="ranger",
+         rarity=2, base_hp=690, base_atk=94, base_def=24, base_spd=112, model="rogue",
+         skill=dict(kind="strike", name="Меткий болт", power=2.0, desc="Выстрел по врагу с наименьшим здоровьем."),
+         lore="Видит дым костра за десять вёрст."),
+    dict(code="azamat", name="Азамат", title="Щит Юрактау", faction_code="uraltau", class_code="guardian",
+         rarity=3, base_hp=1250, base_atk=70, base_def=62, base_spd=90, model="knight",
+         skill=dict(kind="stun", name="Гнев горы", power=1.3, desc="Оглушает ближайшего врага на 1 ход."),
+         lore="Дал клятву хранить шиханы, пока стоит Урал-тау."),
+    dict(code="zulfiya", name="Зульфия", title="Стрела ветра", faction_code="steppe", class_code="ranger",
+         rarity=3, base_hp=760, base_atk=112, base_def=28, base_spd=118, model="rogue",
+         skill=dict(kind="aoe", name="Ливень стрел", power=1.0, desc="Залп по всем врагам."),
+         lore="Её стрелы поют, как курай на ветру."),
+    dict(code="burebai", name="Буребай", title="Батыр Иремеля", faction_code="uraltau", class_code="warrior",
+         rarity=4, base_hp=1100, base_atk=128, base_def=40, base_spd=100, model="barbarian",
+         skill=dict(kind="aoe", name="Сотрясение земли", power=1.25, desc="Удар по всем врагам."),
+         lore="Спустился с Иремеля, когда горы загудели от Раскола."),
+    dict(code="tansulpan", name="Тансулпан", title="Тень рассвета", faction_code="steppe", class_code="ranger",
+         rarity=4, base_hp=820, base_atk=140, base_def=30, base_spd=130, model="rogue_hooded",
+         skill=dict(kind="strike", name="Клинок зари", power=2.6, desc="Удар по самому слабому врагу."),
+         lore="Её имя означает «утренняя звезда». Никто не видел её лица."),
+    dict(code="aigul", name="Айгуль", title="Голос Агидели", faction_code="agidel", class_code="mage",
+         rarity=5, base_hp=880, base_atk=150, base_def=32, base_spd=110, model="mage",
+         skill=dict(kind="aoe", name="Половодье", power=1.45, desc="Волна, поражающая всех врагов."),
+         lore="Говорят, река отвечает ей, когда она поёт."),
+    dict(code="humai", name="Хумай", title="Дева-птица", faction_code="ancients", class_code="healer",
+         rarity=6, base_hp=1000, base_atk=130, base_def=40, base_spd=120, model="mage_gold",
+         skill=dict(kind="heal", name="Крыло рассвета", power=2.2, desc="Сильное исцеление и щит союзнику."),
+         lore="Образ из эпоса: дух-покровительница, вернувшаяся к людям в час беды."),
+    # --- enemies (Порождения Шульгана)
+    dict(code="e_minion", name="Костяной прислужник", faction_code="shulgan", class_code="warrior", rarity=1,
+         base_hp=520, base_atk=58, base_def=18, base_spd=90, model="skeleton_minion", is_enemy=True, summonable=False,
+         skill=dict(kind="strike", name="Укус", power=1.5, desc="")),
+    dict(code="e_warrior", name="Курганный воин", faction_code="shulgan", class_code="guardian", rarity=2,
+         base_hp=860, base_atk=64, base_def=40, base_spd=84, model="skeleton_warrior", is_enemy=True, summonable=False,
+         skill=dict(kind="shield", name="Ржавый щит", power=1.0, desc="")),
+    dict(code="e_rogue", name="Пещерный ловчий", faction_code="shulgan", class_code="ranger", rarity=2,
+         base_hp=600, base_atk=82, base_def=20, base_spd=110, model="skeleton_rogue", is_enemy=True, summonable=False,
+         skill=dict(kind="strike", name="Подлый выстрел", power=1.8, desc="")),
+    dict(code="e_mage", name="Шаман подземья", faction_code="shulgan", class_code="mage", rarity=3,
+         base_hp=640, base_atk=90, base_def=22, base_spd=100, model="skeleton_mage", is_enemy=True, summonable=False,
+         skill=dict(kind="aoe", name="Чёрный туман", power=0.9, desc="")),
+    dict(code="e_boss_toratau", name="Страж Кургана", title="Узник Торатау", faction_code="shulgan",
+         class_code="guardian", rarity=5, base_hp=2400, base_atk=105, base_def=50, base_spd=86,
+         model="skeleton_boss", is_enemy=True, summonable=False,
+         skill=dict(kind="aoe", name="Обвал", power=1.2, desc="")),
+]
+
+STARTER_HEROES = ["azamat", "mirgali", "gulnaz"]
+ONBOARDING_SUMMON_HERO = "zulfiya"  # guaranteed first summon in onboarding
+
+# Region 1. Real places: шиханы Торатау, Юрактау, Куштау, Шахтау (Ишимбайский /
+# Стерлитамакский р-ны), реки Белая (Агидель) и Ашкадар, г. Стерлитамак.
+# Фэнтезийная интерпретация мест — гибридная структура кампании.
+REGIONS = [
+    dict(code="r1_shikhany", order=1, name="Шиханы Приагиделья",
+         real_place="Стерлитамакский и Ишимбайский районы, Республика Башкортостан",
+         description="Четыре одиноких горы-шихана над долиной Агидели. После Раскола "
+                     "из-под Торатау потянулись тени Шульгана."),
+]
+
+
+def _e(code, level, slot):
+    return dict(hero_code=code, level=level, slot=slot)
+
+
+NODES = [
+    dict(code="1-1", order=1, name="Берег Агидели", territory="nature", real_place="р. Белая (Агидель)",
+         map_pos=[0, 0], enemies=[_e("e_minion", 1, 0), _e("e_minion", 1, 1)],
+         rewards=dict(gold=120), first_clear_rewards=dict(crystals=50, summon_essence=1),
+         story=[dict(speaker="gulnaz", text="Вода в Агидели потемнела… Кости поднимаются из ила!"),
+                dict(speaker="azamat", text="Держитесь за мной. Крепость не падёт в первый же день.")]),
+    dict(code="1-2", order=2, name="Бор у Ашкадара", territory="nature", real_place="р. Ашкадар",
+         map_pos=[1, 0], enemies=[_e("e_minion", 2, 0), _e("e_rogue", 2, 2), _e("e_minion", 2, 1)],
+         rewards=dict(gold=150), first_clear_rewards=dict(crystals=50, nature_essence=30),
+         story=[dict(speaker="mirgali", text="В этом бору я знаю каждую сосну. Чужаков здесь нет — только мертвецы.")]),
+    dict(code="1-3", order=3, name="Застава Стерлитамака", territory="settlements", real_place="г. Стерлитамак",
+         map_pos=[2, -1], enemies=[_e("e_warrior", 3, 0), _e("e_minion", 3, 1), _e("e_rogue", 3, 2), _e("e_minion", 3, 3)],
+         rewards=dict(gold=180), first_clear_rewards=dict(crystals=60, summon_essence=1),
+         story=[dict(speaker="azamat", text="Застава держится. Люди уходят под защиту Крепости хранителей.")]),
+    dict(code="1-4", order=4, name="Склоны Юрактау", territory="nature", real_place="шихан Юрактау",
+         map_pos=[3, -1], enemies=[_e("e_warrior", 4, 0), _e("e_minion", 4, 1), _e("e_mage", 4, 2), _e("e_rogue", 4, 3)],
+         rewards=dict(gold=210), first_clear_rewards=dict(crystals=60, nature_essence=40),
+         story=[dict(speaker="gulnaz", text="На склонах Юрактау растёт чабрец. Даже тени его обходят.")]),
+    dict(code="1-5", order=5, name="Каменные залы Куштау", territory="dungeons", real_place="шихан Куштау",
+         map_pos=[3, 0], enemies=[_e("e_warrior", 5, 0), _e("e_warrior", 5, 1), _e("e_mage", 5, 2), _e("e_rogue", 5, 3)],
+         rewards=dict(gold=240), first_clear_rewards=dict(crystals=80, summon_essence=2),
+         story=[dict(speaker="mirgali", text="Внутри Куштау пусто и гулко. Кто-то вырыл здесь древние залы.")]),
+    dict(code="1-6", order=6, name="Разлом Шахтау", territory="resources", real_place="шихан Шахтау (карьер)",
+         map_pos=[4, 0], enemies=[_e("e_warrior", 6, 0), _e("e_minion", 6, 1), _e("e_rogue", 6, 2), _e("e_mage", 6, 3), _e("e_rogue", 6, 4)],
+         rewards=dict(gold=270), first_clear_rewards=dict(crystals=80, ancient_seals=1),
+         story=[dict(speaker="azamat", text="Здесь гору раскололи до основания. Из трещин сочится холод подземья.")]),
+    dict(code="1-7", order=7, name="Тропа на Торатау", territory="complexes", real_place="шихан Торатау",
+         map_pos=[5, -1], enemies=[_e("e_warrior", 8, 0), _e("e_warrior", 8, 1), _e("e_rogue", 8, 2), _e("e_mage", 8, 3), _e("e_mage", 8, 4)],
+         rewards=dict(gold=300), first_clear_rewards=dict(crystals=100, summon_essence=2),
+         story=[dict(speaker="gulnaz", text="Торатау — «гора-крепость». Сегодня она станет нашей.")]),
+    dict(code="1-8", order=8, name="Вершина Торатау", territory="dimensions", real_place="шихан Торатау",
+         map_pos=[6, -1], is_boss=True,
+         enemies=[_e("e_boss_toratau", 9, 0), _e("e_warrior", 8, 1), _e("e_mage", 8, 3), _e("e_rogue", 8, 4)],
+         rewards=dict(gold=400), first_clear_rewards=dict(crystals=300, summon_essence=5, ancient_seals=2),
+         story=[dict(speaker="azamat", text="Страж Кургана! Он стерёг проход в подземье с начала времён."),
+                dict(speaker="gulnaz", text="Если мы победим, Агидель снова станет светлой.")]),
+]
+
+SUMMON_POOLS = [
+    dict(code="standard", name="Зов предков",
+         rates={"1": 0.40, "2": 0.30, "3": 0.18, "4": 0.09, "5": 0.027, "6": 0.003},
+         cost={"summon_essence": 1}, pity_threshold=60, pity_min_rarity=5),
+    dict(code="standard_crystals", name="Зов предков (кристаллы)",
+         rates={"1": 0.40, "2": 0.30, "3": 0.18, "4": 0.09, "5": 0.027, "6": 0.003},
+         cost={"crystals": 300}, pity_threshold=60, pity_min_rarity=5),
+]
+
+# provisional duplicate rule ("дубликаты D" — требует уточнения): дубликат даёт осколки,
+# 10 осколков = +1 звезда (макс. 5), каждая звезда +8% к характеристикам.
+DUP_SHARDS = {1: 2, 2: 3, 3: 5, 4: 8, 5: 10, 6: 10}
+SHARDS_PER_STAR = 10
+MAX_STARS = 5
+STAR_MULT = 0.08
+
+LEVEL_CAP_MVP = 60
+
+
+def level_up_cost(level: int) -> dict:
+    return {"gold": 40 * level + 5 * level * level, "nature_essence": 2 + level}
+
+
+BUILDINGS = {
+    "summon_hall": dict(name="Зал призыва", max_level=10, effect="Эссенция призыва из AFK: +1 за каждые 8/уровень ч."),
+    "forge": dict(name="Кузница", max_level=10, effect="+3% атаки всем героям за уровень."),
+    "training": dict(name="Тренировочный двор", max_level=10, effect="+3% здоровья всем героям за уровень."),
+    "alchemy": dict(name="Алхимическая башня", max_level=10, effect="+10% эссенции природы в AFK за уровень."),
+    "storage": dict(name="Хранилище", max_level=10, effect="Лимит AFK: 8 ч + 1 ч за уровень сверх первого."),
+    "guild_house": dict(name="Дом гильдий", max_level=1, effect="Откроется вместе с гильдиями (следующий блок).",
+                        locked=True),
+}
+
+
+def building_upgrade_cost(code: str, level: int) -> dict:
+    return {"gold": 400 * level * level, "nature_essence": 20 * level}
+
+
+QUESTS = [
+    dict(code="main_first_battle", kind="main", order=1, title="Первая кровь у Агидели",
+         description="Пройди бой «Берег Агидели».", event="campaign_clear", target=1,
+         rewards=dict(gold=300, crystals=100)),
+    dict(code="main_first_summon", kind="main", order=2, title="Зов предков",
+         description="Призови героя в Зале призыва.", event="summon", target=1,
+         rewards=dict(summon_essence=1), requires="main_first_battle"),
+    dict(code="main_afk", kind="main", order=3, title="Плоды дозора",
+         description="Забери AFK-награды.", event="afk_claim", target=1,
+         rewards=dict(gold=500), requires="main_first_summon"),
+    dict(code="main_level_up", kind="main", order=4, title="Сила растёт",
+         description="Повысь уровень любого героя 3 раза.", event="hero_level_up", target=3,
+         rewards=dict(nature_essence=60), requires="main_afk"),
+    dict(code="main_fortress", kind="main", order=5, title="Стены крепости",
+         description="Улучши любое здание крепости.", event="building_upgrade", target=1,
+         rewards=dict(crystals=150), requires="main_level_up"),
+    dict(code="main_region1", kind="main", order=6, title="Освобождение Торатау",
+         description="Пройди всю главу «Шиханы Приагиделья».", event="campaign_clear", target=8,
+         rewards=dict(crystals=500, ancient_seals=2), requires="main_fortress"),
+    dict(code="daily_battles", kind="daily", order=10, title="Ежедневный дозор",
+         description="Проведи 3 боя.", event="battle_fought", target=3, rewards=dict(gold=400, crystals=30)),
+    dict(code="daily_afk", kind="daily", order=11, title="Сбор дани",
+         description="Забери AFK-награды 2 раза.", event="afk_claim", target=2, rewards=dict(nature_essence=30)),
+    dict(code="side_collector", kind="side", order=20, title="Собиратель легенд",
+         description="Собери 6 разных героев.", event="hero_collected", target=6,
+         rewards=dict(summon_essence=3)),
+]
+
+WELCOME_MAIL = dict(code="welcome_v1", title="Добро пожаловать в Уралию!",
+                    body="Хранитель! Крепость приветствует тебя. Прими дары предков для первого призыва.",
+                    attachments=dict(summon_essence=5, crystals=300, gold=1000))
+
+STARTING_WALLET = dict(gold=2000, crystals=200, summon_essence=1, ancient_seals=0, guild_marks=0, nature_essence=100)
