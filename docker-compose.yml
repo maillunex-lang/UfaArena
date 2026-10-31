@@ -2,6 +2,7 @@
 services:
   db:
     image: postgres:16
+    restart: unless-stopped
     environment:
       POSTGRES_USER: uralia
       POSTGRES_PASSWORD: ${URALIA_DB_PASSWORD:?set URALIA_DB_PASSWORD}
@@ -10,9 +11,11 @@ services:
     healthcheck: {test: ["CMD-SHELL", "pg_isready -U uralia"], interval: 5s, retries: 10}
   redis:
     image: redis:7
+    restart: unless-stopped
     command: ["redis-server", "--save", "", "--appendonly", "no"]
   api:
     build: ./server
+    restart: unless-stopped
     depends_on:
       db: {condition: service_healthy}
       redis: {condition: service_started}
@@ -22,7 +25,8 @@ services:
       URALIA_REDIS_URL: redis://redis:6379/0
       URALIA_JWT_SECRET: ${URALIA_JWT_SECRET:?set URALIA_JWT_SECRET}
     volumes: [apikeys:/srv/keys]
-    ports: ["8000:8000"]
+    # Без домена/HTTPS: "8000:8000". С Caddy на этом же сервере: "127.0.0.1:8000:8000"
+    ports: ["${URALIA_API_BIND:-8000}:8000"]
 volumes:
   pgdata:
   apikeys:

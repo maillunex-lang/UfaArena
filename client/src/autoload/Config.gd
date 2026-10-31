@@ -8,7 +8,8 @@ const PLATFORM := "android"
 const SETTINGS_PATH := "user://settings.cfg"
 const PUBLIC_KEY_PATH := "res://config/content_public_key.pem"
 
-var server_url := "http://10.0.2.2:8000"  # Android emulator -> host machine
+## Default server comes from project setting uralia/server_url (public address, not a secret).
+var server_url: String = ProjectSettings.get_setting("uralia/server_url", "http://10.0.2.2:8000")
 var settings := {
 	"graphics_quality": "auto",
 	"music_volume": 0.7,
@@ -18,8 +19,8 @@ var settings := {
 
 
 func _ready() -> void:
-	if OS.get_name() != "Android":
-		server_url = "http://127.0.0.1:8000"
+	if OS.has_feature("editor"):
+		server_url = "http://127.0.0.1:8000"  # running from the Godot editor -> local server
 	var env_url := OS.get_environment("URALIA_SERVER_URL")
 	if env_url != "":
 		server_url = env_url

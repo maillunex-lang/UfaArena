@@ -5,6 +5,8 @@ const HubWorld := preload("res://src/world/HubWorld.gd")
 
 var _status: Label
 var _retry: Button
+var _url_row: HBoxContainer
+var _url_edit: LineEdit
 var _ui: Control
 
 
@@ -44,6 +46,22 @@ func _ready() -> void:
 	_retry.visible = false
 	_retry.pressed.connect(_run)
 	pv.add_child(_retry)
+	_url_row = HBoxContainer.new()
+	_url_row.add_theme_constant_override("separation", 10)
+	_url_edit = LineEdit.new()
+	_url_edit.text = Config.server_url
+	_url_edit.custom_minimum_size = Vector2(0, 90)
+	_url_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_url_edit.add_theme_font_size_override("font_size", 28)
+	_url_row.add_child(_url_edit)
+	var save := UI.button("Сохранить", "glass", 240, 90)
+	save.pressed.connect(func():
+		Config.server_url = _url_edit.text.strip_edges().trim_suffix("/")
+		Config.save()
+		_run())
+	_url_row.add_child(save)
+	_url_row.visible = false
+	pv.add_child(_url_row)
 	panel.add_child(pv)
 	v.add_child(panel)
 	Sfx.music("hub")
@@ -52,6 +70,7 @@ func _ready() -> void:
 
 func _run() -> void:
 	_retry.visible = false
+	_url_row.visible = false
 	_status.text = "Проверяем обновления контента…"
 	var c := await ContentUpdater.run()
 	if not c.ok and c.status in ["signature_invalid", "hash_mismatch", "client_update_required"]:
@@ -76,3 +95,5 @@ func _run() -> void:
 func _fail(msg: String) -> void:
 	_status.text = msg
 	_retry.visible = true
+	_url_edit.text = Config.server_url
+	_url_row.visible = true
