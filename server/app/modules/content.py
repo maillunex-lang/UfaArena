@@ -60,7 +60,10 @@ def manifest(channel: str = Query(default="dev", pattern="^(dev|test|beta|stable
     body = {"channel": channel, "platform": platform, "version": row.version,
             "minimum_client_version": row.minimum_client_version, "kill_switch": row.kill_switch,
             "packages": row.packages}
-    return {"manifest": body, "signature": signing.sign(body), "algorithm": "RSA-PKCS1v15-SHA256",
+    # manifest_raw is the exact signed byte string; clients verify it before parsing,
+    # so JSON number/key formatting differences between runtimes cannot break verification.
+    return {"manifest": body, "manifest_raw": signing.canonical(body).decode(), "signature": signing.sign(body),
+            "algorithm": "RSA-PKCS1v15-SHA256",
             "client_update_required": _semver(client_version) < _semver(row.minimum_client_version)}
 
 

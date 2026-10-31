@@ -1,0 +1,50 @@
+; Engine configuration file.
+config_version=5
+
+[application]
+
+config/name="УРАЛИЯ: Дыхание предков"
+config/version="0.1.0"
+run/main_scene="res://src/scenes/Boot.tscn"
+config/features=PackedStringArray("4.5", "Mobile")
+config/icon="res://assets/ui/icon.png"
+boot_splash/bg_color=Color(0.05, 0.07, 0.12, 1)
+boot_splash/show_image=false
+
+[autoload]
+
+Config="*res://src/autoload/Config.gd"
+Api="*res://src/autoload/Api.gd"
+Game="*res://src/autoload/Game.gd"
+Sfx="*res://src/autoload/Sfx.gd"
+Gfx="*res://src/autoload/Gfx.gd"
+Models="*res://src/autoload/Models.gd"
+Router="*res://src/autoload/Router.gd"
+
+[display]
+
+window/size/viewport_width=1080
+window/size/viewport_height=1920
+window/size/window_width_override=432
+window/size/window_height_override=768
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+window/handheld/orientation=1
+
+[gui]
+
+theme/custom_font="res://assets/third_party/fonts/Philosopher-Regular.ttf"
+common/drop_mouse_on_gui_input_disabled=true
+
+[input_devices]
+
+pointing/emulate_touch_from_mouse=true
+
+[rendering]
+
+renderer/rendering_method="mobile"
+textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_3d=1
+lights_and_shadows/directional_shadow/size=2048
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=1
+environment/defaults/default_clear_color=Color(0.05, 0.07, 0.12, 1)

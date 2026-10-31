@@ -1,0 +1,28 @@
+# Local/staging stack. TLS terminates at a reverse proxy in front of `api` (not included).
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: uralia
+      POSTGRES_PASSWORD: ${URALIA_DB_PASSWORD:?set URALIA_DB_PASSWORD}
+      POSTGRES_DB: uralia
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: {test: ["CMD-SHELL", "pg_isready -U uralia"], interval: 5s, retries: 10}
+  redis:
+    image: redis:7
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+  api:
+    build: ./server
+    depends_on:
+      db: {condition: service_healthy}
+      redis: {condition: service_started}
+    environment:
+      URALIA_ENV: ${URALIA_ENV:-dev}
+      URALIA_DATABASE_URL: postgresql+psycopg://uralia:${URALIA_DB_PASSWORD}@db:5432/uralia
+      URALIA_REDIS_URL: redis://redis:6379/0
+      URALIA_JWT_SECRET: ${URALIA_JWT_SECRET:?set URALIA_JWT_SECRET}
+    volumes: [apikeys:/srv/keys]
+    ports: ["8000:8000"]
+volumes:
+  pgdata:
+  apikeys:

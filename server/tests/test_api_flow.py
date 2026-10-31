@@ -131,6 +131,7 @@ def test_signed_manifest(client):
     from app.core import signing
     d = client.get("/api/v1/content/manifest?channel=dev&client_version=0.1.0").json()
     assert signing.verify(d["manifest"], d["signature"])
+    assert d["manifest_raw"].encode() == signing.canonical(d["manifest"])
     tampered = dict(d["manifest"], version=999)
     assert not signing.verify(tampered, d["signature"])
     pkg = d["manifest"]["packages"][0]
