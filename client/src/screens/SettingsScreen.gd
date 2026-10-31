@@ -27,6 +27,13 @@ func setup(m: Node, _p: Dictionary) -> void:
 	var p := Game.profile
 	v.add_child(UI.label("URALIA ID: %s" % p.get("uralia_id", "—"), 32, UI.GOLD, true))
 	v.add_child(UI.label("%s · уровень %d" % [p.get("nickname", ""), int(p.get("level", 1))], 30))
+	var speeds: Array = p.get("battle_speeds", [1, 2])
+	var vip_txt := "VIP %d · ускорение боя: %s" % [int(p.get("vip_level", 0)), ", ".join(speeds.map(func(s): return "x%d" % int(s)))]
+	for row in p.get("vip_speed_table", []):
+		if int(row.vip) > int(p.get("vip_level", 0)):
+			vip_txt += "  (x%d — с VIP %d)" % [int(row.speeds[-1]), int(row.vip)]
+			break
+	v.add_child(UI.label(vip_txt, 26, UI.GOLD))
 	var nick_row := HBoxContainer.new()
 	var nick := LineEdit.new()
 	nick.text = p.get("nickname", "")

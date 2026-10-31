@@ -1,20 +1,19 @@
 extends Node3D
-## Isometric 3D battle arena. Builds the stage for a campaign node's territory and
-## exposes VFX helpers used by the battle playback.
+## Side-view 3D battle arena (player's team on the left, enemies on the right, camera slightly
+## above — AFK-style). Unit positions come straight from the server's real-time simulation.
 
-const SLOT_POS := {
-	0: Vector3(-1.25, 0, 1.8), 1: Vector3(1.25, 0, 1.8),
-	2: Vector3(-2.35, 0, 3.9), 3: Vector3(0, 0, 4.2), 4: Vector3(2.35, 0, 3.9),
-}
-const UNIT_SCALE := 0.8
+const UNIT_SCALE := 1.0
+const SIM_X := 0.78  # portrait screen: compress the battle line horizontally
+const SIM_Z := 1.5   # ...and stretch formation depth so rows read vertically
+const FACE_BIAS := 0.55  # turn models 3/4 towards the camera
 const BAR_SHADER := preload("res://src/world/bar.gdshader")
 
 var camera: Camera3D
 var units := {}  # uid -> {node, bar, data, hp, max_hp, shield, energy, alive, home}
 var _rng := RandomNumberGenerator.new()
 var _shake := 0.0
-var _cam_base := Vector3(0, 15.5, 12.0)
-var _look := Vector3(0, 0.4, 0.9)
+var _cam_base := Vector3(0, 10.5, 15.5)
+var _look := Vector3(0, 0.6, -0.2)
 
 
 func build(territory: String, is_boss: bool) -> void:
@@ -38,13 +37,14 @@ func build(territory: String, is_boss: bool) -> void:
 		for r in range(-8, 9):
 			var d := Hex.dist(q, r)
 			var p := Hex.to_world(q, r)
-			if abs(p.x) > 9.5 or abs(p.z) > 12.5:
+			if abs(p.x) > 14.0 or p.z > 16.0 or p.z < -16.0:
 				continue
-			Hex.tile(self, "base/hex_grass", q, r, 0, tint if d <= 4 else tint.darkened(0.08))
-			if d >= 5 and _rng.randf() < 0.55:
+			Hex.tile(self, "base/hex_grass", q, r, 0, tint if abs(p.z) < 4.5 and abs(p.x) < 9.0 else tint.darkened(0.08))
+			# backdrop: decoration behind the battle line and at the far sides, never in front of the camera
+			if (p.z < -4.5 or (abs(p.x) > 8.5 and p.z < 2.0)) and _rng.randf() < 0.6:
 				_decorate(territory, p)
 	if mood != "day":
-		for p in [Vector3(-4.5, 0, -1), Vector3(4.5, 0, -1), Vector3(-4.5, 0, 4), Vector3(4.5, 0, 4)]:
+		for p in [Vector3(-6.5, 0, -3.2), Vector3(6.5, 0, -3.2), Vector3(-2.5, 0, -3.6), Vector3(2.5, 0, -3.6)]:
 			var torch: Node3D = load("res://assets/third_party/kaykit_dungeon/torch_lit.gltf.glb").instantiate()
 			torch.position = p
 			torch.scale = Vector3.ONE * 1.6
@@ -57,10 +57,10 @@ func build(territory: String, is_boss: bool) -> void:
 			add_child(l)
 	if is_boss:
 		var portal := _ring_mesh(Color(0.7, 0.25, 1.0), 2.4, 2.75)
-		portal.position = Vector3(0, 0.05, -3.2)
+		portal.position = Vector3(6.0, 0.05, -2.6)
 		add_child(portal)
 	camera = Camera3D.new()
-	camera.fov = 50
+	camera.fov = 44
 	add_child(camera)
 	camera.current = true
 	_update_camera()
@@ -104,16 +104,28 @@ func shake(amount := 0.35) -> void:
 	_shake = max(_shake, amount)
 
 
-func world_slot(side: int, slot: int) -> Vector3:
-	var p: Vector3 = SLOT_POS[slot]
-	return p if side == 0 else Vector3(p.x, 0, -p.z)
+func sim_pos(x: float, z: float) -> Vector3:
+	return Vector3(x * SIM_X, 0, z * SIM_Z)
+
+
+func rest_yaw(side: int) -> float:
+	return (PI / 2 - FACE_BIAS) if side == 0 else -(PI / 2 - FACE_BIAS)
+
+
+## Yaw to face a point, biased 3/4 towards the camera so faces stay visible.
+func yaw_to(from: Vector3, to: Vector3) -> float:
+	var d := to - from
+	if d.length() < 0.01:
+		return 0.0
+	var y := atan2(d.x, d.z)
+	return y - FACE_BIAS * signf(y) * 0.6
 
 
 func add_unit(data: Dictionary) -> void:
 	var node := Models.spawn(data.code)
 	var side: int = data.side
-	node.position = world_slot(side, int(data.slot))
-	node.rotation.y = PI if side == 1 else 0.0
+	node.position = sim_pos(float(data.x), float(data.z))
+	node.rotation.y = rest_yaw(side)
 	node.scale *= UNIT_SCALE
 	add_child(node)
 	var bar := MeshInstance3D.new()
@@ -126,9 +138,10 @@ func add_unit(data: Dictionary) -> void:
 	mat.set_shader_parameter("hp_trail", 1.0)
 	bar.material_override = mat
 	var lk_scale: float = Models.look(data.code).get("scale", 1.0)
-	bar.position = node.position + Vector3(0, 3.1 * UNIT_SCALE * lk_scale, 0)
+	bar.position = Vector3(0, 3.2 * lk_scale, 0)
 	bar.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	add_child(bar)
+	node.add_child(bar)
+	bar.scale = Vector3.ONE / node.scale.x
 	var lv := Label3D.new()
 	lv.text = str(int(data.level))
 	lv.font = UI.FONT_BOLD
@@ -141,11 +154,12 @@ func add_unit(data: Dictionary) -> void:
 	lv.modulate = Color(1, 0.9, 0.6)
 	bar.add_child(lv)
 	var ring := _ring_mesh(Game.RARITY_COLORS.get(int(data.rarity), Color.WHITE) if side == 0 else Color(0.9, 0.3, 0.3), 0.55, 0.65)
-	ring.position = node.position + Vector3(0, 0.04, 0)
-	add_child(ring)
+	ring.position = Vector3(0, 0.04, 0)
+	ring.scale = Vector3(1, 0.15, 1) / node.scale.x
+	node.add_child(ring)
 	units[data.uid] = {"node": node, "bar": bar, "ring": ring, "data": data, "hp": int(data.hp),
 		"max_hp": int(data.max_hp), "shield": 0, "energy": 0, "alive": true, "home": node.position,
-		"side": side}
+		"side": side, "target_pos": node.position, "busy_until": 0.0, "moving": false}
 	set_bar(data.uid)
 
 

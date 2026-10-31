@@ -24,9 +24,13 @@ services:
       URALIA_DATABASE_URL: postgresql+psycopg://uralia:${URALIA_DB_PASSWORD}@db:5432/uralia
       URALIA_REDIS_URL: redis://redis:6379/0
       URALIA_JWT_SECRET: ${URALIA_JWT_SECRET:?set URALIA_JWT_SECRET}
-    volumes: [apikeys:/srv/keys]
+    volumes:
+      - apikeys:/srv/keys
+      - contentstore:/srv/var/content_store     # published content packages (by SHA-256)
+      - ./content_src:/srv/content_src:ro       # package sources for `python -m app.content.admin publish`
     # Без домена/HTTPS: "8000:8000". С Caddy на этом же сервере: "127.0.0.1:8000:8000"
     ports: ["${URALIA_API_BIND:-8000}:8000"]
 volumes:
   pgdata:
   apikeys:
+  contentstore:

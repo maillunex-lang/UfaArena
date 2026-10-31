@@ -122,3 +122,28 @@ cd /opt/uralia && git pull && docker compose up -d --build && docker compose log
 | С телефона не открывается, на сервере `curl` работает | Порт закрыт у хостера (панель VPS → firewall) или в ufw |
 | Сборка падает по памяти на 1 ГБ RAM | Добавьте swap: `fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile` |
 | Нужно посмотреть БД | `docker compose exec db psql -U uralia uralia` |
+
+## 10. Обновление до 0.2 (система обновлений контента + бой в реальном времени)
+```bash
+cd /opt/uralia && git pull && docker compose up -d --build && docker compose logs --tail=50 api
+```
+Миграция `0002` применится автоматически (новая таблица версий пакетов, колонка VIP).
+Старый манифест будет перевыпущен с пакетом `core.balance` в хранилище контента.
+
+## 11. Публикация контента без обновления APK
+Пакет — это папка с `package.json` и ассетами. Разрешены только данные: `.glb .png .jpg .webp .ogg .json .txt`.
+Скрипты, сцены и библиотеки отклоняются. Исходники пакетов лежат в `content_src/` и смонтированы в контейнер.
+```bash
+A="docker compose exec api python -m app.content.admin"
+$A publish /srv/content_src/fortress_autumn_fair --channel dev --notes "Осенняя ярмарка"
+$A list --channel dev                 # история манифестов, * = активный
+$A activate 1 --channel dev           # откат на манифест v1 (или обратно на новый)
+$A remove fortress.autumn_fair        # убрать пакет
+$A kill on | off                      # аварийно отключить весь контент (клиенты вернутся к встроенному)
+$A promote dev beta                   # перенести набор пакетов в другой канал
+$A min-client 0.3.0                   # потребовать новый APK (только если менялся код)
+$A set-vip UR-XXXXXXXX 3              # тест: выдать VIP 3 (ускорение до x6)
+```
+Клиенты проверяют манифест при запуске и раз в 15 минут во время игры. Новые пакеты скачиваются
+в фоне с докачкой и применяются, когда игрок возвращается на экран крепости.
+Чтобы выпустить новую версию пакета, увеличьте `"version"` в его `package.json`.

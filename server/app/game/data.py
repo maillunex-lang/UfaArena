@@ -226,4 +226,17 @@ WELCOME_MAIL = dict(code="welcome_v1", title="Добро пожаловать в
                     body="Хранитель! Крепость приветствует тебя. Прими дары предков для первого призыва.",
                     attachments=dict(summon_essence=5, crystals=300, gold=1000))
 
+# Battle speed-up by VIP level (convenience only, never power — GDD: no Pay-to-Win).
+# provisional thresholds; VIP sources (cosmetic VIP / Battle Pass) arrive with the monetization block.
+VIP_BATTLE_SPEEDS = [(0, [1, 2]), (1, [1, 2, 4]), (3, [1, 2, 4, 6])]
+
+
+def battle_speeds(vip_level: int) -> list[int]:
+    allowed = [1, 2]
+    for lvl, speeds in VIP_BATTLE_SPEEDS:
+        if vip_level >= lvl:
+            allowed = speeds
+    return allowed
+
+
 STARTING_WALLET = dict(gold=2000, crystals=200, summon_essence=1, ancient_seals=0, guild_marks=0, nature_essence=100)

@@ -109,8 +109,10 @@ func _run() -> void:
 	await wait(2.5)
 	await shot("04_battle_story")
 	await advance_dialogs()
-	await wait(3.0)
+	await wait(1.6)
 	await shot("05_battle")
+	await wait(0.9)
+	await shot("05b_battle")
 	# battle speed x3 to finish faster
 	await press("x1", 2.0)
 	await press("x2", 2.0)
@@ -184,6 +186,22 @@ func _run() -> void:
 	await press("Кампания")
 	await wait(3.0)
 	await shot("16_campaign_after")
+	# real-time battle 1-2: all units fight at once (side view)
+	await press("Сражаться")
+	await wait_scene("Battle")
+	await wait(2.5)
+	await advance_dialogs()
+	for i in 3:
+		await wait(2.0)
+		await shot("16b_battle_%d" % i)
+	var t2 := 0.0
+	while find_button("В крепость") == null and t2 < 120.0:
+		await wait(0.5)
+		t2 += 0.5
+	await shot("16c_battle_result")
+	await press("В крепость")
+	await wait_scene("Main")
+	await wait(1.5)
 	var gold_before := int(Game.wallet.get("gold", 0))
 	var cleared_before: Array = Game.campaign.get("cleared", []).duplicate()
 	# ---- simulated app restart: drop in-memory state, keep only the stored refresh token

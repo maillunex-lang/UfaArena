@@ -32,6 +32,8 @@ BATTLE_TTL = timedelta(minutes=30)
 def profile_view(p: PlayerProfile) -> dict:
     return {"uralia_id": p.uralia_id, "nickname": p.nickname, "level": p.level, "exp": p.exp,
             "onboarding_step": p.onboarding_step, "is_ai": p.is_ai, "settings": p.settings or {},
+            "vip_level": p.vip_level or 0, "battle_speeds": D.battle_speeds(p.vip_level or 0),
+            "vip_speed_table": [{"vip": lvl, "speeds": s} for lvl, s in D.VIP_BATTLE_SPEEDS],
             "created_at": as_utc(p.created_at).isoformat()}
 
 
@@ -89,7 +91,7 @@ class SettingsIn(BaseModel):
     graphics_quality: str = Field(default="auto", pattern="^(auto|low|medium|high)$")
     music_volume: float = Field(default=0.8, ge=0, le=1)
     sfx_volume: float = Field(default=0.9, ge=0, le=1)
-    battle_speed: int = Field(default=1, ge=1, le=3)
+    battle_speed: int = Field(default=1, ge=1, le=6)
 
 
 @router.post("/player/settings")
