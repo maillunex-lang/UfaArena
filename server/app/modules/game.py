@@ -16,6 +16,10 @@ from ..core.errors import GameError
 from ..core.idempotency import require_key
 from ..game import data as D
 from ..game import roster as R
+from ..monetization import battlepass as BP
+from ..monetization import vip as VIP
+from ..monetization.config import cfg as MCFG
+from ..monetization.mode import is_test
 from ..game.battle_sim import hero_stats, make_unit, power_rating, simulate
 from ..models import (
     Battle, CampaignNode, CampaignRegion, Faction, Formation, Hero, HeroClass, PlayerCampaignProgress, PlayerHero,
@@ -33,8 +37,8 @@ BATTLE_TTL = timedelta(minutes=30)
 def profile_view(p: PlayerProfile) -> dict:
     return {"uralia_id": p.uralia_id, "nickname": p.nickname, "level": p.level, "exp": p.exp,
             "onboarding_step": p.onboarding_step, "is_ai": p.is_ai, "settings": p.settings or {},
-            "vip_level": p.vip_level or 0, "battle_speeds": D.battle_speeds(p.vip_level or 0),
-            "vip_speed_table": [{"vip": lvl, "speeds": s} for lvl, s in D.VIP_BATTLE_SPEEDS],
+            "vip_level": p.vip_level or 0, "vip_xp": p.vip_xp or 0, "battle_speeds": VIP.battle_speeds(p.vip_level or 0),
+            "vip_speed_table": [{"vip": int(k), "speeds": s} for k, s in MCFG()["vip"]["battle_speeds"].items()],
             "created_at": as_utc(p.created_at).isoformat()}
 
 
@@ -48,8 +52,13 @@ def me(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
 def bootstrap(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
     """Everything the client needs after login in a single round-trip."""
     p = db.get(PlayerProfile, user.id)
+    VIP.daily_activity(db, user.id)  # VIP daily XP + battle pass daily login (once per UTC day)
+    db.commit()
     nxt = next_node(db, user.id)
+    from .shop import equipped_view
     return {
+        "cosmetics": equipped_view(db, user.id),
+        "test_mode": is_test(db),
         "server_time": utcnow().isoformat(),
         "profile": profile_view(p),
         "wallet": wallet_dict(db, user.id),
@@ -246,6 +255,7 @@ def battle_validate(body: BattleIn, user: CurrentUser = Depends(player), db: Ses
     db.add(battle)
     db.flush()
     quest_event(db, user.id, "battle_fought")
+    BP.add_xp(db, user.id, "battle_fought")
     db.commit()
     return {"battle_id": battle.id, "node": _node_view(node, True, False), "simulation": sim}
 
@@ -281,6 +291,7 @@ def campaign_complete(node_id: str, body: CompleteIn, user: CurrentUser = Depend
                 db.flush()
                 from ..services import cleared_count
                 quest_event(db, user.id, "campaign_clear", absolute=cleared_count(db, user.id))
+                BP.add_xp(db, user.id, "campaign_clear")
             grant(db, user.id, rewards, "campaign_reward", battle.id)
             p = db.get(PlayerProfile, user.id)
             p.exp += 40 + 10 * node.order

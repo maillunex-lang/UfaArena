@@ -156,12 +156,18 @@ def afk_rates(db: Session, user_id: str) -> dict:
     """Per-hour AFK production, derived from server-side progress only."""
     cleared = cleared_count(db, user_id)
     lv = building_levels(db, user_id)
-    return {
+    from .monetization.vip import afk_bonus
+    prof = db.get(PlayerProfile, user_id)
+    vb = 1 + afk_bonus(prof.vip_level or 0) if prof else 1.0  # capped VIP bonus (PvE only)
+    out = {
         "gold": 600 + 200 * cleared,
         "nature_essence": round((20 + 6 * cleared) * (1 + 0.10 * (lv.get("alchemy", 1) - 1)), 2),
         "summon_essence": round(lv.get("summon_hall", 1) / 8.0, 4),
         "crystals": 5 + 2 * cleared,
     }
+    out["gold"] = int(out["gold"] * vb)
+    out["nature_essence"] = round(out["nature_essence"] * vb, 2)
+    return out
 
 
 def afk_cap_hours(db: Session, user_id: str) -> int:

@@ -39,8 +39,11 @@ def seed_static(db: Session) -> None:
         db.add(MailMessage(**D.WELCOME_MAIL))
     db.commit()
     from ..modules.content import ensure_initial
+    from ..monetization import catalog as shop_catalog
 
     ensure_initial(db)
+    shop_catalog.seed(db)
+    db.commit()
 
 
 if __name__ == "__main__":  # pragma: no cover

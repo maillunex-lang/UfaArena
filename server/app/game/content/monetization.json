@@ -1,0 +1,1716 @@
+{
+ "version": 1,
+ "currency": "RUB",
+ "mode_default": "test",
+ "products": [
+  {
+   "sku": "crystals_1",
+   "section": "crystals",
+   "name": "Маленький мешочек кристаллов",
+   "price_rub": 9900,
+   "contents": {
+    "currencies": {
+     "crystals": 60
+    }
+   },
+   "display": {
+    "base": 60,
+    "bonus": 0
+   },
+   "limit": null,
+   "repeatable": true
+  },
+  {
+   "sku": "crystals_2",
+   "section": "crystals",
+   "name": "Стандартный мешочек кристаллов",
+   "price_rub": 29900,
+   "contents": {
+    "currencies": {
+     "crystals": 200
+    }
+   },
+   "display": {
+    "base": 190,
+    "bonus": 10
+   },
+   "limit": null,
+   "repeatable": true
+  },
+  {
+   "sku": "crystals_3",
+   "section": "crystals",
+   "name": "Большой мешочек кристаллов",
+   "price_rub": 59900,
+   "contents": {
+    "currencies": {
+     "crystals": 430
+    }
+   },
+   "display": {
+    "base": 390,
+    "bonus": 40
+   },
+   "limit": null,
+   "repeatable": true
+  },
+  {
+   "sku": "crystals_4",
+   "section": "crystals",
+   "name": "Крупный мешочек кристаллов",
+   "price_rub": 119000,
+   "contents": {
+    "currencies": {
+     "crystals": 920
+    }
+   },
+   "display": {
+    "base": 800,
+    "bonus": 120
+   },
+   "limit": null,
+   "repeatable": true
+  },
+  {
+   "sku": "crystals_5",
+   "section": "crystals",
+   "name": "Премиальный мешочек кристаллов",
+   "price_rub": 239000,
+   "contents": {
+    "currencies": {
+     "crystals": 1980
+    }
+   },
+   "display": {
+    "base": 1650,
+    "bonus": 330
+   },
+   "limit": null,
+   "repeatable": true
+  },
+  {
+   "sku": "crystals_6",
+   "section": "crystals",
+   "name": "Максимальный мешочек кристаллов",
+   "price_rub": 479000,
+   "contents": {
+    "currencies": {
+     "crystals": 4300
+    }
+   },
+   "display": {
+    "base": 3400,
+    "bonus": 900
+   },
+   "limit": null,
+   "repeatable": true
+  },
+  {
+   "sku": "sub_blessing",
+   "section": "vip",
+   "name": "Благословение Уралии",
+   "price_rub": 29900,
+   "repeatable": true,
+   "contents": {
+    "entitlement": {
+     "kind": "subscription",
+     "code": "blessing",
+     "days": 30
+    }
+   },
+   "desc": "30 дней: ежедневные награды, рамка и титул, косметический эффект."
+  },
+  {
+   "sku": "sub_patronage",
+   "section": "vip",
+   "name": "Покровительство Предков",
+   "price_rub": 59900,
+   "repeatable": true,
+   "contents": {
+    "entitlement": {
+     "kind": "subscription",
+     "code": "patronage",
+     "days": 30
+    }
+   },
+   "desc": "30 дней: расширенные ежедневные награды, анимированная рамка, эксклюзивный титул, эффекты профиля и крепости."
+  },
+  {
+   "sku": "starter_1",
+   "section": "starter",
+   "name": "Набор новичка",
+   "price_rub": 9900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "dynamic": "starter:1"
+   },
+   "unlock_day": 0,
+   "window_days": 8
+  },
+  {
+   "sku": "starter_2",
+   "section": "starter",
+   "name": "Набор исследователя",
+   "price_rub": 19900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "dynamic": "starter:2"
+   },
+   "unlock_day": 1,
+   "window_days": 8
+  },
+  {
+   "sku": "starter_3",
+   "section": "starter",
+   "name": "Набор героя",
+   "price_rub": 29900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "dynamic": "starter:3"
+   },
+   "unlock_day": 2,
+   "window_days": 8
+  },
+  {
+   "sku": "starter_4",
+   "section": "starter",
+   "name": "Набор развития",
+   "price_rub": 49900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "dynamic": "starter:4"
+   },
+   "unlock_day": 3,
+   "window_days": 8
+  },
+  {
+   "sku": "starter_5",
+   "section": "starter",
+   "name": "Набор призывателя",
+   "price_rub": 69900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "dynamic": "starter:5"
+   },
+   "unlock_day": 4,
+   "window_days": 8
+  },
+  {
+   "sku": "starter_6",
+   "section": "starter",
+   "name": "Набор легенды",
+   "price_rub": 99000,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "dynamic": "starter:6"
+   },
+   "unlock_day": 5,
+   "window_days": 8
+  },
+  {
+   "sku": "starter_7",
+   "section": "starter",
+   "name": "Набор Предков",
+   "price_rub": 149000,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "dynamic": "starter:7"
+   },
+   "unlock_day": 6,
+   "window_days": 8
+  },
+  {
+   "sku": "resources_1",
+   "section": "resources",
+   "name": "Котомка путника",
+   "price_rub": 9900,
+   "limit": {
+    "count": 3,
+    "period": "week"
+   },
+   "contents": {
+    "dynamic": "resources:1"
+   }
+  },
+  {
+   "sku": "resources_2",
+   "section": "resources",
+   "name": "Сума хранителя",
+   "price_rub": 29900,
+   "limit": {
+    "count": 3,
+    "period": "week"
+   },
+   "contents": {
+    "dynamic": "resources:2"
+   }
+  },
+  {
+   "sku": "resources_3",
+   "section": "resources",
+   "name": "Сундук заставы",
+   "price_rub": 59900,
+   "limit": {
+    "count": 3,
+    "period": "week"
+   },
+   "contents": {
+    "dynamic": "resources:3"
+   }
+  },
+  {
+   "sku": "resources_4",
+   "section": "resources",
+   "name": "Казна крепости",
+   "price_rub": 119000,
+   "limit": {
+    "count": 3,
+    "period": "week"
+   },
+   "contents": {
+    "dynamic": "resources:4"
+   }
+  },
+  {
+   "sku": "shards_small",
+   "section": "heroes",
+   "name": "Осколки героя (малые)",
+   "price_rub": 9900,
+   "limit": {
+    "count": 5,
+    "period": "week"
+   },
+   "contents": {
+    "shards_choice": 5
+   },
+   "desc": "5 осколков выбранного героя из вашей коллекции."
+  },
+  {
+   "sku": "shards_medium",
+   "section": "heroes",
+   "name": "Осколки героя",
+   "price_rub": 29900,
+   "limit": {
+    "count": 3,
+    "period": "week"
+   },
+   "contents": {
+    "shards_choice": 15
+   }
+  },
+  {
+   "sku": "shards_large",
+   "section": "heroes",
+   "name": "Осколки героя (большие)",
+   "price_rub": 49900,
+   "limit": {
+    "count": 2,
+    "period": "week"
+   },
+   "contents": {
+    "shards_choice": 25
+   }
+  },
+  {
+   "sku": "shards_grand",
+   "section": "heroes",
+   "name": "Сундук осколков",
+   "price_rub": 99000,
+   "limit": {
+    "count": 1,
+    "period": "week"
+   },
+   "contents": {
+    "shards_choice": 50,
+    "currencies": {
+     "gold": 20000
+    }
+   }
+  },
+  {
+   "sku": "hero_select_rare",
+   "section": "heroes",
+   "name": "Выбор героя: Редкий",
+   "price_rub": 99900,
+   "limit": {
+    "count": 1,
+    "period": "month"
+   },
+   "contents": {
+    "hero_choice": {
+     "rarity_max": 3
+    }
+   },
+   "desc": "Любой редкий или ниже герой на выбор. Все герои доступны и в призыве."
+  },
+  {
+   "sku": "hero_select_epic",
+   "section": "heroes",
+   "name": "Выбор героя: Эпический",
+   "price_rub": 199000,
+   "limit": {
+    "count": 1,
+    "period": "month"
+   },
+   "contents": {
+    "hero_choice": {
+     "rarity_max": 4
+    }
+   }
+  },
+  {
+   "sku": "hero_select_legend",
+   "section": "heroes",
+   "name": "Выбор героя: Легендарный",
+   "price_rub": 299000,
+   "limit": {
+    "count": 1,
+    "period": "month"
+   },
+   "contents": {
+    "hero_choice": {
+     "rarity_max": 5
+    }
+   },
+   "desc": "Любой легендарный герой. Мифические — только через призыв и события."
+  },
+  {
+   "sku": "cos_frame_birch",
+   "section": "cosmetics",
+   "name": "Рамка «Берёзовая»",
+   "price_rub": 9900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "frame_birch"
+    ]
+   }
+  },
+  {
+   "sku": "cos_frame_kurai",
+   "section": "cosmetics",
+   "name": "Рамка «Курай»",
+   "price_rub": 19900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "frame_kurai"
+    ]
+   }
+  },
+  {
+   "sku": "cos_frame_toratau",
+   "section": "cosmetics",
+   "name": "Рамка «Торатау»",
+   "price_rub": 29900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "frame_toratau"
+    ]
+   }
+  },
+  {
+   "sku": "cos_frame_rift",
+   "section": "cosmetics",
+   "name": "Рамка «Разлом»",
+   "price_rub": 59900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "frame_rift"
+    ]
+   }
+  },
+  {
+   "sku": "cos_title_pathfinder",
+   "section": "cosmetics",
+   "name": "Титул «Следопыт»",
+   "price_rub": 9900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "title_pathfinder"
+    ]
+   }
+  },
+  {
+   "sku": "cos_title_keeper",
+   "section": "cosmetics",
+   "name": "Титул «Хранитель шиханов»",
+   "price_rub": 29900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "title_keeper"
+    ]
+   }
+  },
+  {
+   "sku": "cos_skin_arslan_dawn",
+   "section": "cosmetics",
+   "name": "Облик «Рассветный страж» (Арслан-Кара)",
+   "price_rub": 59900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "skin_arslan_dawn"
+    ]
+   }
+  },
+  {
+   "sku": "cos_skin_morai_void",
+   "section": "cosmetics",
+   "name": "Облик «Звёздная пустота» (Морай)",
+   "price_rub": 99000,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "skin_morai_void"
+    ]
+   }
+  },
+  {
+   "sku": "cos_skin_yurek_autumn",
+   "section": "cosmetics",
+   "name": "Облик «Осенний лес» (Юрек)",
+   "price_rub": 19900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "skin_yurek_autumn"
+    ]
+   }
+  },
+  {
+   "sku": "cos_fx_golden_arrows",
+   "section": "cosmetics",
+   "name": "Эффект «Золотые стрелы»",
+   "price_rub": 29900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "fx_golden_arrows"
+    ]
+   }
+  },
+  {
+   "sku": "cos_emote_cheer",
+   "section": "cosmetics",
+   "name": "Эмоция «Ликование»",
+   "price_rub": 9900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "emote_cheer"
+    ]
+   }
+  },
+  {
+   "sku": "cos_emote_salute",
+   "section": "cosmetics",
+   "name": "Эмоция «Приветствие»",
+   "price_rub": 19900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "emote_salute"
+    ]
+   }
+  },
+  {
+   "sku": "cos_fortress_banner_red",
+   "section": "cosmetics",
+   "name": "Оформление крепости «Алые знамёна»",
+   "price_rub": 29900,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "fortress_banner_red"
+    ]
+   }
+  },
+  {
+   "sku": "cos_avatar_glow_violet",
+   "section": "cosmetics",
+   "name": "Эффект профиля «Сияние разлома»",
+   "price_rub": 149000,
+   "limit": {
+    "count": 1,
+    "period": "once"
+   },
+   "contents": {
+    "cosmetics": [
+     "avatar_glow_violet"
+    ]
+   }
+  },
+  {
+   "sku": "battlepass_premium",
+   "section": "battlepass",
+   "name": "Боевой пропуск: Premium",
+   "price_rub": 49900,
+   "limit": {
+    "count": 1,
+    "period": "season"
+   },
+   "contents": {
+    "bp_premium": true
+   },
+   "desc": "Premium-линия текущего сезона. Уже достигнутые уровни сразу открывают Premium-награды."
+  },
+  {
+   "sku": "season_autumn_small",
+   "section": "seasonal",
+   "name": "Осенняя ярмарка: дары",
+   "price_rub": 19900,
+   "limit": {
+    "count": 2,
+    "period": "event"
+   },
+   "starts": "2026-10-20T00:00:00Z",
+   "ends": "2026-11-30T23:59:59Z",
+   "contents": {
+    "currencies": {
+     "crystals": 120,
+     "nature_essence": 150,
+     "gold": 15000
+    }
+   }
+  },
+  {
+   "sku": "season_autumn_heroes",
+   "section": "seasonal",
+   "name": "Осенняя ярмарка: осколки Тан-Чечек",
+   "price_rub": 69000,
+   "limit": {
+    "count": 2,
+    "period": "event"
+   },
+   "starts": "2026-10-20T00:00:00Z",
+   "ends": "2026-11-30T23:59:59Z",
+   "contents": {
+    "shards": {
+     "tan_chechek": 20
+    },
+    "currencies": {
+     "summon_essence": 3
+    }
+   }
+  },
+  {
+   "sku": "season_autumn_grand",
+   "section": "seasonal",
+   "name": "Осенняя ярмарка: Великий сундук",
+   "price_rub": 299000,
+   "limit": {
+    "count": 1,
+    "period": "event"
+   },
+   "starts": "2026-10-20T00:00:00Z",
+   "ends": "2026-11-30T23:59:59Z",
+   "contents": {
+    "currencies": {
+     "crystals": 1200,
+     "summon_essence": 10,
+     "ancient_seals": 5
+    },
+    "cosmetics": [
+     "skin_yurek_autumn"
+    ]
+   }
+  }
+ ],
+ "subscriptions": {
+  "blessing": {
+   "name": "Благословение Уралии",
+   "days": 30,
+   "daily": {
+    "crystals": 60,
+    "gold": 3000
+   },
+   "on_purchase": {
+    "currencies": {
+     "crystals": 150
+    }
+   },
+   "cosmetics": [
+    "frame_blessing",
+    "title_blessed"
+   ],
+   "effects": [
+    "avatar_glow_teal"
+   ]
+  },
+  "patronage": {
+   "name": "Покровительство Предков",
+   "days": 30,
+   "daily": {
+    "crystals": 100,
+    "gold": 6000,
+    "summon_essence": 1,
+    "nature_essence": 40
+   },
+   "on_purchase": {
+    "currencies": {
+     "crystals": 300
+    }
+   },
+   "cosmetics": [
+    "frame_patronage",
+    "title_ancestors_ward"
+   ],
+   "effects": [
+    "avatar_glow_gold",
+    "fortress_aura_gold"
+   ]
+  }
+ },
+ "cosmetics": [
+  {
+   "id": "frame_birch",
+   "type": "frame",
+   "rarity": 1,
+   "name": "Рамка «Берёзовая»",
+   "data": {
+    "color": "#d8d2c0"
+   }
+  },
+  {
+   "id": "frame_kurai",
+   "type": "frame",
+   "rarity": 2,
+   "name": "Рамка «Курай»",
+   "data": {
+    "color": "#7cb860"
+   }
+  },
+  {
+   "id": "frame_toratau",
+   "type": "frame",
+   "rarity": 3,
+   "name": "Рамка «Торатау»",
+   "data": {
+    "color": "#5fb8b0"
+   }
+  },
+  {
+   "id": "frame_rift",
+   "type": "frame",
+   "rarity": 4,
+   "name": "Рамка «Разлом»",
+   "data": {
+    "color": "#a35bc9",
+    "animated": true
+   }
+  },
+  {
+   "id": "title_pathfinder",
+   "type": "title",
+   "rarity": 1,
+   "name": "Титул «Следопыт»",
+   "data": {
+    "text": "Следопыт"
+   }
+  },
+  {
+   "id": "title_keeper",
+   "type": "title",
+   "rarity": 3,
+   "name": "Титул «Хранитель шиханов»",
+   "data": {
+    "text": "Хранитель шиханов"
+   }
+  },
+  {
+   "id": "skin_arslan_dawn",
+   "type": "hero_skin",
+   "rarity": 4,
+   "name": "Облик «Рассветный страж» (Арслан-Кара)",
+   "data": {
+    "hero": "arslan_kara",
+    "tint": [
+     1.15,
+     1.02,
+     0.82
+    ],
+    "glow": [
+     1.0,
+     0.8,
+     0.35
+    ]
+   }
+  },
+  {
+   "id": "skin_morai_void",
+   "type": "hero_skin",
+   "rarity": 5,
+   "name": "Облик «Звёздная пустота» (Морай)",
+   "data": {
+    "hero": "morai",
+    "tint": [
+     0.45,
+     0.42,
+     0.75
+    ],
+    "glow": [
+     0.5,
+     0.6,
+     1.0
+    ]
+   }
+  },
+  {
+   "id": "skin_yurek_autumn",
+   "type": "hero_skin",
+   "rarity": 2,
+   "name": "Облик «Осенний лес» (Юрек)",
+   "data": {
+    "hero": "yurek",
+    "tint": [
+     1.2,
+     0.85,
+     0.55
+    ]
+   }
+  },
+  {
+   "id": "fx_golden_arrows",
+   "type": "ability_effect",
+   "rarity": 3,
+   "name": "Эффект «Золотые стрелы»",
+   "data": {
+    "color": [
+     1.0,
+     0.82,
+     0.3
+    ]
+   }
+  },
+  {
+   "id": "emote_cheer",
+   "type": "emote",
+   "rarity": 1,
+   "name": "Эмоция «Ликование»",
+   "data": {
+    "anim": "cheer"
+   }
+  },
+  {
+   "id": "emote_salute",
+   "type": "emote",
+   "rarity": 2,
+   "name": "Эмоция «Приветствие»",
+   "data": {
+    "anim": "Interact"
+   }
+  },
+  {
+   "id": "fortress_banner_red",
+   "type": "fortress",
+   "rarity": 3,
+   "name": "Оформление крепости «Алые знамёна»",
+   "data": {
+    "flag": "decoration/props/flag_red.gltf"
+   }
+  },
+  {
+   "id": "avatar_glow_violet",
+   "type": "profile_effect",
+   "rarity": 6,
+   "name": "Эффект профиля «Сияние разлома»",
+   "data": {
+    "color": "#b77bff"
+   }
+  },
+  {
+   "id": "frame_blessing",
+   "type": "frame",
+   "rarity": 3,
+   "name": "Рамка «Благословение»",
+   "data": {
+    "color": "#5fd1c4"
+   },
+   "sold": false
+  },
+  {
+   "id": "frame_patronage",
+   "type": "frame",
+   "rarity": 5,
+   "name": "Рамка «Покровительство»",
+   "data": {
+    "color": "#ffd35c",
+    "animated": true
+   },
+   "sold": false
+  },
+  {
+   "id": "title_blessed",
+   "type": "title",
+   "rarity": 3,
+   "name": "Титул «Благословлённый»",
+   "data": {
+    "text": "Благословлённый"
+   },
+   "sold": false
+  },
+  {
+   "id": "title_ancestors_ward",
+   "type": "title",
+   "rarity": 5,
+   "name": "Титул «Под покровом Предков»",
+   "data": {
+    "text": "Под покровом Предков"
+   },
+   "sold": false
+  },
+  {
+   "id": "avatar_glow_teal",
+   "type": "profile_effect",
+   "rarity": 3,
+   "name": "Мягкое сияние",
+   "data": {
+    "color": "#5fd1c4"
+   },
+   "sold": false
+  },
+  {
+   "id": "avatar_glow_gold",
+   "type": "profile_effect",
+   "rarity": 5,
+   "name": "Золотое сияние",
+   "data": {
+    "color": "#ffd35c",
+    "animated": true
+   },
+   "sold": false
+  },
+  {
+   "id": "fortress_aura_gold",
+   "type": "fortress",
+   "rarity": 5,
+   "name": "Золотая аура крепости",
+   "data": {
+    "aura": "#ffd35c"
+   },
+   "sold": false
+  },
+  {
+   "id": "frame_vip3",
+   "type": "frame",
+   "rarity": 4,
+   "name": "Рамка VIP III",
+   "data": {
+    "color": "#c9a0ff"
+   },
+   "sold": false
+  },
+  {
+   "id": "frame_vip6",
+   "type": "frame",
+   "rarity": 6,
+   "name": "Рамка VIP VI",
+   "data": {
+    "color": "#ff9f6a",
+    "animated": true
+   },
+   "sold": false
+  },
+  {
+   "id": "title_vip7",
+   "type": "title",
+   "rarity": 6,
+   "name": "Титул «Друг Уралии»",
+   "data": {
+    "text": "Друг Уралии"
+   },
+   "sold": false
+  },
+  {
+   "id": "frame_bp",
+   "type": "frame",
+   "rarity": 4,
+   "name": "Рамка сезона «Пробуждение»",
+   "data": {
+    "color": "#e0a64a"
+   },
+   "sold": false
+  },
+  {
+   "id": "title_bp",
+   "type": "title",
+   "rarity": 4,
+   "name": "Титул «Пробуждённый»",
+   "data": {
+    "text": "Пробуждённый"
+   },
+   "sold": false
+  }
+ ],
+ "lavka": {
+  "daily_slots": 4,
+  "weekly_slots": 3,
+  "daily_pool": [
+   {
+    "id": "d_gold",
+    "name": "Мешок золота",
+    "cost": {
+     "crystals": 50
+    },
+    "contents": {
+     "currencies": {
+      "gold": 8000
+     }
+    },
+    "limit": 2
+   },
+   {
+    "id": "d_nature",
+    "name": "Связка трав",
+    "cost": {
+     "crystals": 60
+    },
+    "contents": {
+     "currencies": {
+      "nature_essence": 80
+     }
+    },
+    "limit": 2
+   },
+   {
+    "id": "d_essence",
+    "name": "Эссенция призыва",
+    "cost": {
+     "crystals": 270
+    },
+    "contents": {
+     "currencies": {
+      "summon_essence": 1
+     }
+    },
+    "limit": 1
+   },
+   {
+    "id": "d_gold_big",
+    "name": "Сундук золота",
+    "cost": {
+     "crystals": 140
+    },
+    "contents": {
+     "currencies": {
+      "gold": 25000
+     }
+    },
+    "limit": 1
+   },
+   {
+    "id": "d_shards",
+    "name": "Осколки героя ×3",
+    "cost": {
+     "crystals": 120
+    },
+    "contents": {
+     "shards_choice": 3
+    },
+    "limit": 1
+   },
+   {
+    "id": "d_seal_gold",
+    "name": "Золото за печать",
+    "cost": {
+     "ancient_seals": 1
+    },
+    "contents": {
+     "currencies": {
+      "gold": 30000
+     }
+    },
+    "limit": 1
+   }
+  ],
+  "weekly_pool": [
+   {
+    "id": "w_essence3",
+    "name": "Эссенция призыва ×3",
+    "cost": {
+     "crystals": 750
+    },
+    "contents": {
+     "currencies": {
+      "summon_essence": 3
+     }
+    },
+    "limit": 1
+   },
+   {
+    "id": "w_shards10",
+    "name": "Осколки героя ×10",
+    "cost": {
+     "crystals": 400
+    },
+    "contents": {
+     "shards_choice": 10
+    },
+    "limit": 1
+   },
+   {
+    "id": "w_nature_big",
+    "name": "Короб трав",
+    "cost": {
+     "crystals": 220
+    },
+    "contents": {
+     "currencies": {
+      "nature_essence": 400
+     }
+    },
+    "limit": 1
+   },
+   {
+    "id": "w_seal_essence",
+    "name": "Печать предков → эссенция",
+    "cost": {
+     "ancient_seals": 3
+    },
+    "contents": {
+     "currencies": {
+      "summon_essence": 2
+     }
+    },
+    "limit": 1
+   }
+  ]
+ },
+ "vip": {
+  "levels": [
+   0,
+   100,
+   500,
+   1500,
+   4000,
+   10000,
+   25000,
+   60000
+  ],
+  "xp_per_rub": 1,
+  "daily_activity_xp": 15,
+  "achievement_xp": 25,
+  "afk_bonus_per_level": 0.015,
+  "afk_bonus_cap": 0.1,
+  "battle_speeds": {
+   "0": [
+    1,
+    2
+   ],
+   "1": [
+    1,
+    2,
+    4
+   ],
+   "3": [
+    1,
+    2,
+    4,
+    6
+   ]
+  },
+  "rewards": {
+   "1": {
+    "currencies": {
+     "crystals": 100,
+     "gold": 10000
+    }
+   },
+   "2": {
+    "currencies": {
+     "crystals": 150,
+     "summon_essence": 1
+    }
+   },
+   "3": {
+    "currencies": {
+     "crystals": 250
+    },
+    "cosmetics": [
+     "frame_vip3"
+    ]
+   },
+   "4": {
+    "currencies": {
+     "crystals": 400,
+     "summon_essence": 2
+    }
+   },
+   "5": {
+    "currencies": {
+     "crystals": 600,
+     "ancient_seals": 2
+    }
+   },
+   "6": {
+    "currencies": {
+     "crystals": 900
+    },
+    "cosmetics": [
+     "frame_vip6"
+    ]
+   },
+   "7": {
+    "currencies": {
+     "crystals": 1500,
+     "summon_essence": 5
+    },
+    "cosmetics": [
+     "title_vip7"
+    ]
+   }
+  },
+  "perks": {
+   "1": "Ускорение боя x4, +1.5% AFK",
+   "2": "+3% AFK",
+   "3": "Ускорение боя x6, рамка VIP III, +4.5% AFK",
+   "4": "+6% AFK",
+   "5": "+7.5% AFK",
+   "6": "Рамка VIP VI, +9% AFK",
+   "7": "Титул «Друг Уралии», +10% AFK (максимум)"
+  }
+ },
+ "battlepass": {
+  "season_days": 30,
+  "epoch": "2026-10-01T00:00:00Z",
+  "xp_per_level": 600,
+  "levels": [
+   {
+    "level": 1,
+    "free": {
+     "currencies": {
+      "gold": 2300
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 66
+     }
+    }
+   },
+   {
+    "level": 2,
+    "free": {
+     "currencies": {
+      "nature_essence": 38
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 72
+     }
+    }
+   },
+   {
+    "level": 3,
+    "free": {
+     "currencies": {
+      "gold": 2900
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 1,
+      "gold": 5000
+     }
+    }
+   },
+   {
+    "level": 4,
+    "free": {
+     "currencies": {
+      "nature_essence": 46
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 84
+     }
+    }
+   },
+   {
+    "level": 5,
+    "free": {
+     "currencies": {
+      "crystals": 100
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 90
+     }
+    }
+   },
+   {
+    "level": 6,
+    "free": {
+     "currencies": {
+      "nature_essence": 54
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 1,
+      "gold": 5000
+     }
+    }
+   },
+   {
+    "level": 7,
+    "free": {
+     "currencies": {
+      "gold": 4100
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 102
+     }
+    }
+   },
+   {
+    "level": 8,
+    "free": {
+     "currencies": {
+      "nature_essence": 62
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 108
+     }
+    }
+   },
+   {
+    "level": 9,
+    "free": {
+     "currencies": {
+      "gold": 4700
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 1,
+      "gold": 5000
+     }
+    }
+   },
+   {
+    "level": 10,
+    "free": {
+     "currencies": {
+      "crystals": 150,
+      "summon_essence": 1
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 120
+     }
+    }
+   },
+   {
+    "level": 11,
+    "free": {
+     "currencies": {
+      "gold": 5300
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 126
+     }
+    }
+   },
+   {
+    "level": 12,
+    "free": {
+     "currencies": {
+      "nature_essence": 78
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 1,
+      "gold": 5000
+     }
+    }
+   },
+   {
+    "level": 13,
+    "free": {
+     "currencies": {
+      "gold": 5900
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 138
+     }
+    }
+   },
+   {
+    "level": 14,
+    "free": {
+     "currencies": {
+      "nature_essence": 86
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 144
+     }
+    }
+   },
+   {
+    "level": 15,
+    "free": {
+     "currencies": {
+      "crystals": 200
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 1,
+      "gold": 5000
+     },
+     "cosmetics": [
+      "title_bp"
+     ]
+    }
+   },
+   {
+    "level": 16,
+    "free": {
+     "currencies": {
+      "nature_essence": 94
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 156
+     }
+    }
+   },
+   {
+    "level": 17,
+    "free": {
+     "currencies": {
+      "gold": 7100
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 162
+     }
+    }
+   },
+   {
+    "level": 18,
+    "free": {
+     "currencies": {
+      "nature_essence": 102
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 1,
+      "gold": 5000
+     }
+    }
+   },
+   {
+    "level": 19,
+    "free": {
+     "currencies": {
+      "gold": 7700
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 174
+     }
+    }
+   },
+   {
+    "level": 20,
+    "free": {
+     "currencies": {
+      "crystals": 250,
+      "summon_essence": 1
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 180
+     }
+    }
+   },
+   {
+    "level": 21,
+    "free": {
+     "currencies": {
+      "gold": 8300
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 1,
+      "gold": 5000
+     }
+    }
+   },
+   {
+    "level": 22,
+    "free": {
+     "currencies": {
+      "nature_essence": 118
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 192
+     }
+    }
+   },
+   {
+    "level": 23,
+    "free": {
+     "currencies": {
+      "gold": 8900
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 198
+     }
+    }
+   },
+   {
+    "level": 24,
+    "free": {
+     "currencies": {
+      "nature_essence": 126
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 1,
+      "gold": 5000
+     }
+    }
+   },
+   {
+    "level": 25,
+    "free": {
+     "currencies": {
+      "crystals": 300
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 210
+     }
+    }
+   },
+   {
+    "level": 26,
+    "free": {
+     "currencies": {
+      "nature_essence": 134
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 216
+     }
+    }
+   },
+   {
+    "level": 27,
+    "free": {
+     "currencies": {
+      "gold": 10100
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 1,
+      "gold": 5000
+     }
+    }
+   },
+   {
+    "level": 28,
+    "free": {
+     "currencies": {
+      "nature_essence": 142
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 228
+     }
+    }
+   },
+   {
+    "level": 29,
+    "free": {
+     "currencies": {
+      "gold": 10700
+     }
+    },
+    "premium": {
+     "currencies": {
+      "crystals": 234
+     }
+    }
+   },
+   {
+    "level": 30,
+    "free": {
+     "currencies": {
+      "crystals": 350,
+      "summon_essence": 1
+     }
+    },
+    "premium": {
+     "currencies": {
+      "summon_essence": 3,
+      "crystals": 300
+     },
+     "cosmetics": [
+      "frame_bp"
+     ]
+    }
+   }
+  ],
+  "xp": {
+   "battle_fought": 25,
+   "campaign_clear": 80,
+   "quest_claim": 60,
+   "afk_claim": 30,
+   "summon": 15,
+   "daily_login": 100
+  },
+  "season_names": [
+   "Пробуждение шиханов",
+   "Голоса Агидели",
+   "Пепел перевала"
+  ]
+ },
+ "discounts": {
+  "tiers": {
+   "small": 10,
+   "medium": 20,
+   "large": 30,
+   "seasonal_max": 35
+  },
+  "auto_max": 20,
+  "auto_allowed_sections": [
+   "resources",
+   "heroes",
+   "cosmetics"
+  ],
+  "max": 35
+ },
+ "sections": [
+  [
+   "crystals",
+   "Кристаллы"
+  ],
+  [
+   "resources",
+   "Наборы ресурсов"
+  ],
+  [
+   "starter",
+   "Стартовые наборы"
+  ],
+  [
+   "vip",
+   "VIP и подписки"
+  ],
+  [
+   "heroes",
+   "Герои и фрагменты"
+  ],
+  [
+   "cosmetics",
+   "Косметика"
+  ],
+  [
+   "battlepass",
+   "Боевой пропуск"
+  ],
+  [
+   "seasonal",
+   "Сезонные предложения"
+  ]
+ ]
+}

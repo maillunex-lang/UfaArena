@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .core.config import get_settings
 from .core.db import Base, get_engine, init_engine
 from .game.seed import seed_static
-from .modules import auth, content, economy, game, health
+from .modules import admin, auth, content, economy, game, health, shop
 
 API = "/api/v1"
 VERSION = "0.1.0"
@@ -30,9 +30,11 @@ async def lifespan(_: FastAPI):
 def create_app() -> FastAPI:
     app = FastAPI(title="URALIA API", version=VERSION, lifespan=lifespan,
                   docs_url="/docs" if get_settings().env != "prod" else None)
-    for r in (auth.router, game.router, economy.router, content.router):
+    for r in (auth.router, game.router, economy.router, content.router, shop.router):
         app.include_router(r, prefix=API)
     app.include_router(health.router)
+    app.include_router(admin.router)
+    app.include_router(admin.page)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError):

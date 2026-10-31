@@ -19,6 +19,9 @@ from ..models import (
     AfkClaim, FortressBuilding, Hero, PlayerHero, PlayerMail, PlayerProfile, PlayerQuest, Quest, SummonHistory,
     SummonPool,
 )
+from ..monetization import battlepass as BP
+from ..monetization import vip as VIP
+from ..monetization.config import cfg as MCFG
 from ..services import (
     afk_preview, building_levels, grant, hero_view, quest_event, spend, team_bonuses, today_period, wallet_dict,
 )
@@ -95,6 +98,7 @@ def summon(body: SummonIn, user: CurrentUser = Depends(player), key: str = Depen
         db.flush()
         owned = len(db.scalars(select(PlayerHero.id).where(PlayerHero.user_id == user.id)).all())
         quest_event(db, user.id, "summon", body.count)
+        BP.add_xp(db, user.id, "summon", body.count)
         quest_event(db, user.id, "hero_collected", absolute=owned)
         audit(db, user.id, "summon", pool=pool.code, count=body.count, results=[r["hero_code"] for r in results])
         b = team_bonuses(db, user.id)
@@ -132,6 +136,8 @@ def afk_claim(user: CurrentUser = Depends(player), key: str = Depends(require_ke
                         seconds_credited=prev["credited_s"], rewards=rewards))
         profile.afk_last_claim_at = now
         quest_event(db, user.id, "afk_claim")
+        BP.add_xp(db, user.id, "afk_claim")
+        VIP.daily_activity(db, user.id)
         return {"rewards": rewards, "credited_s": prev["credited_s"], "wallet": wallet_dict(db, user.id)}
 
     return run_idempotent(db, user.id, key, "afk_claim", {}, do)
@@ -220,6 +226,9 @@ def quest_claim(code: str, user: CurrentUser = Depends(player), key: str = Depen
             raise GameError("quest_not_ready", "Задание не выполнено или уже получено", 409)
         pq.claimed_at = utcnow()
         rewards = grant(db, user.id, q.rewards, "quest_reward", code)
+        BP.add_xp(db, user.id, "quest_claim")
+        if q.kind in ("main", "side"):  # achievements give VIP XP (free VIP path)
+            VIP.add_xp(db, user.id, MCFG()["vip"]["achievement_xp"], "achievement", code)
         return {"rewards": rewards, "wallet": wallet_dict(db, user.id), "quests": _quest_list(db, user.id)}
 
     return run_idempotent(db, user.id, key, f"quest_claim:{code}:{today_period()}", {}, do)

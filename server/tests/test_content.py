@@ -104,6 +104,8 @@ def test_dependencies_and_promote(client):
 
 def test_min_client_version(client):
     with Session(get_engine()) as db:
+        if service.active(db, "test"):
+            service.set_min_client(db, "test", "0.1.0")  # independent of previous runs on a persistent DB
         service.publish(db, make(RUN + ".future", 1, min_client_version="9.0.0"), "test")
     d = client.get("/api/v1/content/manifest?channel=test&client_version=0.2.0").json()
     # a package for newer clients must not force older clients to update the APK

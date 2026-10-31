@@ -43,6 +43,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("args", nargs="*")
     ap.add_argument("--channel", default="dev")
     ap.add_argument("--notes", default="")
+    ap.add_argument("--confirm", default="")
     a = ap.parse_args(argv)
     if a.cmd == "build":
         data = build_from_dir(Path(a.args[0]))
@@ -85,12 +86,21 @@ def main(argv: list[str] | None = None) -> int:
             elif a.cmd == "set-vip":
                 from sqlalchemy import select
                 from ..models import PlayerProfile
+                from ..monetization import vip as vipmod
+                from ..monetization.config import cfg as mcfg
                 p = db.scalar(select(PlayerProfile).where(PlayerProfile.uralia_id == a.args[0]))
                 if p is None:
                     raise service.ReleaseError("player not found")
-                p.vip_level = int(a.args[1])
+                need = mcfg()["vip"]["levels"][int(a.args[1])]
+                vipmod.add_xp(db, p.user_id, max(0, need - (p.vip_xp or 0)), "admin", "cli")
                 db.commit()
-                print(f"{a.args[0]} vip={p.vip_level}")
+                print(f"{a.args[0]} vip={p.vip_level} xp={p.vip_xp}")
+            elif a.cmd == "payments-mode":
+                from ..monetization.mode import ModeError, set_mode
+                try:
+                    print("payments mode:", set_mode(db, a.args[0], "cli", a.confirm))
+                except ModeError as e:
+                    raise service.ReleaseError(str(e))
             else:
                 ap.print_help()
                 return 2

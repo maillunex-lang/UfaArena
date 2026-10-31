@@ -1,0 +1,55 @@
+<!doctype html><html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>URALIA Admin</title>
+<style>
+:root{--bg:#0f1420;--fg:#e8e4d8;--mut:#9aa6b8;--acc:#e0a64a;--card:#182033;--bad:#e06a6a;--ok:#6ad08c}
+body{margin:0;font:14px/1.4 system-ui,sans-serif;background:var(--bg);color:var(--fg);padding:16px}
+h1{color:var(--acc);margin:0 0 12px}section{background:var(--card);border-radius:12px;padding:12px;margin:12px 0}
+input,select,button,textarea{font:inherit;padding:6px 8px;border-radius:8px;border:1px solid #33405a;background:#0b1020;color:var(--fg)}
+button{background:var(--acc);color:#241400;border:0;cursor:pointer}table{border-collapse:collapse;width:100%;overflow-x:auto;display:block}
+td,th{border-bottom:1px solid #2a3550;padding:4px 6px;text-align:left;white-space:nowrap}.mut{color:var(--mut)}.bad{color:var(--bad)}.ok{color:var(--ok)}
+pre{white-space:pre-wrap;max-height:320px;overflow:auto;background:#0b1020;padding:8px;border-radius:8px}
+</style></head><body>
+<h1>URALIA · панель владельца</h1>
+<section><b>Доступ</b><br><input id="tok" type="password" placeholder="URALIA_ADMIN_TOKEN" size="40"> <input id="who" placeholder="имя" value="owner">
+<button onclick="save()">Сохранить</button> <span class="mut">Токен хранится только в этой вкладке.</span></section>
+<section><b>Режим платежей</b> <span id="mode"></span><div id="prov" class="mut"></div>
+<button onclick="setMode('test')">Вернуть ТЕСТ</button>
+<input id="confirm" placeholder="фраза подтверждения владельца" size="40"> <button onclick="setMode('commercial')">Включить коммерческий</button></section>
+<section><b>Каталог</b> <button onclick="loadProducts()">Обновить</button><table id="products"></table></section>
+<section><b>Заказы</b> <select id="ost"><option value="">все</option><option>fulfilled</option><option>refunded</option><option>created</option><option>failed</option></select>
+<label><input type="checkbox" id="odisp"> только спорные</label> <button onclick="loadOrders()">Показать</button><table id="orders"></table></section>
+<section><b>Промокоды</b><br><input id="pcode" placeholder="CODE"> <input id="prew" size="50" value='{"currencies":{"crystals":100}}'>
+<input id="pmax" type="number" value="100" style="width:80px"> <button onclick="createPromo()">Создать</button><table id="promo"></table></section>
+<section><b>Аналитика</b> <button onclick="loadAnalytics()">Обновить</button> <button onclick="auto(true)">Автокоррекция (пробно)</button>
+<button onclick="auto(false)">Применить автокоррекцию</button><pre id="an"></pre></section>
+<section><b>Журнал изменений каталога</b> <button onclick="loadChanges()">Обновить</button><table id="changes"></table></section>
+<script>
+const $=id=>document.getElementById(id);
+function save(){sessionStorage.setItem('tok',$('tok').value);sessionStorage.setItem('who',$('who').value);init()}
+async function api(p,m='GET',b){const r=await fetch('/admin/api'+p,{method:m,headers:{'Content-Type':'application/json','X-Admin-Token':sessionStorage.getItem('tok')||'','X-Admin-Name':sessionStorage.getItem('who')||'owner'},body:b?JSON.stringify(b):undefined});
+ const j=await r.json().catch(()=>({}));if(!r.ok){alert((j.detail&&j.detail.message)||r.status);throw j}return j}
+const rub=k=>(k/100).toLocaleString('ru-RU')+' ₽';
+async function init(){$('tok').value=sessionStorage.getItem('tok')||'';const s=await api('/status');
+ $('mode').innerHTML=s.mode==='test'?'<b class="ok">ТЕСТ (реальные платежи заблокированы)</b>':'<b class="bad">КОММЕРЧЕСКИЙ</b>';
+ $('prov').textContent='Провайдеры: '+s.providers.map(p=>p.provider+(p.configured?' ✓':' ✗')).join(', ')+' · env разрешение: '+s.commercial_env_allowed+' · фраза: «'+s.confirm_phrase+'»';
+ loadProducts();loadOrders();loadPromo();loadAnalytics();loadChanges()}
+async function setMode(m){await api('/mode','POST',{mode:m,confirm:$('confirm').value});init()}
+async function loadProducts(){const d=await api('/products');$('products').innerHTML='<tr><th>SKU</th><th>Раздел</th><th>Название</th><th>Цена</th><th>Скидка</th><th>Активен</th><th></th></tr>'+
+ d.products.map(p=>`<tr><td>${p.sku}</td><td>${p.section}</td><td>${p.name}</td><td><input id="pr_${p.sku}" value="${p.price_rub/100}" style="width:80px"></td>
+ <td><input id="dc_${p.sku}" value="${p.discount_pct}" style="width:50px">%</td><td><input type="checkbox" id="ac_${p.sku}" ${p.active?'checked':''}></td>
+ <td><button onclick="patch('${p.sku}')">Сохранить</button></td></tr>`).join('')}
+async function patch(s){await api('/products/'+s,'PATCH',{price_rub:Math.round(parseFloat($('pr_'+s).value)*100),discount_pct:parseInt($('dc_'+s).value),active:$('ac_'+s).checked,reason:'panel'});loadChanges()}
+async function loadOrders(){const q=[];if($('ost').value)q.push('status='+$('ost').value);if($('odisp').checked)q.push('dispute=true');
+ const d=await api('/orders?'+q.join('&'));$('orders').innerHTML='<tr><th>Дата</th><th>SKU</th><th>Статус</th><th>Тест</th><th>Цена</th><th>Долг</th><th></th></tr>'+
+ d.orders.map(o=>`<tr><td>${o.created_at.slice(0,16)}</td><td>${o.sku}</td><td>${o.status}${o.dispute?' <b class="bad">спор</b>':''}</td><td>${o.is_test?'да':'нет'}</td><td>${rub(o.price_rub)}</td>
+ <td class="mut">${JSON.stringify(o.refund_debt||{})}</td><td>${o.status==='fulfilled'?`<button onclick="refund('${o.id}')">Возврат</button>`:''}${o.dispute?`<button onclick="resolveO('${o.id}')">Закрыть спор</button>`:''}</td></tr>`).join('')}
+async function refund(id){const r=prompt('Причина возврата');if(r===null)return;await api('/orders/'+id+'/refund','POST',{reason:r});loadOrders()}
+async function resolveO(id){const n=prompt('Решение по спору');if(!n)return;await api('/orders/'+id+'/resolve','POST',{note:n});loadOrders()}
+async function loadPromo(){const d=await api('/promo');$('promo').innerHTML=d.promo.map(p=>`<tr><td>${p.code}</td><td>${JSON.stringify(p.rewards)}</td><td>${p.uses}/${p.max_uses||'∞'}</td><td>${p.active?'активен':'выключен'}</td>
+ <td>${p.active?`<button onclick="api('/promo/${p.code}/disable','POST').then(loadPromo)">Выключить</button>`:''}</td></tr>`).join('')}
+async function createPromo(){await api('/promo','POST',{code:$('pcode').value,rewards:JSON.parse($('prew').value),max_uses:parseInt($('pmax').value)});loadPromo()}
+async function loadAnalytics(){$('an').textContent=JSON.stringify(await api('/analytics'),null,1)}
+async function auto(dry){$('an').textContent=JSON.stringify(await api('/analytics/auto-adjust','POST',{dry_run:dry}),null,1);loadChanges();loadProducts()}
+async function loadChanges(){const d=await api('/changes');$('changes').innerHTML=d.changes.map(c=>`<tr><td>#${c.id}</td><td>${c.at.slice(0,16)}</td><td>${c.sku}</td><td>${c.field}</td><td>${JSON.stringify(c.before)} → ${JSON.stringify(c.after)}</td><td>${c.actor}</td><td>${c.reverted?'откачено':`<button onclick="api('/changes/${c.id}/revert','POST').then(()=>{loadChanges();loadProducts()})">Откатить</button>`}</td></tr>`).join('')}
+if(sessionStorage.getItem('tok'))init();
+</script></body></html>

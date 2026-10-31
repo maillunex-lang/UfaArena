@@ -43,3 +43,14 @@ def test_parallel_afk_claim_once(newplayer):
     with ThreadPoolExecutor(6) as ex:
         codes = list(ex.map(lambda _: p.post("/rewards/afk/claim").status_code, range(6)))
     assert codes.count(200) == 1, codes
+
+
+@pytest.mark.skipif(not pg, reason="needs PostgreSQL row-level locking")
+def test_parallel_order_confirm_grants_once(newplayer):
+    p = newplayer()
+    c0 = p.get("/player/me").json()["wallet"]["crystals"]
+    oid = p.post("/shop/orders", {"sku": "crystals_1"}).json()["order"]["id"]
+    with ThreadPoolExecutor(8) as ex:
+        codes = list(ex.map(lambda _: p.post(f"/shop/orders/{oid}/confirm", {"provider": "test"}).status_code, range(8)))
+    assert all(c in (200, 409) for c in codes), codes
+    assert p.get("/player/me").json()["wallet"]["crystals"] == c0 + 60

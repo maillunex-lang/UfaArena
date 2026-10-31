@@ -61,6 +61,9 @@ class PlayerProfile(Base):
     onboarding_step: Mapped[int] = mapped_column(Integer, default=0)
     is_ai: Mapped[bool] = mapped_column(Boolean, default=False)  # AI personas are always flagged
     vip_level: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # cosmetic/convenience only
+    vip_xp: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    cosmetics: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")  # equipped cosmetics
+    hero_shards: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")  # shards of not-yet-owned heroes
     afk_last_claim_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
     summon_pity: Mapped[int] = mapped_column(Integer, default=0)
     settings: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -461,3 +464,165 @@ class AdminAction(Base):
     target_user_id: Mapped[str | None] = mapped_column(String(36))
     details: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+# ---------------------------------------------------------------- monetization (test mode by default)
+class ShopProduct(Base):
+    """Catalog row (seeded from content/monetization.json; admin edits are logged in catalog_changes)."""
+
+    __tablename__ = "shop_products"
+    sku: Mapped[str] = mapped_column(String(64), primary_key=True)
+    section: Mapped[str] = mapped_column(String(24), index=True)
+    name: Mapped[str] = mapped_column(String(128))
+    description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    price_rub: Mapped[int] = mapped_column(Integer)  # kopecks; the real base price (discounts apply to it)
+    discount_pct: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    contents: Mapped[dict] = mapped_column(JSON, default=dict)
+    display: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    limit: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    meta: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    starts_at: Mapped[datetime | None] = mapped_column(TS)
+    ends_at: Mapped[datetime | None] = mapped_column(TS)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    featured: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow, onupdate=utcnow)
+
+
+class CatalogChange(Base):
+    __tablename__ = "catalog_changes"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    sku: Mapped[str] = mapped_column(String(64), index=True)
+    field: Mapped[str] = mapped_column(String(32))
+    before: Mapped[dict] = mapped_column(JSON, default=dict)
+    after: Mapped[dict] = mapped_column(JSON, default=dict)
+    actor: Mapped[str] = mapped_column(String(64))  # admin:<name> | auto
+    reason: Mapped[str] = mapped_column(Text, default="", server_default="")
+    reverted: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class Order(Base):
+    __tablename__ = "orders"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    sku: Mapped[str] = mapped_column(String(64), index=True)
+    section: Mapped[str] = mapped_column(String(24))
+    status: Mapped[str] = mapped_column(String(16), default="created")  # created|paid|fulfilled|refunded|failed|cancelled
+    provider: Mapped[str] = mapped_column(String(16), default="test")  # test|rustore|google_play
+    is_test: Mapped[bool] = mapped_column(Boolean, default=True)
+    base_price_rub: Mapped[int] = mapped_column(Integer)
+    price_rub: Mapped[int] = mapped_column(Integer)
+    discount_pct: Mapped[int] = mapped_column(Integer, default=0)
+    params: Mapped[dict] = mapped_column(JSON, default=dict)
+    provider_txn_id: Mapped[str | None] = mapped_column(String(128), unique=True)
+    grant: Mapped[dict] = mapped_column(JSON, default=dict)  # exactly what was granted (for refunds)
+    refund_debt: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")
+    dispute: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    note: Mapped[str] = mapped_column(Text, default="", server_default="")
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    paid_at: Mapped[datetime | None] = mapped_column(TS)
+    fulfilled_at: Mapped[datetime | None] = mapped_column(TS)
+    refunded_at: Mapped[datetime | None] = mapped_column(TS)
+
+
+class Entitlement(Base):
+    __tablename__ = "entitlements"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    kind: Mapped[str] = mapped_column(String(24))  # subscription | cosmetic | bp_premium
+    code: Mapped[str] = mapped_column(String(64))
+    starts_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    expires_at: Mapped[datetime | None] = mapped_column(TS)
+    order_id: Mapped[str | None] = mapped_column(String(36))
+    source: Mapped[str] = mapped_column(String(32), default="purchase", server_default="purchase")
+    revoked_at: Mapped[datetime | None] = mapped_column(TS)
+    __table_args__ = (Index("ix_entitlement_user_kind", "user_id", "kind", "code"),)
+
+
+class SubscriptionClaim(Base):
+    __tablename__ = "subscription_claims"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    day: Mapped[str] = mapped_column(String(10), primary_key=True)
+    rewards: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class VipXpLog(Base):
+    __tablename__ = "vip_xp_log"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    delta: Mapped[int] = mapped_column(Integer)
+    source: Mapped[str] = mapped_column(String(32))  # purchase | daily | achievement | admin | refund
+    ref: Mapped[str | None] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class VipRewardClaim(Base):
+    __tablename__ = "vip_reward_claims"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    level: Mapped[int] = mapped_column(Integer, primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class BattlePassProgress(Base):
+    __tablename__ = "battlepass_progress"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    season: Mapped[int] = mapped_column(Integer, primary_key=True)
+    xp: Mapped[int] = mapped_column(Integer, default=0)
+    premium: Mapped[bool] = mapped_column(Boolean, default=False)
+    claimed_free: Mapped[list] = mapped_column(JSON, default=list)
+    claimed_premium: Mapped[list] = mapped_column(JSON, default=list)
+
+
+class PromoCode(Base):
+    __tablename__ = "promo_codes"
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    rewards: Mapped[dict] = mapped_column(JSON, default=dict)
+    max_uses: Mapped[int] = mapped_column(Integer, default=0)  # 0 = unlimited
+    uses: Mapped[int] = mapped_column(Integer, default=0)
+    starts_at: Mapped[datetime | None] = mapped_column(TS)
+    ends_at: Mapped[datetime | None] = mapped_column(TS)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_by: Mapped[str] = mapped_column(String(64), default="admin")
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class PromoRedemption(Base):
+    __tablename__ = "promo_redemptions"
+    code: Mapped[str] = mapped_column(ForeignKey("promo_codes.code", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class LavkaPurchase(Base):
+    __tablename__ = "lavka_purchases"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    period: Mapped[str] = mapped_column(String(16), primary_key=True)
+    item_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class DailyActivity(Base):
+    __tablename__ = "daily_activity"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    day: Mapped[str] = mapped_column(String(10), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class ServerSetting(Base):
+    __tablename__ = "server_settings"
+    key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[dict] = mapped_column(JSON, default=dict)
+    updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow, onupdate=utcnow)
+
+
+class AnalyticsEvent(Base):
+    __tablename__ = "analytics_events"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    user_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    event: Mapped[str] = mapped_column(String(48))
+    sku: Mapped[str | None] = mapped_column(String(64))
+    props: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    __table_args__ = (Index("ix_analytics_event_time", "event", "created_at"),)
