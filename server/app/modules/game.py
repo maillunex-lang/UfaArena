@@ -15,6 +15,7 @@ from ..core.deps import CurrentUser, player, run_idempotent
 from ..core.errors import GameError
 from ..core.idempotency import require_key
 from ..game import data as D
+from ..game import roster as R
 from ..game.battle_sim import hero_stats, make_unit, power_rating, simulate
 from ..models import (
     Battle, CampaignNode, CampaignRegion, Faction, Formation, Hero, HeroClass, PlayerCampaignProgress, PlayerHero,
@@ -107,11 +108,22 @@ def save_settings(body: SettingsIn, user: CurrentUser = Depends(player), db: Ses
 def heroes_catalog(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
     return {
         "factions": [{"code": f.code, "name": f.name, "description": f.description, "is_rare": f.is_rare,
-                      "strong_against": f.strong_against} for f in db.scalars(select(Faction))],
+                      "strong_against": f.strong_against, "emblem": f.emblem, "color": f.color, "accent": f.accent,
+                      "playable": f.playable} for f in db.scalars(select(Faction))],
+        "faction_rules": R.faction_rules(),
         "classes": [{"code": c.code, "name": c.name, "role": c.role} for c in db.scalars(select(HeroClass))],
         "heroes": [{"code": h.code, "name": h.name, "title": h.title, "faction": h.faction_code,
                     "class": h.class_code, "rarity": h.rarity, "model": h.model, "skill": h.skill, "lore": h.lore,
-                    "is_enemy": h.is_enemy} for h in db.scalars(select(Hero).order_by(Hero.rarity, Hero.code))],
+                    "is_enemy": h.is_enemy, "summonable": h.summonable, "role": h.role or "",
+                    "role_name": (h.extra or {}).get("role_name", ""),
+                    "appearance": (h.extra or {}).get("appearance", ""),
+                    "personality": (h.extra or {}).get("personality", ""),
+                    "crit": (h.extra or {}).get("crit", 0.12), "crit_dmg": (h.extra or {}).get("crit_dmg", 1.5),
+                    "base": {"hp": h.base_hp, "atk": h.base_atk, "def": h.base_def, "spd": h.base_spd},
+                    "growth": (h.extra or {}).get("growth", {}),
+                    "kit": h.kit or R.legacy_kit(h.skill or {}, h.class_code, h.rarity)}
+                   for h in db.scalars(select(Hero).order_by(Hero.rarity, Hero.code))],
+        "summons": R.summons(),
     }
 
 
@@ -179,7 +191,7 @@ def set_formation(body: FormationIn, user: CurrentUser = Depends(player), db: Se
 
 
 # ------------------------------------------------------------------ battles & campaign
-FACTION_ADV = {f["code"]: f.get("strong_against") for f in D.FACTIONS}
+FACTION_ADV = R.advantage()
 
 
 def _team_units(db: Session, user_id: str, slots: list[str | None]):

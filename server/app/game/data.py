@@ -16,27 +16,15 @@ RARITIES = {
 }
 RARITY_MULT = {1: 1.0, 2: 1.12, 3: 1.25, 4: 1.42, 5: 1.62, 6: 1.85}
 
-# provisional: 4 main factions in a cycle + 1 rare special faction + enemy faction
-FACTIONS = [
-    dict(code="uraltau", name="Хранители Урал-тау", strong_against="steppe",
-         description="Каменные стражи хребта, клятвенники древних гор."),
-    dict(code="agidel", name="Дети Агидели", strong_against="uraltau",
-         description="Народ реки Белой, владеющий магией воды и трав."),
-    dict(code="steppe", name="Ветра Степи", strong_against="shulgan",
-         description="Быстрые всадники и следопыты южных степей."),
-    dict(code="shulgan", name="Порождения Шульгана", strong_against="agidel",
-         description="Тени подземного мира, пробудившиеся после Раскола."),
-    dict(code="ancients", name="Древние", is_rare=True, strong_against=None,
-         description="Редкая фракция духов-предков. Не уязвима к циклу стихий."),
-]
+# Factions & classes come from the roster (docs/design/URALIA_HERO_FORGE_12_Heroes.md).
+# The enemy faction «Порождения Шульгана» stays as a non-playable faction for campaign foes.
+from . import roster as _R
 
-CLASSES = [
-    dict(code="guardian", name="Страж", role="tank"),
-    dict(code="warrior", name="Батыр", role="damage"),
-    dict(code="ranger", name="Следопыт", role="damage"),
-    dict(code="mage", name="Мудрец", role="control"),
-    dict(code="healer", name="Знахарь", role="support"),
+FACTIONS = [dict(f, is_rare=False) for f in _R.factions()] + [
+    dict(code="shulgan", name="Порождения Шульгана", strong_against=None, is_rare=False, emblem="shulgan",
+         color="#8a5bd6", description="Тени подземного мира, пробудившиеся после Раскола. Только противники."),
 ]
+CLASSES = [dict(code=c["code"], name=c["name"], role=c["role"]) for c in _R.classes()]
 
 # skill.kind: strike | aoe | heal | shield | stun ; power = multiplier of ATK
 HEROES = [
@@ -100,8 +88,16 @@ HEROES = [
          skill=dict(kind="aoe", name="Обвал", power=1.2, desc="")),
 ]
 
-STARTER_HEROES = ["azamat", "mirgali", "gulnaz"]
-ONBOARDING_SUMMON_HERO = "zulfiya"  # guaranteed first summon in onboarding
+# Legacy heroes of the 0.1 slice keep their codes (players own them) but move into official factions.
+for _h in HEROES:
+    _h["faction_code"] = _R.map_faction(_h["faction_code"])
+    if _h["code"] in _R.roster().get("enemy_kits", {}):
+        _h["kit"] = _R.roster()["enemy_kits"][_h["code"]]
+HEROES += _R.new_heroes()
+
+# New players start with a tank from the slice plus three heroes of the official roster.
+STARTER_HEROES = ["azamat", "yurek", "safariy", "tan_chechek"]
+ONBOARDING_SUMMON_HERO = "ai_tulgan"  # guaranteed first summon in onboarding (Редкий, Поддержка)
 
 # Region 1. Real places: шиханы Торатау, Юрактау, Куштау, Шахтау (Ишимбайский /
 # Стерлитамакский р-ны), реки Белая (Агидель) и Ашкадар, г. Стерлитамак.
@@ -129,28 +125,28 @@ NODES = [
          rewards=dict(gold=150), first_clear_rewards=dict(crystals=50, nature_essence=30),
          story=[dict(speaker="mirgali", text="В этом бору я знаю каждую сосну. Чужаков здесь нет — только мертвецы.")]),
     dict(code="1-3", order=3, name="Застава Стерлитамака", territory="settlements", real_place="г. Стерлитамак",
-         map_pos=[2, -1], enemies=[_e("e_warrior", 3, 0), _e("e_minion", 3, 1), _e("e_rogue", 3, 2), _e("e_minion", 3, 3)],
+         map_pos=[2, -1], enemies=[_e("e_warrior", 4, 0), _e("e_minion", 4, 1), _e("e_rogue", 4, 2), _e("e_minion", 4, 3)],
          rewards=dict(gold=180), first_clear_rewards=dict(crystals=60, summon_essence=1),
          story=[dict(speaker="azamat", text="Застава держится. Люди уходят под защиту Крепости хранителей.")]),
     dict(code="1-4", order=4, name="Склоны Юрактау", territory="nature", real_place="шихан Юрактау",
-         map_pos=[3, -1], enemies=[_e("e_warrior", 4, 0), _e("e_minion", 4, 1), _e("e_mage", 4, 2), _e("e_rogue", 4, 3)],
+         map_pos=[3, -1], enemies=[_e("e_warrior", 6, 0), _e("e_minion", 6, 1), _e("e_mage", 6, 2), _e("e_rogue", 6, 3)],
          rewards=dict(gold=210), first_clear_rewards=dict(crystals=60, nature_essence=40),
          story=[dict(speaker="gulnaz", text="На склонах Юрактау растёт чабрец. Даже тени его обходят.")]),
     dict(code="1-5", order=5, name="Каменные залы Куштау", territory="dungeons", real_place="шихан Куштау",
-         map_pos=[3, 0], enemies=[_e("e_warrior", 5, 0), _e("e_warrior", 5, 1), _e("e_mage", 5, 2), _e("e_rogue", 5, 3)],
+         map_pos=[3, 0], enemies=[_e("e_warrior", 8, 0), _e("e_warrior", 8, 1), _e("e_mage", 8, 2), _e("e_rogue", 8, 3)],
          rewards=dict(gold=240), first_clear_rewards=dict(crystals=80, summon_essence=2),
          story=[dict(speaker="mirgali", text="Внутри Куштау пусто и гулко. Кто-то вырыл здесь древние залы.")]),
     dict(code="1-6", order=6, name="Разлом Шахтау", territory="resources", real_place="шихан Шахтау (карьер)",
-         map_pos=[4, 0], enemies=[_e("e_warrior", 6, 0), _e("e_minion", 6, 1), _e("e_rogue", 6, 2), _e("e_mage", 6, 3), _e("e_rogue", 6, 4)],
+         map_pos=[4, 0], enemies=[_e("e_warrior", 10, 0), _e("e_minion", 10, 1), _e("e_rogue", 10, 2), _e("e_mage", 10, 3), _e("e_rogue", 10, 4)],
          rewards=dict(gold=270), first_clear_rewards=dict(crystals=80, ancient_seals=1),
          story=[dict(speaker="azamat", text="Здесь гору раскололи до основания. Из трещин сочится холод подземья.")]),
     dict(code="1-7", order=7, name="Тропа на Торатау", territory="complexes", real_place="шихан Торатау",
-         map_pos=[5, -1], enemies=[_e("e_warrior", 8, 0), _e("e_warrior", 8, 1), _e("e_rogue", 8, 2), _e("e_mage", 8, 3), _e("e_mage", 8, 4)],
+         map_pos=[5, -1], enemies=[_e("e_warrior", 13, 0), _e("e_warrior", 13, 1), _e("e_rogue", 13, 2), _e("e_mage", 13, 3), _e("e_mage", 13, 4)],
          rewards=dict(gold=300), first_clear_rewards=dict(crystals=100, summon_essence=2),
          story=[dict(speaker="gulnaz", text="Торатау — «гора-крепость». Сегодня она станет нашей.")]),
     dict(code="1-8", order=8, name="Вершина Торатау", territory="dimensions", real_place="шихан Торатау",
          map_pos=[6, -1], is_boss=True,
-         enemies=[_e("e_boss_toratau", 9, 0), _e("e_warrior", 8, 1), _e("e_mage", 8, 3), _e("e_rogue", 8, 4)],
+         enemies=[_e("e_boss_toratau", 19, 0), _e("e_warrior", 15, 1), _e("e_mage", 15, 3), _e("e_rogue", 15, 4)],
          rewards=dict(gold=400), first_clear_rewards=dict(crystals=300, summon_essence=5, ancient_seals=2),
          story=[dict(speaker="azamat", text="Страж Кургана! Он стерёг проход в подземье с начала времён."),
                 dict(speaker="gulnaz", text="Если мы победим, Агидель снова станет светлой.")]),

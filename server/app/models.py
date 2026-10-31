@@ -93,6 +93,10 @@ class Faction(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     is_rare: Mapped[bool] = mapped_column(Boolean, default=False)
     strong_against: Mapped[str | None] = mapped_column(String(32))
+    emblem: Mapped[str] = mapped_column(String(32), default="", server_default="")
+    color: Mapped[str] = mapped_column(String(16), default="#ffffff", server_default="#ffffff")
+    accent: Mapped[str] = mapped_column(String(16), default="#ffffff", server_default="#ffffff")
+    playable: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
 
 class HeroClass(Base):
@@ -119,6 +123,9 @@ class Hero(Base):
     lore: Mapped[str] = mapped_column(Text, default="")
     is_enemy: Mapped[bool] = mapped_column(Boolean, default=False)
     summonable: Mapped[bool] = mapped_column(Boolean, default=True)
+    role: Mapped[str] = mapped_column(String(32), default="", server_default="")
+    kit: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # basic/skills/ultimate/passive/mechanic
+    extra: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")  # crit, crit_dmg, growth, range, role_name, appearance...
 
 
 class PlayerHero(Base):

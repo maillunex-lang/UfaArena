@@ -11,12 +11,21 @@ from . import data as D
 
 def seed_static(db: Session) -> None:
     for f in D.FACTIONS:
-        db.merge(Faction(**{"is_rare": False, **f}))
+        db.merge(Faction(code=f["code"], name=f["name"], description=f.get("description", ""),
+                         is_rare=f.get("is_rare", False), strong_against=f.get("strong_against"),
+                         emblem=f.get("emblem", f["code"]), color=f.get("color", "#ffffff"),
+                         accent=f.get("accent", "#ffffff"), playable=f["code"] != "shulgan"))
     for c in D.CLASSES:
         db.merge(HeroClass(**c))
     db.flush()
     for h in D.HEROES:
-        db.merge(Hero(**{"title": "", "lore": "", "is_enemy": False, "summonable": True, **h}))
+        db.merge(Hero(**{"title": "", "lore": "", "is_enemy": False, "summonable": True, "role": "", "kit": None,
+                         "extra": {}, **h}))
+    db.flush()
+    # provisional 0.1 factions are retired once no hero references them (heroes were remapped above)
+    from sqlalchemy import delete
+    official = {f["code"] for f in D.FACTIONS}
+    db.execute(delete(Faction).where(Faction.code.not_in(official)))
     for r in D.REGIONS:
         db.merge(CampaignRegion(**r))
     db.flush()

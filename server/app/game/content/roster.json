@@ -1,0 +1,1905 @@
+{
+  "version": 2,
+  "source": "docs/design/URALIA_HERO_FORGE_12_Heroes.md",
+  "factions": [
+    {
+      "code": "stone_sky",
+      "name": "Каменное Небо",
+      "emblem": "stone_sky",
+      "color": "#5fb8b0",
+      "accent": "#e0a64a",
+      "strong_against": "ashen_reach",
+      "description": "Хранители гор, древних перевалов и знаний предков. Стойкость, честь, защита и верность слову.",
+      "palette": [
+        "#2e3338",
+        "#4a5560",
+        "#5fb8b0",
+        "#e0a64a"
+      ]
+    },
+    {
+      "code": "living_kurai",
+      "name": "Живой Курай",
+      "emblem": "living_kurai",
+      "color": "#7cb860",
+      "accent": "#d6a24e",
+      "strong_against": "stone_sky",
+      "description": "Хранители природы, лесов, источников жизни и духов. Равновесие между мирами и сила живой природы.",
+      "palette": [
+        "#3f5a2e",
+        "#7cb860",
+        "#a3743f",
+        "#d6a24e"
+      ]
+    },
+    {
+      "code": "ashen_reach",
+      "name": "Пепельный Предел",
+      "emblem": "ashen_reach",
+      "color": "#a35bc9",
+      "accent": "#e3a33c",
+      "strong_against": "living_kurai",
+      "description": "Изгнанники, существа иных измерений и носители запретных знаний. Разломы, пепел и изменение реальности.",
+      "palette": [
+        "#16141a",
+        "#5a5560",
+        "#7a2536",
+        "#a35bc9",
+        "#e3a33c"
+      ]
+    }
+  ],
+  "faction_rules": {
+    "advantage_damage": 0.2,
+    "synergy": {
+      "2": 0.0,
+      "3": 0.08,
+      "4": 0.12,
+      "5": 0.18
+    },
+    "synergy_stats": [
+      "atk",
+      "hp"
+    ],
+    "legacy_map": {
+      "uraltau": "stone_sky",
+      "steppe": "stone_sky",
+      "agidel": "living_kurai",
+      "ancients": "living_kurai"
+    }
+  },
+  "classes": [
+    {
+      "code": "warrior",
+      "name": "Воин",
+      "role": "damage",
+      "range": 1.8
+    },
+    {
+      "code": "guardian",
+      "name": "Защитник",
+      "role": "tank",
+      "range": 1.8
+    },
+    {
+      "code": "mage",
+      "name": "Маг",
+      "role": "control",
+      "range": 6.0
+    },
+    {
+      "code": "healer",
+      "name": "Поддержка",
+      "role": "support",
+      "range": 5.5
+    },
+    {
+      "code": "ranger",
+      "name": "Следопыт",
+      "role": "damage",
+      "range": 6.5
+    },
+    {
+      "code": "summoner",
+      "name": "Призыватель",
+      "role": "summon",
+      "range": 5.5
+    },
+    {
+      "code": "assassin",
+      "name": "Убийца",
+      "role": "damage",
+      "range": 1.8
+    },
+    {
+      "code": "hybrid",
+      "name": "Гибрид",
+      "role": "hybrid",
+      "range": 5.5
+    }
+  ],
+  "battle": {
+    "energy_per_basic": 12,
+    "energy_per_skill": 10,
+    "energy_on_hit_scale": 45,
+    "energy_on_hit_min": 2,
+    "crit_mult_default": 1.5,
+    "control_max": 2.2,
+    "control_immunity_after": 1.5,
+    "delay_max": 1.8,
+    "max_stacks_default": 5,
+    "summon_limit_per_owner": 2
+  },
+  "summons": {
+    "root_guardian": {
+      "name": "Корневой страж",
+      "model": "root_guardian",
+      "class": "guardian",
+      "hp": 0.55,
+      "atk": 0.55,
+      "def": 0.8,
+      "spd": 80,
+      "range": 1.8,
+      "intercept": 0.12
+    },
+    "dragon_echo_small": {
+      "name": "Малое эхо разлома",
+      "model": "dragon_echo_small",
+      "class": "mage",
+      "hp": 0.22,
+      "atk": 0.5,
+      "def": 0.5,
+      "spd": 100,
+      "range": 5.0
+    },
+    "dragon_echo": {
+      "name": "Драконье эхо",
+      "model": "dragon_echo",
+      "class": "mage",
+      "hp": 0.45,
+      "atk": 0.8,
+      "def": 0.8,
+      "spd": 96,
+      "range": 5.5,
+      "aura_dr": 0.1
+    }
+  },
+  "heroes": [
+    {
+      "code": "arslan_kara",
+      "name": "Арслан-Кара",
+      "title": "Клятва Чёрного хребта",
+      "faction": "stone_sky",
+      "class": "warrior",
+      "role": "damage_buffer",
+      "role_name": "Урон / усиление",
+      "rarity": 4,
+      "stats": {
+        "hp": 1050,
+        "atk": 112,
+        "def": 48,
+        "spd": 98,
+        "crit": 0.12,
+        "crit_dmg": 1.5
+      },
+      "growth": {
+        "hp": 0.065,
+        "atk": 0.06,
+        "def": 0.06
+      },
+      "basic": {
+        "name": "Рубежный удар",
+        "desc": "Два рубящих удара мечом.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 0.56,
+            "hits": 2
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "steel_ranks",
+          "name": "Стальной строй",
+          "desc": "Защитный импульс: щит себе и +12% атаки отряду на 6 с.",
+          "cooldown": 10,
+          "first": 3,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "shield",
+              "target": "self",
+              "mult": 1.3
+            },
+            {
+              "type": "buff",
+              "target": "all_allies",
+              "stat": "atk",
+              "value": 0.12,
+              "dur": 6
+            }
+          ]
+        },
+        {
+          "id": "cleaving_ledge",
+          "name": "Рассекающий уступ",
+          "desc": "Широкий удар по переднему ряду, −20% защиты врагов на 6 с.",
+          "cooldown": 12,
+          "first": 6,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "front_row",
+              "mult": 1.1
+            },
+            {
+              "type": "debuff",
+              "target": "front_row",
+              "stat": "def",
+              "value": -0.2,
+              "dur": 6
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Клятва Чёрного хребта",
+        "desc": "Каменные гребни бьют всех врагов; отряд получает щит и +20% атаки на 8 с.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "all_enemies",
+            "mult": 1.25
+          },
+          {
+            "type": "shield",
+            "target": "all_allies",
+            "mult": 0.7
+          },
+          {
+            "type": "buff",
+            "target": "all_allies",
+            "stat": "atk",
+            "value": 0.2,
+            "dur": 8
+          }
+        ]
+      },
+      "passive": {
+        "name": "Несломленный",
+        "desc": "Сопротивление контролю растёт при низком здоровье (до +60%).",
+        "type": "cc_resist_low_hp",
+        "params": {
+          "base": 0.15,
+          "max_bonus": 0.45
+        }
+      },
+      "mechanic": {
+        "id": "pass_oath",
+        "name": "Клятва перевала",
+        "desc": "Атаки копят стойкость. На 5 зарядах отряд получает +12% атаки и −10% урона на 6 с. Когда союзник в критической опасности, Арслан принимает половину следующего удара по нему.",
+        "params": {
+          "stacks": 5,
+          "team_atk": 0.12,
+          "team_dr": 0.1,
+          "dur": 6,
+          "guard_hp": 0.3,
+          "guard_share": 0.5,
+          "guard_cd": 12
+        }
+      },
+      "appearance": "Человек, мужчина 32 лет, высокий и широкоплечий, тёмные волосы, короткая борода, суровый взгляд. Графитовая ламеллярная броня с горным орнаментом, меховой воротник, бирюзовые акценты, меч Кара-Тимер.",
+      "lore": "Родился у Чёрного хребта. После обрушения перевала вывел выживших через ледяные ущелья и поклялся защищать путников. Его метеоритный клинок символизирует ответственность, а не власть.",
+      "personality": "Немногословный, дисциплинированный, защищает слабых. Пытается нести ответственность за всех в одиночку."
+    },
+    {
+      "code": "bai_tash",
+      "name": "Бай-Таш",
+      "title": "Каменный исполин",
+      "faction": "stone_sky",
+      "class": "guardian",
+      "role": "tank",
+      "role_name": "Танкующий",
+      "rarity": 5,
+      "stats": {
+        "hp": 1300,
+        "atk": 64,
+        "def": 68,
+        "spd": 84,
+        "crit": 0.05,
+        "crit_dmg": 1.5
+      },
+      "growth": {
+        "hp": 0.07,
+        "atk": 0.05,
+        "def": 0.065
+      },
+      "basic": {
+        "name": "Каменный кулак",
+        "desc": "Тяжёлый удар по переднему врагу.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "ancestor_wall",
+          "name": "Стена предков",
+          "desc": "Стена снижает урон по союзникам на 20% на 6 с.",
+          "cooldown": 12,
+          "first": 4,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "buff",
+              "target": "all_allies",
+              "stat": "dr",
+              "value": 0.2,
+              "dur": 6
+            }
+          ]
+        },
+        {
+          "id": "deep_hum",
+          "name": "Гул глубин",
+          "desc": "Удар по земле: урон всем врагам и −20% скорости атаки на 5 с.",
+          "cooldown": 11,
+          "first": 7,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "all_enemies",
+              "mult": 0.6
+            },
+            {
+              "type": "debuff",
+              "target": "all_enemies",
+              "stat": "spd",
+              "value": -0.2,
+              "dur": 5
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Сердце горы",
+        "desc": "Волна сердечника: мощный щит отряду (12% здоровья Бай-Таша) и провокация врагов на 4 с.",
+        "effects": [
+          {
+            "type": "shield",
+            "target": "all_allies",
+            "hp_mult": 0.12
+          },
+          {
+            "type": "taunt",
+            "target": "all_enemies",
+            "dur": 4
+          }
+        ]
+      },
+      "passive": {
+        "name": "Вечный страж",
+        "desc": "Пока защищает союзников, сопротивление контролю +40%.",
+        "type": "cc_resist_static",
+        "params": {
+          "value": 0.4
+        }
+      },
+      "mechanic": {
+        "id": "immovable_mountain",
+        "name": "Неподвижная гора",
+        "desc": "Принимает на себя 20% урона по союзникам. Накопив каменную энергию, даёт общий щит; при критическом здоровье входит в Монолитный покой (−75% урона и лечение 4 с).",
+        "params": {
+          "share": 0.2,
+          "stone_threshold": 0.35,
+          "team_shield_hp": 0.08,
+          "monolith_hp": 0.25,
+          "monolith_dr": 0.75,
+          "monolith_dur": 4,
+          "monolith_heal": 0.2
+        }
+      },
+      "appearance": "Каменный исполин 2,7 м из слоистого тёмного базальта. Маскообразное мудрое лицо, плечи-уступы, бирюзово-янтарные прожилки, круглый сердечник в груди, щит-нарост на предплечье.",
+      "lore": "Тысячи лет спал под горой как страж подземного источника. Пробудился после бури разлома и присоединился к хранителям, чтобы удержать равновесие.",
+      "personality": "Терпеливый и мудрый. Не понимает спешки, но мгновенно защищает беззащитных."
+    },
+    {
+      "code": "safariy",
+      "name": "Сафарий",
+      "title": "Читающий руны",
+      "faction": "stone_sky",
+      "class": "mage",
+      "role": "control_debuffer",
+      "role_name": "Контроль / ослабление",
+      "rarity": 2,
+      "stats": {
+        "hp": 760,
+        "atk": 112,
+        "def": 28,
+        "spd": 102,
+        "crit": 0.1,
+        "crit_dmg": 1.5
+      },
+      "growth": {
+        "hp": 0.06,
+        "atk": 0.065,
+        "def": 0.05
+      },
+      "basic": {
+        "name": "Искра знака",
+        "desc": "Рунический снаряд, ставит метку ветра.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0
+          },
+          {
+            "type": "mark",
+            "target": "target",
+            "mark": "wind",
+            "stacks": 1,
+            "dur": 8
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "bound_wind",
+          "name": "Связанный ветер",
+          "desc": "Ленты ветра: урон, −25% скорости атаки на 5 с, метка ветра.",
+          "cooldown": 9,
+          "first": 3,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "target",
+              "mult": 0.6
+            },
+            {
+              "type": "debuff",
+              "target": "target",
+              "stat": "spd",
+              "value": -0.25,
+              "dur": 5
+            },
+            {
+              "type": "mark",
+              "target": "target",
+              "mark": "wind",
+              "stacks": 1,
+              "dur": 8
+            }
+          ]
+        },
+        {
+          "id": "misdrawn_rune",
+          "name": "Ошибка начертания",
+          "desc": "Взрыв руны по двум врагам: урон и −20% точности на 5 с.",
+          "cooldown": 11,
+          "first": 6,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "random_enemies:2",
+              "mult": 0.8
+            },
+            {
+              "type": "debuff",
+              "target": "same",
+              "stat": "accuracy",
+              "value": 0.2,
+              "dur": 5
+            },
+            {
+              "type": "mark",
+              "target": "same",
+              "mark": "wind",
+              "stacks": 1,
+              "dur": 8
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Семь знаков перевала",
+        "desc": "Семь рун падают по очереди; последняя прерывает действия цели с наибольшим числом меток.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "random_enemies:1",
+            "mult": 0.45,
+            "repeat": 7,
+            "mark": "wind"
+          },
+          {
+            "type": "delay",
+            "target": "most_marked:wind",
+            "dur": 1.5
+          }
+        ]
+      },
+      "passive": {
+        "name": "Читающий след",
+        "desc": "Каждая новая метка усиливает следующий магический удар на 6% (до 30%).",
+        "type": "mark_empower",
+        "params": {
+          "per_mark": 0.06,
+          "max": 0.3
+        }
+      },
+      "mechanic": {
+        "id": "rune_rhythm",
+        "name": "Ритм рун",
+        "desc": "Метки ветра складываются: 2 метки — замедление атак, 3 метки — снижение точности и прерывание подготовки способности.",
+        "params": {
+          "slow_at": 2,
+          "slow": -0.2,
+          "acc_at": 3,
+          "acc": 0.2,
+          "interrupt": 1.0,
+          "dur": 4
+        }
+      },
+      "appearance": "Сухощавый мужчина около 50 лет, седые виски, длинные серебристо-тёмные волосы. Тёмно-синий плащ с бронзовой подкладкой, каменные таблички на поясе, посох из тёмного дерева с парящим каменным кольцом.",
+      "lore": "Исследовал руны на скалах и понял, что они удерживают ветер в определённом ритме. После разлома знаки стали шептать неизвестным языком. Ищет способ восстановить их последовательность.",
+      "personality": "Любознательный, ироничный, осторожный. Считает знание ответственностью."
+    },
+    {
+      "code": "ai_tulgan",
+      "name": "Ай-Тулган",
+      "title": "Проводница перевалов",
+      "faction": "stone_sky",
+      "class": "healer",
+      "role": "support_buffer",
+      "role_name": "Лечение / усиление",
+      "rarity": 3,
+      "stats": {
+        "hp": 840,
+        "atk": 82,
+        "def": 32,
+        "spd": 106,
+        "crit": 0.08,
+        "crit_dmg": 1.5
+      },
+      "growth": {
+        "hp": 0.065,
+        "atk": 0.06,
+        "def": 0.055
+      },
+      "basic": {
+        "name": "Луч рассвета",
+        "desc": "Световой импульс.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 0.9
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "warm_wind",
+          "name": "Тёплый ветер",
+          "desc": "Лечит союзника с наименьшим здоровьем.",
+          "cooldown": 7,
+          "first": 2,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "heal",
+              "target": "lowest_hp_ally",
+              "mult": 2.2
+            }
+          ]
+        },
+        {
+          "id": "guide_song",
+          "name": "Песнь проводника",
+          "desc": "+15% скорости атаки и +25% сопротивления контролю отряду на 6 с.",
+          "cooldown": 12,
+          "first": 5,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "buff",
+              "target": "all_allies",
+              "stat": "spd",
+              "value": 0.15,
+              "dur": 6
+            },
+            {
+              "type": "buff",
+              "target": "all_allies",
+              "stat": "cc_resist",
+              "value": 0.25,
+              "dur": 6
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Рассвет над перевалом",
+        "desc": "Лечит весь отряд, снимает один негативный эффект и даёт щит.",
+        "effects": [
+          {
+            "type": "heal",
+            "target": "all_allies",
+            "mult": 1.4
+          },
+          {
+            "type": "cleanse",
+            "target": "all_allies",
+            "count": 1
+          },
+          {
+            "type": "shield",
+            "target": "all_allies",
+            "mult": 0.8
+          }
+        ]
+      },
+      "passive": {
+        "name": "Не теряй дорогу",
+        "desc": "Первое лечение каждого союзника навсегда даёт ему +20% сопротивления контролю.",
+        "type": "first_heal_resist",
+        "params": {
+          "value": 0.2
+        }
+      },
+      "mechanic": {
+        "id": "path_song",
+        "name": "Песнь пути",
+        "desc": "Лечение даёт ноты. Три ноты запускают мелодию: снимает ослабление со всех союзников и ускоряет их на 20% на 5 с.",
+        "params": {
+          "notes": 3,
+          "haste": 0.2,
+          "dur": 5,
+          "cleanse": 1
+        }
+      },
+      "appearance": "Женщина около 29 лет, тёмные волосы в практичной косе. Светлая шерстяная туника, лёгкая броня плеч, бирюзово-молочные ткани, солнечный орнамент, посох-курай с подвесками.",
+      "lore": "Из семьи проводников горных перевалов. Лечила путников и читала погоду. Во время разлома её песня провела выживших сквозь туман; теперь она слышит в ветре потерявшиеся голоса.",
+      "personality": "Сострадательная, решительная, упрямая. Не считает себя избранной."
+    },
+    {
+      "code": "yurek",
+      "name": "Юрек",
+      "title": "Следопыт лесной границы",
+      "faction": "living_kurai",
+      "class": "ranger",
+      "role": "damage_debuffer",
+      "role_name": "Урон / ослабление",
+      "rarity": 1,
+      "stats": {
+        "hp": 720,
+        "atk": 108,
+        "def": 26,
+        "spd": 114,
+        "crit": 0.15,
+        "crit_dmg": 1.6
+      },
+      "growth": {
+        "hp": 0.06,
+        "atk": 0.068,
+        "def": 0.05
+      },
+      "basic": {
+        "name": "Быстрая стрела",
+        "desc": "Одиночный выстрел.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "prey_mark",
+          "name": "Метка добычи",
+          "desc": "Помечает врага и снижает его защиту на 15% на 6 с.",
+          "cooldown": 8,
+          "first": 2,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "mark",
+              "target": "target",
+              "mark": "trail",
+              "stacks": 1,
+              "dur": 10
+            },
+            {
+              "type": "debuff",
+              "target": "target",
+              "stat": "def",
+              "value": -0.15,
+              "dur": 6
+            }
+          ]
+        },
+        {
+          "id": "forest_trap",
+          "name": "Лесная ловушка",
+          "desc": "Урон и замедление самой опасной цели (−30% скорости атаки на 4 с).",
+          "cooldown": 11,
+          "first": 5,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "highest_atk_enemy",
+              "mult": 1.0
+            },
+            {
+              "type": "debuff",
+              "target": "same",
+              "stat": "spd",
+              "value": -0.3,
+              "dur": 4
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Три стрелы до рассвета",
+        "desc": "Три усиленные стрелы по помеченным целям.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "marked_or_target:trail",
+            "mult": 1.05,
+            "repeat": 3
+          }
+        ]
+      },
+      "passive": {
+        "name": "Знает тропы",
+        "desc": "+20% к шансу крита по помеченной цели.",
+        "type": "crit_vs_marked",
+        "params": {
+          "mark": "trail",
+          "value": 0.2
+        }
+      },
+      "mechanic": {
+        "id": "read_trail",
+        "name": "Чтение следа",
+        "desc": "Первая атака помечает цель; каждое повторное попадание снижает её защиту на 4% (до 20%). Против последнего врага урон +30%.",
+        "params": {
+          "def_per_hit": -0.04,
+          "max_stacks": 5,
+          "lone_bonus": 0.3
+        }
+      },
+      "appearance": "Жилистый мужчина 25 лет, короткие тёмно-русые волосы, веснушки. Куртка из кожи, короткий плащ мха, наручи, пояс с флягой и ножом, составной лук.",
+      "lore": "Вырос на лесной границе, знает следы зверей и людей. Не имеет древнего дара, полагается на наблюдательность и точность. Ищет след разлома после исчезновения деревень.",
+      "personality": "Любопытный, независимый, шутит, чтобы скрывать страх. Уважает животных."
+    },
+    {
+      "code": "sumbel",
+      "name": "Сумбэль",
+      "title": "Хранительница рощи",
+      "faction": "living_kurai",
+      "class": "summoner",
+      "role": "summon_control",
+      "role_name": "Призыв / контроль",
+      "rarity": 4,
+      "stats": {
+        "hp": 800,
+        "atk": 98,
+        "def": 32,
+        "spd": 100,
+        "crit": 0.08,
+        "crit_dmg": 1.5
+      },
+      "growth": {
+        "hp": 0.065,
+        "atk": 0.062,
+        "def": 0.055
+      },
+      "basic": {
+        "name": "Семя шёпота",
+        "desc": "Колючее магическое семя.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "root_guardian",
+          "name": "Корневой страж",
+          "desc": "Призывает защитника из корней (14 с).",
+          "cooldown": 15,
+          "first": 1.5,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "summon",
+              "summon": "root_guardian",
+              "dur": 14
+            }
+          ]
+        },
+        {
+          "id": "vine_weave",
+          "name": "Сплетение лоз",
+          "desc": "Лозы опутывают трёх врагов: урон, задержка действия и −25% скорости атаки.",
+          "cooldown": 11,
+          "first": 6,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "random_enemies:3",
+              "mult": 0.5
+            },
+            {
+              "type": "debuff",
+              "target": "same",
+              "stat": "spd",
+              "value": -0.25,
+              "dur": 4
+            },
+            {
+              "type": "delay",
+              "target": "same",
+              "dur": 0.8
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Роща под луной",
+        "desc": "Призрачное дерево: духи бьют всех врагов и лечат союзников, призванные существа получают +30% атаки.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "all_enemies",
+            "mult": 0.9
+          },
+          {
+            "type": "heal",
+            "target": "all_allies",
+            "mult": 0.9
+          },
+          {
+            "type": "buff",
+            "target": "own_summons",
+            "stat": "atk",
+            "value": 0.3,
+            "dur": 10
+          }
+        ]
+      },
+      "passive": {
+        "name": "Договор с духами",
+        "desc": "Пока жив призванный страж, её контроль длится на 30% дольше; исчезая, страж оставляет щит союзнику.",
+        "type": "summon_pact",
+        "params": {
+          "control_bonus": 0.3,
+          "shield_hp": 0.18
+        }
+      },
+      "mechanic": {
+        "id": "living_roots",
+        "name": "Круг живых корней",
+        "desc": "Корневой страж атакует и перехватывает 15% урона по союзникам. Навыки Сумбэль усиливают призванных существ на 20%.",
+        "params": {
+          "summon_buff": 0.2
+        }
+      },
+      "appearance": "Стройная женщина около 40 лет, длинные тёмные волосы с серебристыми прядями. Мантия из тёмно-зелёной ткани, коры и плетёных волокон, деревянные наплечники, украшения из семян и янтаря, посох с живым ростком.",
+      "lore": "Хранит рощу, где корни помнят имена умерших. Не повелевает духами, а заключает с ними договор. Ищет три утраченных семени, способных восстановить связь миров.",
+      "personality": "Спокойная, загадочная, сострадательная. Не терпит высокомерия."
+    },
+    {
+      "code": "ak_bure",
+      "name": "Ак-Буре",
+      "title": "Белый волк границы",
+      "faction": "living_kurai",
+      "class": "assassin",
+      "role": "damage_control",
+      "role_name": "Урон / контроль",
+      "rarity": 5,
+      "stats": {
+        "hp": 860,
+        "atk": 130,
+        "def": 32,
+        "spd": 124,
+        "crit": 0.18,
+        "crit_dmg": 1.65
+      },
+      "growth": {
+        "hp": 0.06,
+        "atk": 0.068,
+        "def": 0.05
+      },
+      "basic": {
+        "name": "Два белых следа",
+        "desc": "Два быстрых удара клинками.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 0.55,
+            "hits": 2
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "thicket_leap",
+          "name": "Прыжок из чащи",
+          "desc": "Прыжок к заднему ряду и удар по самой уязвимой цели, метка добычи.",
+          "cooldown": 9,
+          "first": 3,
+          "anim": "skill",
+          "leap": true,
+          "effects": [
+            {
+              "type": "damage",
+              "target": "lowest_hp_back",
+              "mult": 1.6
+            },
+            {
+              "type": "mark",
+              "target": "same",
+              "mark": "prey",
+              "stacks": 1,
+              "dur": 8
+            }
+          ]
+        },
+        {
+          "id": "moonless_howl",
+          "name": "Вой без луны",
+          "desc": "−15% скорости атаки и −15% точности всем врагам на 5 с.",
+          "cooldown": 13,
+          "first": 6,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "debuff",
+              "target": "all_enemies",
+              "stat": "spd",
+              "value": -0.15,
+              "dur": 5
+            },
+            {
+              "type": "debuff",
+              "target": "all_enemies",
+              "stat": "accuracy",
+              "value": 0.15,
+              "dur": 5
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Последняя охота",
+        "desc": "Исчезает в серебристом тумане и бьёт до четырёх целей (помеченные — первыми).",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "hunt:4",
+            "mult": 1.35
+          },
+          {
+            "type": "mark",
+            "target": "same",
+            "mark": "prey",
+            "stacks": 1,
+            "dur": 8
+          }
+        ]
+      },
+      "passive": {
+        "name": "Чутьё хищника",
+        "desc": "+25% урона по врагам под контролем; после убийства +30% уклонения на 4 с.",
+        "type": "predator",
+        "params": {
+          "vs_controlled": 0.25,
+          "dodge": 0.3,
+          "dur": 4
+        }
+      },
+      "mechanic": {
+        "id": "pack_hunt",
+        "name": "Охота стаи",
+        "desc": "Если цель под контролем или ослаблена союзниками, следующий удар сильнее на 60% и прерывает её действие.",
+        "params": {
+          "bonus": 0.6,
+          "interrupt": 0.8,
+          "cd": 4
+        }
+      },
+      "appearance": "Высокий антропоморфный белый волк с серебристой шерстью, серыми отметинами, янтарными глазами. Лёгкая тёмная кожаная броня с бронзовыми пластинами, парные короткие клинки.",
+      "lore": "Дух-хранитель, принявший облик белого волка после исчезновения стаи в тумане разлома. Понимает обещания и предательство; появляется там, где нарушена граница миров.",
+      "personality": "Молчаливый, настороженный, верный союзу. Судит по поступкам."
+    },
+    {
+      "code": "tan_chechek",
+      "name": "Тан-Чечек",
+      "title": "Дух цветущей долины",
+      "faction": "living_kurai",
+      "class": "hybrid",
+      "role": "support_buffer",
+      "role_name": "Поддержка / усиление",
+      "rarity": 2,
+      "range": 5.5,
+      "stats": {
+        "hp": 820,
+        "atk": 86,
+        "def": 32,
+        "spd": 108,
+        "crit": 0.08,
+        "crit_dmg": 1.5
+      },
+      "growth": {
+        "hp": 0.065,
+        "atk": 0.06,
+        "def": 0.055
+      },
+      "basic": {
+        "name": "Лепесток света",
+        "desc": "Светящийся лепесток-снаряд.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 0.9
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "sprout_awakening",
+          "name": "Пробуждение ростка",
+          "desc": "+25% атаки сильнейшему союзнику на 6 с и лечение.",
+          "cooldown": 9,
+          "first": 3,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "buff",
+              "target": "strongest_ally",
+              "stat": "atk",
+              "value": 0.25,
+              "dur": 6
+            },
+            {
+              "type": "heal",
+              "target": "same",
+              "mult": 1.0
+            }
+          ]
+        },
+        {
+          "id": "bloom_circle",
+          "name": "Круг цветения",
+          "desc": "Щит отряду и постепенное лечение 5 с.",
+          "cooldown": 12,
+          "first": 6,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "shield",
+              "target": "all_allies",
+              "mult": 0.6
+            },
+            {
+              "type": "buff",
+              "target": "all_allies",
+              "stat": "regen",
+              "value": 0.25,
+              "dur": 5
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Долина первого утра",
+        "desc": "Цветы расцветают: +20% скорости атаки и +15% атаки отряду на 7 с, снимается ослабление.",
+        "effects": [
+          {
+            "type": "buff",
+            "target": "all_allies",
+            "stat": "spd",
+            "value": 0.2,
+            "dur": 7
+          },
+          {
+            "type": "buff",
+            "target": "all_allies",
+            "stat": "atk",
+            "value": 0.15,
+            "dur": 7
+          },
+          {
+            "type": "cleanse",
+            "target": "all_allies",
+            "count": 1
+          }
+        ]
+      },
+      "passive": {
+        "name": "После зимы",
+        "desc": "Любые щиты и лечение союзников ускоряют цикл цветения.",
+        "type": "bloom_accel",
+        "params": {
+          "progress": 0.34
+        }
+      },
+      "mechanic": {
+        "id": "bloom_cycle",
+        "name": "Цикл цветения",
+        "desc": "Баффы копят стадии Росток → Бутон → Цветение. На третьей стадии волна поддержки лечит отряд и даёт +12% атаки на 5 с.",
+        "params": {
+          "stages": 3,
+          "wave_heal": 1.0,
+          "wave_atk": 0.12,
+          "dur": 5
+        }
+      },
+      "appearance": "Дух цветущей долины в облике молодой женщины. Кожа с тонкими светящимися линиями, тёмные волосы с зелёными прядями, ткани цвета рассвета, лепестковые наплечники, браслеты. Без крыльев.",
+      "lore": "Появилась там, где после долгой зимы впервые зацвели горные цветы. Когда разлом стал вытягивать цвет из долин, отправилась искать источник увядания.",
+      "personality": "Жизнерадостная, любознательная, чуткая, но строгая к тем, кто разрушает природу."
+    },
+    {
+      "code": "vargat",
+      "name": "Варгат",
+      "title": "Изгнанный военачальник",
+      "faction": "ashen_reach",
+      "class": "warrior",
+      "role": "damage_debuffer",
+      "role_name": "Урон / ослабление",
+      "rarity": 3,
+      "stats": {
+        "hp": 1120,
+        "atk": 114,
+        "def": 50,
+        "spd": 96,
+        "crit": 0.1,
+        "crit_dmg": 1.55
+      },
+      "growth": {
+        "hp": 0.065,
+        "atk": 0.062,
+        "def": 0.06
+      },
+      "basic": {
+        "name": "Тяжёлый приговор",
+        "desc": "Удар мечом, −8% защиты цели на 4 с.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0
+          },
+          {
+            "type": "debuff",
+            "target": "target",
+            "stat": "def",
+            "value": -0.08,
+            "dur": 4
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "cleave_banner",
+          "name": "Разрубить знамя",
+          "desc": "Снимает положительный эффект и наносит урон.",
+          "cooldown": 9,
+          "first": 3,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "dispel",
+              "target": "target",
+              "count": 1
+            },
+            {
+              "type": "damage",
+              "target": "target",
+              "mult": 1.3
+            }
+          ]
+        },
+        {
+          "id": "exile_step",
+          "name": "Шаг изгнанника",
+          "desc": "Рывок к самой сильной цели: урон и −20% атаки на 5 с.",
+          "cooldown": 11,
+          "first": 6,
+          "anim": "skill2",
+          "leap": true,
+          "effects": [
+            {
+              "type": "damage",
+              "target": "highest_atk_enemy",
+              "mult": 1.1
+            },
+            {
+              "type": "debuff",
+              "target": "same",
+              "stat": "atk",
+              "value": -0.2,
+              "dur": 5
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Приказ отменён",
+        "desc": "Волна пепла снимает по два усиления со всех врагов; урон растёт за каждый снятый эффект.",
+        "effects": [
+          {
+            "type": "dispel",
+            "target": "all_enemies",
+            "count": 2
+          },
+          {
+            "type": "damage",
+            "target": "all_enemies",
+            "mult": 1.0,
+            "per_dispel": 0.25
+          }
+        ]
+      },
+      "passive": {
+        "name": "Не служит тирану",
+        "desc": "После снятия усиления +35% сопротивления контролю на 5 с.",
+        "type": "dispel_resist",
+        "params": {
+          "value": 0.35,
+          "dur": 5
+        }
+      },
+      "mechanic": {
+        "id": "broken_oath",
+        "name": "Сломанная клятва",
+        "desc": "Каждое снятое усиление даёт заряд ярости: следующий удар сильнее на 30% за заряд (до 3).",
+        "params": {
+          "per_charge": 0.3,
+          "max": 3
+        }
+      },
+      "appearance": "Мужчина около 38 лет, мощный, короткие чёрные волосы с седой прядью, шрам через бровь. Потемневшая стальная асимметричная броня, бордовая ткань, сломанный княжеский знак, широкий меч.",
+      "lore": "Бывший военачальник отказался уничтожить заражённый разломом город. Изгнан, но носит сломанный знак как напоминание о цене приказа.",
+      "personality": "Суровый, подозрительный, дисциплинированный. Защищает слабых, но не умеет просить помощи."
+    },
+    {
+      "code": "morai",
+      "name": "Морай",
+      "title": "Хранительница иной грани",
+      "faction": "ashen_reach",
+      "class": "mage",
+      "role": "control_damage",
+      "role_name": "Контроль / урон",
+      "rarity": 6,
+      "stats": {
+        "hp": 800,
+        "atk": 122,
+        "def": 30,
+        "spd": 104,
+        "crit": 0.1,
+        "crit_dmg": 1.55
+      },
+      "growth": {
+        "hp": 0.06,
+        "atk": 0.065,
+        "def": 0.05
+      },
+      "basic": {
+        "name": "Осколок пустоты",
+        "desc": "Снаряд холодной энергии.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "moment_shift",
+          "name": "Смещение мгновения",
+          "desc": "Метка разлома на самого опасного врага задерживает его действие.",
+          "cooldown": 9,
+          "first": 3,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "mark",
+              "target": "highest_atk_enemy",
+              "mark": "rift",
+              "stacks": 1,
+              "dur": 8
+            },
+            {
+              "type": "delay",
+              "target": "same",
+              "dur": 1.5
+            }
+          ]
+        },
+        {
+          "id": "reverse_facet",
+          "name": "Обратная грань",
+          "desc": "Геометрическое поле: урон трём врагам и −15% защиты на 6 с.",
+          "cooldown": 12,
+          "first": 6,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "random_enemies:3",
+              "mult": 0.9
+            },
+            {
+              "type": "debuff",
+              "target": "same",
+              "stat": "def",
+              "value": -0.15,
+              "dur": 6
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Мир по ту сторону",
+        "desc": "Межпространственная геометрия бьёт всех врагов, по отмеченным — сильнее, и прерывает их действия.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "all_enemies",
+            "mult": 1.0,
+            "bonus_vs_mark": {
+              "rift": 0.8
+            }
+          },
+          {
+            "type": "delay",
+            "target": "marked:rift",
+            "dur": 1.2
+          }
+        ]
+      },
+      "passive": {
+        "name": "Невозможная память",
+        "desc": "Каждая задержка вражеского действия восстанавливает 12 энергии ультимейта.",
+        "type": "delay_energy",
+        "params": {
+          "value": 12
+        }
+      },
+      "mechanic": {
+        "id": "reality_shift",
+        "name": "Сдвиг реальности",
+        "desc": "Метки разлома задерживают действия и взрываются при истечении. Одну цель нельзя задерживать чаще раза в 4 с — без бесконечного контроля.",
+        "params": {
+          "explode": 0.6,
+          "delay_immunity": 4
+        }
+      },
+      "appearance": "Высокое тонкое существо иного измерения в облике женщины. Пепельная кожа, глаза как затуманенное звёздное небо. Чёрная обсидиановая мантия, фиолетово-серебряные акценты, парящие геометрические фрагменты за плечами. Без крыльев.",
+      "lore": "Была хранительницей границы мира, где время движется неравномерно. Открыла путь в Уралию, надеясь найти источник разломов. Видит разрушение как форму перемен.",
+      "personality": "Спокойная, отстранённая, философская. Учится понимать человеческую привязанность."
+    },
+    {
+      "code": "zarkhan",
+      "name": "Зархан",
+      "title": "Охотник на разломы",
+      "faction": "ashen_reach",
+      "class": "ranger",
+      "role": "damage_debuffer",
+      "role_name": "Урон / ослабление",
+      "rarity": 4,
+      "stats": {
+        "hp": 760,
+        "atk": 116,
+        "def": 28,
+        "spd": 112,
+        "crit": 0.14,
+        "crit_dmg": 1.6
+      },
+      "growth": {
+        "hp": 0.06,
+        "atk": 0.066,
+        "def": 0.05
+      },
+      "basic": {
+        "name": "Болт следопыта",
+        "desc": "Одиночный выстрел, оставляет метку разлома.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0
+          },
+          {
+            "type": "mark",
+            "target": "target",
+            "mark": "ash",
+            "stacks": 1,
+            "dur": 10
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "ash_mark",
+          "name": "Пепельная метка",
+          "desc": "Метка снижает получаемое целью лечение на 50% на 8 с.",
+          "cooldown": 8,
+          "first": 2,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "mark",
+              "target": "target",
+              "mark": "ash",
+              "stacks": 1,
+              "dur": 10
+            },
+            {
+              "type": "debuff",
+              "target": "target",
+              "stat": "heal_received",
+              "value": -0.5,
+              "dur": 8
+            }
+          ]
+        },
+        {
+          "id": "ricochet",
+          "name": "Рикошетный заряд",
+          "desc": "Болт проходит через трёх врагов: урон и −15% точности на 4 с.",
+          "cooldown": 11,
+          "first": 5,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "random_enemies:3",
+              "mult": 0.8
+            },
+            {
+              "type": "debuff",
+              "target": "same",
+              "stat": "accuracy",
+              "value": 0.15,
+              "dur": 4
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Последний маршрут",
+        "desc": "Серия из пяти болтов по отмеченным целям, каждый следующий сильнее на 20%.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "marked_or_target:ash",
+            "mult": 0.7,
+            "repeat": 5,
+            "ramp": 0.2
+          }
+        ]
+      },
+      "passive": {
+        "name": "Никто не исчезает бесследно",
+        "desc": "При гибели отмеченной цели метка переходит на сильнейшего врага.",
+        "type": "mark_transfer",
+        "params": {
+          "mark": "ash"
+        }
+      },
+      "mechanic": {
+        "id": "rift_trail",
+        "name": "След разлома",
+        "desc": "Метки увеличивают дальний урон по цели на 12% и снижают её лечение на 40%.",
+        "params": {
+          "ranged_vuln": 0.12,
+          "heal_cut": 0.4
+        }
+      },
+      "appearance": "Мужчина около 30 лет из иного мира, сухощавый, бледная кожа, пепельно-русые волосы, янтарный ободок радужки. Лёгкая пепельно-серая броня, шарф-маска, компактный складной арбалет.",
+      "lore": "Проводник караванов через пустоши. Выслеживал существ, оставляющих след в памяти пространства. Разлом забрал его отряд, и теперь он охотится на тех, кто открывает нестабильные проходы.",
+      "personality": "Молчаливый профессионал, осторожный и недоверчивый. Всегда готовит запасной путь."
+    },
+    {
+      "code": "ur_kaan",
+      "name": "Ур-Каан",
+      "title": "Древний страж печати",
+      "faction": "ashen_reach",
+      "class": "hybrid",
+      "role": "tank_summon",
+      "role_name": "Танкующий / призыв",
+      "rarity": 6,
+      "range": 1.8,
+      "stats": {
+        "hp": 1350,
+        "atk": 90,
+        "def": 60,
+        "spd": 88,
+        "crit": 0.08,
+        "crit_dmg": 1.5
+      },
+      "growth": {
+        "hp": 0.07,
+        "atk": 0.058,
+        "def": 0.065
+      },
+      "basic": {
+        "name": "Коготь древнего",
+        "desc": "Двойной удар когтями.",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 0.55,
+            "hits": 2
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "wing_cover",
+          "name": "Крыло-покров",
+          "desc": "Раскрывает крыло: урон по союзникам −15% на 6 с.",
+          "cooldown": 12,
+          "first": 4,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "buff",
+              "target": "all_allies",
+              "stat": "dr",
+              "value": 0.15,
+              "dur": 6
+            }
+          ]
+        },
+        {
+          "id": "rift_echo",
+          "name": "Эхо разлома",
+          "desc": "Призывает малое драконье эхо (8 с).",
+          "cooldown": 12,
+          "first": 7,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "summon",
+              "summon": "dragon_echo_small",
+              "dur": 8
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Пламя первой печати",
+        "desc": "Пепельно-янтарное дыхание бьёт всех врагов и призывает защитное драконье эхо (10 с).",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "all_enemies",
+            "mult": 1.15
+          },
+          {
+            "type": "summon",
+            "summon": "dragon_echo",
+            "dur": 10
+          }
+        ]
+      },
+      "passive": {
+        "name": "Древнее терпение",
+        "desc": "Получая урон, копит печать и при пороге сам призывает краткоживущее эхо.",
+        "type": "seal_patience",
+        "params": {}
+      },
+      "mechanic": {
+        "id": "seal_breath",
+        "name": "Дыхание печати",
+        "desc": "Энергия печати копится от полученного урона; на 50% — малое эхо, на 100% — драконье эхо, защищающее союзников.",
+        "params": {
+          "seal_scale": 140,
+          "small_at": 50,
+          "echo_dur": 6
+        }
+      },
+      "appearance": "Древний дракон в вертикальной гуманоидной боевой форме. Тёмно-железная чешуя с янтарными прожилками, рога, костяная грива, хвост, когтистые руки, сложенные крылья, светящийся сердечник.",
+      "lore": "Существовал до известных границ миров и удерживал древний разлом закрытым. После разрушения печати оказался в Уралии и заключил временный договор: пока разлом угрожает мирам, он сражается.",
+      "personality": "Гордый, древний, терпеливый. Признаёт мужество, но с трудом доверяет."
+    }
+  ],
+  "enemy_kits": {
+    "e_minion": {
+      "basic": {
+        "name": "Укус",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0,
+            "hits": 1
+          }
+        ]
+      },
+      "skills": [],
+      "ultimate": {
+        "name": "Костяной рой",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.6
+          }
+        ]
+      },
+      "passive": null,
+      "mechanic": null
+    },
+    "e_warrior": {
+      "basic": {
+        "name": "Ржавый топор",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0,
+            "hits": 1
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "rust_shield",
+          "name": "Ржавый щит",
+          "desc": "",
+          "cooldown": 11,
+          "first": 4,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "shield",
+              "target": "lowest_hp_ally",
+              "mult": 1.6
+            },
+            {
+              "type": "taunt",
+              "target": "front_row",
+              "dur": 2.5
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Сокрушающий удар",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "front_row",
+            "mult": 1.4
+          },
+          {
+            "type": "debuff",
+            "target": "same",
+            "stat": "def",
+            "value": -0.15,
+            "dur": 5
+          }
+        ]
+      },
+      "passive": null,
+      "mechanic": null
+    },
+    "e_rogue": {
+      "basic": {
+        "name": "Подлый выстрел",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0,
+            "hits": 1
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "hunter_mark",
+          "name": "Метка ловчего",
+          "desc": "",
+          "cooldown": 10,
+          "first": 3,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "lowest_hp_enemy",
+              "mult": 1.3
+            },
+            {
+              "type": "debuff",
+              "target": "same",
+              "stat": "heal_received",
+              "value": -0.3,
+              "dur": 6
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Залп из тьмы",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "random_enemies:3",
+            "mult": 1.0
+          }
+        ]
+      },
+      "passive": null,
+      "mechanic": null
+    },
+    "e_mage": {
+      "basic": {
+        "name": "Тёмная искра",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 1.0,
+            "hits": 1
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "black_fog",
+          "name": "Холод подземья",
+          "desc": "",
+          "cooldown": 12,
+          "first": 5,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "random_enemies:2",
+              "mult": 0.7
+            },
+            {
+              "type": "debuff",
+              "target": "same",
+              "stat": "spd",
+              "value": -0.2,
+              "dur": 4
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Чёрный туман",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "all_enemies",
+            "mult": 0.9
+          }
+        ]
+      },
+      "passive": null,
+      "mechanic": null
+    },
+    "e_boss_toratau": {
+      "basic": {
+        "name": "Курганный молот",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "target",
+            "mult": 0.6,
+            "hits": 2
+          }
+        ]
+      },
+      "skills": [
+        {
+          "id": "barrow_roar",
+          "name": "Рёв кургана",
+          "desc": "",
+          "cooldown": 10,
+          "first": 4,
+          "anim": "skill",
+          "effects": [
+            {
+              "type": "debuff",
+              "target": "all_enemies",
+              "stat": "atk",
+              "value": -0.15,
+              "dur": 6
+            },
+            {
+              "type": "buff",
+              "target": "all_allies",
+              "stat": "dr",
+              "value": 0.15,
+              "dur": 6
+            }
+          ]
+        },
+        {
+          "id": "grave_grip",
+          "name": "Хватка могилы",
+          "desc": "",
+          "cooldown": 13,
+          "first": 8,
+          "anim": "skill2",
+          "effects": [
+            {
+              "type": "damage",
+              "target": "highest_atk_enemy",
+              "mult": 1.6
+            },
+            {
+              "type": "stun",
+              "target": "same",
+              "dur": 1.5
+            }
+          ]
+        }
+      ],
+      "ultimate": {
+        "name": "Обвал",
+        "desc": "",
+        "effects": [
+          {
+            "type": "damage",
+            "target": "all_enemies",
+            "mult": 1.3
+          }
+        ]
+      },
+      "passive": {
+        "name": "Древняя кость",
+        "desc": "",
+        "type": "cc_resist_static",
+        "params": {
+          "value": 0.5
+        }
+      },
+      "mechanic": null
+    }
+  }
+}

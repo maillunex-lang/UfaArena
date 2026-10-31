@@ -13,6 +13,7 @@ from .core.config import get_settings
 from .core.db import as_utc, utcnow
 from .core.errors import GameError
 from .game import data as D
+from .game import roster as R
 from .game.battle_sim import hero_stats, power_rating
 from .models import (
     CURRENCIES,
@@ -128,6 +129,10 @@ def hero_view(ph: PlayerHero, bonuses: dict | None = None) -> dict:
         "class": h.class_code, "rarity": h.rarity, "rarity_name": D.RARITIES[h.rarity], "model": h.model,
         "level": ph.level, "stars": ph.stars, "shards": ph.shards, "stats": st, "power": power_rating(st),
         "skill": h.skill, "level_up_cost": D.level_up_cost(ph.level) if ph.level < D.LEVEL_CAP_MVP else None,
+        "role": h.role or "", "role_name": (h.extra or {}).get("role_name", ""),
+        "crit": (h.extra or {}).get("crit", 0.12), "crit_dmg": (h.extra or {}).get("crit_dmg", 1.5),
+        "kit": h.kit or R.legacy_kit(h.skill or {}, h.class_code, h.rarity),
+        "skill_level": 1 + ph.stars,
     }
 
 
@@ -135,7 +140,7 @@ def _hero_dict(h: Hero) -> dict:
     return {
         "code": h.code, "name": h.name, "rarity": h.rarity, "base_hp": h.base_hp, "base_atk": h.base_atk,
         "base_def": h.base_def, "base_spd": h.base_spd, "faction_code": h.faction_code,
-        "class_code": h.class_code, "model": h.model, "skill": h.skill,
+        "class_code": h.class_code, "model": h.model, "skill": h.skill, "kit": h.kit, "extra": h.extra or {},
     }
 
 
@@ -198,7 +203,8 @@ def create_player(db: Session, device_id: str | None) -> User:
         db.add(ph)
         db.flush()
         slots.append(ph.id)
-    db.add(Formation(user_id=user.id, kind="campaign", slots=[slots[0], slots[1], slots[2], None, None]))
+    # azamat (tank) in front, the rest behind; 5 slots total
+    db.add(Formation(user_id=user.id, kind="campaign", slots=(slots + [None] * 5)[:5]))
     for code in D.BUILDINGS:
         db.add(FortressBuilding(user_id=user.id, code=code, level=1))
     msg = db.scalar(select(MailMessage).where(MailMessage.code == D.WELCOME_MAIL["code"]))

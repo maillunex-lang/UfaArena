@@ -17,7 +17,9 @@ def test_health(client):
 def test_full_mvp_loop(client, newplayer):
     p = newplayer()
     boot = p.get("/player/bootstrap").json()
-    assert len(boot["heroes"]) == 3
+    assert len(boot["heroes"]) == 4
+    assert {h["hero_code"] for h in boot["heroes"]} == {"azamat", "yurek", "safariy", "tan_chechek"}
+    assert all("kit" in h and h["kit"]["ultimate"] for h in boot["heroes"])
     assert boot["campaign"]["next_node"] == "1-1"
     gold0 = boot["wallet"]["gold"]
 
@@ -46,7 +48,7 @@ def test_full_mvp_loop(client, newplayer):
 
     # summon: first pull is the onboarding guarantee
     s = p.post("/summon", {"pool": "standard", "count": 1}).json()
-    assert s["results"][0]["hero_code"] == "zulfiya"
+    assert s["results"][0]["hero_code"] == "ai_tulgan"
     s10 = p.post("/summon", {"pool": "standard", "count": 1}).json()
     assert len(s10["results"]) == 1
 
