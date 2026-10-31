@@ -4,7 +4,7 @@ config_version=5
 [application]
 
 config/name="УРАЛИЯ: Дыхание предков"
-config/version="0.1.0"
+config/version="0.2.0"
 run/main_scene="res://src/scenes/Boot.tscn"
 config/features=PackedStringArray("4.5", "Mobile")
 config/icon="res://assets/ui/icon.png"
@@ -19,6 +19,7 @@ server_url="http://144.31.254.99:8000"
 
 Config="*res://src/autoload/Config.gd"
 Api="*res://src/autoload/Api.gd"
+Content="*res://src/content/Content.gd"
 Game="*res://src/autoload/Game.gd"
 Sfx="*res://src/autoload/Sfx.gd"
 Gfx="*res://src/autoload/Gfx.gd"

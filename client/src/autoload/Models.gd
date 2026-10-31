@@ -62,8 +62,27 @@ func _scene(path: String) -> PackedScene:
 	return _scene_cache[path]
 
 
+## Built-in look, overridden/extended by content packages (`looks/<code>.json`):
+## {"rig": "knight" | "content:models/x.glb", "keep": [...], "weapons": {...}, "anim": "1h",
+##  "tint": [r,g,b], "glow": [r,g,b], "scale": 1.0}. New heroes can ship purely as content.
 func look(code: String) -> Dictionary:
-	return LOOKS.get(code, LOOKS["azamat"])
+	var lk: Dictionary = LOOKS.get(code, {}).duplicate()
+	var ov: Variant = Content.json("looks/%s.json" % code)
+	if ov is Dictionary:
+		for k in ov:
+			lk[k] = ov[k]
+	if lk.is_empty():
+		lk = LOOKS["azamat"].duplicate()
+	for ck in ["tint", "glow"]:
+		if lk.get(ck) is Array and (lk[ck] as Array).size() >= 3:
+			lk[ck] = Color(float(lk[ck][0]), float(lk[ck][1]), float(lk[ck][2]))
+	if not ANIMS.has(String(lk.get("anim", "1h"))):
+		lk["anim"] = "1h"
+	return lk
+
+
+func clear_cache() -> void:
+	_portraits.clear()
 
 
 ## Returns a Node3D "actor" with meta: anim_player, anim_set.
@@ -71,7 +90,14 @@ func spawn(code: String) -> Node3D:
 	var lk := look(code)
 	var root := Node3D.new()
 	root.name = code
-	var inst: Node3D = _scene(RIGS[lk.rig]).instantiate()
+	var rig: String = lk.get("rig", "knight")
+	var inst: Node3D = null
+	if rig.begins_with("content:"):
+		inst = Content.model(rig.substr(8))
+	elif RIGS.has(rig):
+		inst = _scene(RIGS[rig]).instantiate()
+	if inst == null:
+		inst = _scene(RIGS["knight"]).instantiate()
 	root.add_child(inst)
 	var keep: Array = lk.get("keep", [])
 	for att in inst.find_children("*", "BoneAttachment3D", true, false):
@@ -79,7 +105,7 @@ func spawn(code: String) -> Node3D:
 			if m is MeshInstance3D:
 				m.visible = m.name in keep
 	var skel: Skeleton3D = inst.find_child("Skeleton3D", true, false)
-	var weapons: Dictionary = lk.get("weapons", {})
+	var weapons: Dictionary = lk.get("weapons", {}) if skel else {}
 	for side in weapons:
 		var ba := BoneAttachment3D.new()
 		ba.bone_name = "handslot." + side

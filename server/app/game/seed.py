@@ -3,7 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..models import (
-    CampaignNode, CampaignRegion, ContentManifestVersion, ContentPackage, Faction, Hero, HeroClass,
+    CampaignNode, CampaignRegion, Faction, Hero, HeroClass,
     MailMessage, Quest, SummonPool,
 )
 from . import data as D
@@ -28,16 +28,10 @@ def seed_static(db: Session) -> None:
         db.merge(Quest(**{"requires": None, **q}))
     if db.scalar(select(MailMessage).where(MailMessage.code == D.WELCOME_MAIL["code"])) is None:
         db.add(MailMessage(**D.WELCOME_MAIL))
-    db.merge(ContentPackage(package_id="core.balance", kind="balance", description="Баланс и данные героев"))
-    db.merge(ContentPackage(package_id="core.l10n.ru", kind="l10n", description="Русская локализация"))
-    db.flush()
-    if db.scalar(select(ContentManifestVersion).where(ContentManifestVersion.channel == "dev")) is None:
-        from ..modules.content import build_balance_package
-
-        pkg = build_balance_package()
-        db.add(ContentManifestVersion(channel="dev", platform="android", version=1, minimum_client_version="0.1.0",
-                                      packages=[pkg], is_active=True))
     db.commit()
+    from ..modules.content import ensure_initial
+
+    ensure_initial(db)
 
 
 if __name__ == "__main__":  # pragma: no cover

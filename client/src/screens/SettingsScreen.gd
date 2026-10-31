@@ -97,12 +97,57 @@ func setup(m: Node, _p: Dictionary) -> void:
 	lb.pressed.connect(func(): _link(email.text, pw.text))
 	v.add_child(lb)
 	v.add_child(UI.spacer(8))
+	v.add_child(UI.spacer(8))
+	v.add_child(UI.label("Обновления контента", 32, UI.ACCENT, true))
+	var cs := UI.label(Content.summary(), 24, UI.MUTED)
+	cs.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(cs)
+	var crow := HBoxContainer.new()
+	crow.add_theme_constant_override("separation", 10)
+	var chk := UI.button("Проверить", "glass", 0, 90)
+	chk.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	chk.pressed.connect(_check_content)
+	crow.add_child(chk)
+	var rb := UI.button("Откатить", "glass", 0, 90)
+	rb.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rb.disabled = Content.previous.is_empty()
+	rb.pressed.connect(func():
+		if await Content.rollback():
+			Router.toast("Контент откатан к предыдущей версии")
+			main.open("settings"))
+	crow.add_child(rb)
+	v.add_child(crow)
+	var bg := CheckButton.new()
+	bg.text = "Загружать обновления в фоне"
+	bg.button_pressed = Content.background_enabled
+	bg.add_theme_font_size_override("font_size", 28)
+	bg.toggled.connect(func(on: bool): Content.set_background(on))
+	v.add_child(bg)
 	var about := UI.label("УРАЛИЯ: Дыхание предков · клиент %s · канал %s\nАссеты: KayKit (CC0), Poly Haven (CC0), RPG Sound Pack (CC0), шрифт Philosopher (OFL). Музыка — оригинальная." % [Config.CLIENT_VERSION, Config.CHANNEL], 22, UI.MUTED)
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(about)
 	var lo := UI.button("Выйти из аккаунта", "danger")
 	lo.pressed.connect(_logout)
 	v.add_child(lo)
+
+
+func _check_content() -> void:
+	Router.busy(true)
+	var c := await Content.check()
+	if c.ok and c.status == "ok":
+		var s := await Content.sync(false)
+		Router.busy(false)
+		if not s.ok:
+			Router.toast(s.get("message", "Ошибка загрузки"), true)
+			return
+		if Content.has_pending():
+			await Content.apply_pending()
+		else:
+			Router.toast("Контент актуален")
+	else:
+		Router.busy(false)
+		Router.toast(c.get("message", "Обновления недоступны: " + String(c.status)), true)
+	main.open("settings")
 
 
 func _save_setting(key: String, val: Variant) -> void:

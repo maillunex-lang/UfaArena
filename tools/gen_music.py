@@ -12,7 +12,8 @@ from pathlib import Path
 import numpy as np
 
 SR = 32000
-rng = np.random.default_rng(1771)  # fixed seed => reproducible output
+rng = np.random.default_rng(1771)
+  # fixed seed => reproducible output
 
 
 def env(n, a=0.08, r=0.25):
@@ -146,7 +147,23 @@ def write(path: Path, x):
         w.writeframes(pcm.tobytes())
 
 
+def autumn_theme():
+    """Variant for the 'Autumn fair' content package: lower key, slower, more drone."""
+    global BASE
+    old, BASE = BASE, 261.63  # C
+    try:
+        return hub_theme(64.0)
+    finally:
+        BASE = old
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 2 and sys.argv[2] == "--autumn":
+        out = Path(sys.argv[1])
+        out.parent.mkdir(parents=True, exist_ok=True)
+        write(out, autumn_theme())
+        print("ok", out)
+        sys.exit(0)
     out = Path(sys.argv[1] if len(sys.argv) > 1 else "client/assets/audio/music")
     out.mkdir(parents=True, exist_ok=True)
     write(out / "hub_kurai_theme.wav", hub_theme())

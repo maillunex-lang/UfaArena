@@ -9,6 +9,11 @@ _tmp = Path(tempfile.mkdtemp(prefix="uralia-test-"))
 os.environ.setdefault("URALIA_ENV", "test")
 os.environ.setdefault("URALIA_DATABASE_URL", f"sqlite:///{_tmp / 'test.db'}")
 os.environ["URALIA_CONTENT_SIGNING_KEY_PATH"] = str(_tmp / "sign.pem")
+# The store must live as long as the DB: a persistent PostgreSQL test DB gets a persistent store.
+_db = os.environ.get("URALIA_DATABASE_URL", "")
+os.environ["URALIA_CONTENT_STORE_PATH"] = (
+    str(Path(tempfile.gettempdir()) / ("uralia-test-store-" + __import__("hashlib").md5(_db.encode()).hexdigest()[:8]))
+    if _db.startswith("postgresql") else str(_tmp / "store"))
 os.environ["URALIA_RATE_LIMIT_PER_MINUTE"] = "100000"
 os.environ["URALIA_AUTH_RATE_LIMIT_PER_MINUTE"] = "100000"
 

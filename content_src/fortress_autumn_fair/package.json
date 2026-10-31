@@ -1,0 +1,9 @@
+{
+ "package_id": "fortress.autumn_fair",
+ "version": 1,
+ "kind": "fortress",
+ "title": "Осенняя ярмарка в Крепости хранителей",
+ "min_client_version": "0.2.0",
+ "dependencies": ["core.balance"],
+ "required": false
+}

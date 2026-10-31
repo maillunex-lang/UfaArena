@@ -43,7 +43,7 @@ def create_app() -> FastAPI:
     async def _security_headers(request: Request, call_next):
         resp = await call_next(request)
         resp.headers["X-Content-Type-Options"] = "nosniff"
-        resp.headers["Cache-Control"] = "no-store"
+        resp.headers.setdefault("Cache-Control", "no-store")
         resp.headers["X-Server-Version"] = VERSION
         return resp
 

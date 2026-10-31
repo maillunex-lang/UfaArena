@@ -1,0 +1,12 @@
+[
+ {"model": "models/pillar_decorated.glb", "pos": [-3.4, 0, -1.2], "rot": 0, "scale": 0.6},
+ {"model": "models/pillar_decorated.glb", "pos": [3.4, 0, -1.2], "rot": 0, "scale": 0.6},
+ {"model": "models/torch_lit.glb", "pos": [-1.9, 0, 1.4], "rot": 0, "scale": 1.5, "light": [1.0, 0.62, 0.3]},
+ {"model": "models/torch_lit.glb", "pos": [1.9, 0, 1.4], "rot": 0, "scale": 1.5, "light": [1.0, 0.62, 0.3]},
+ {"model": "models/banner_triple_red.glb", "pos": [-3.0, 0, -6.6], "rot": 15, "scale": 0.6},
+ {"model": "models/banner_triple_red.glb", "pos": [3.0, 0, -6.6], "rot": -15, "scale": 0.6},
+ {"model": "models/barrel_large_decorated.glb", "pos": [3.7, 0, 2.3], "rot": 20, "scale": 0.45},
+ {"model": "models/barrel_large_decorated.glb", "pos": [4.4, 0, 1.4], "rot": -10, "scale": 0.4},
+ {"model": "models/chest_gold.glb", "pos": [-3.7, 0, 2.2], "rot": 25, "scale": 0.6},
+ {"model": "hex:decoration/props/tent.gltf", "pos": [-5.2, 0, -0.4], "rot": 40, "scale": 1.5}
+]

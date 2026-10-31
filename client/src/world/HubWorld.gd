@@ -30,6 +30,7 @@ func _ready() -> void:
 	Hex.environment(self)
 	Hex.sun(self)
 	_build_island()
+	_content_decor()
 	camera = Camera3D.new()
 	camera.fov = 50
 	camera.position = _cam_base
@@ -90,6 +91,41 @@ func _build_island() -> void:
 	ring.material_override = mat
 	ring.position = Vector3(0, 0.03, 3.2)
 	add_child(ring)
+
+
+## Seasonal / event decoration delivered by content packages: fortress/decor.json
+## [{"model": "models/x.glb" | "hex:<path in hex pack>", "pos": [x,y,z], "rot": deg, "scale": s,
+##   "light": [r,g,b]}]
+func _content_decor() -> void:
+	var items: Variant = Content.json("fortress/decor.json")
+	if not (items is Array):
+		return
+	for it in items:
+		if not (it is Dictionary):
+			continue
+		var path := String(it.get("model", ""))
+		var n: Node3D = null
+		if path.begins_with("hex:"):
+			if ResourceLoader.exists(Hex.ROOT + path.substr(4)):
+				n = Hex.scene(path.substr(4)).instantiate()
+		else:
+			n = Content.model(path)
+		if n == null:
+			continue
+		var p: Array = it.get("pos", [0, 0, 0])
+		n.position = Vector3(float(p[0]), float(p[1]), float(p[2]))
+		n.rotation_degrees.y = float(it.get("rot", 0))
+		n.scale = Vector3.ONE * float(it.get("scale", 1.0))
+		n.add_to_group("content_decor")
+		add_child(n)
+		if it.get("light") is Array:
+			var l := OmniLight3D.new()
+			var c: Array = it.light
+			l.light_color = Color(float(c[0]), float(c[1]), float(c[2]))
+			l.light_energy = 1.6
+			l.omni_range = 4.0
+			l.position = n.position + Vector3(0, 1.6, 0)
+			add_child(l)
 
 
 func _free(p: Vector3) -> bool:

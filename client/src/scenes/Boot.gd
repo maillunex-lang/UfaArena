@@ -5,6 +5,7 @@ const HubWorld := preload("res://src/world/HubWorld.gd")
 
 var _status: Label
 var _retry: Button
+var _bar: ProgressBar
 var _url_row: HBoxContainer
 var _url_edit: LineEdit
 var _ui: Control
@@ -42,6 +43,9 @@ func _ready() -> void:
 	_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	pv.add_child(_status)
+	_bar = UI.bar(0, 1, UI.GOLD, 22)
+	_bar.visible = false
+	pv.add_child(_bar)
 	_retry = UI.button("Повторить", "primary")
 	_retry.visible = false
 	_retry.pressed.connect(_run)
@@ -72,13 +76,31 @@ func _run() -> void:
 	_retry.visible = false
 	_url_row.visible = false
 	_status.text = "Проверяем обновления контента…"
-	var c := await ContentUpdater.run()
-	if not c.ok and c.status in ["signature_invalid", "hash_mismatch", "client_update_required"]:
+	var c := await Content.check()
+	if not c.ok and c.status in ["signature_invalid", "client_update_required"]:
 		_fail(c.message)
 		return
 	if not c.ok:
 		_fail("Нет связи с сервером %s\nПроверьте сеть или адрес сервера." % Config.server_url)
 		return
+	if c.status == "ok" and c.missing_required.size() > 0:
+		# required packages block entry; optional ones are downloaded in the background later
+		var total := Content.bytes_to_download(c.missing_required)
+		_bar.visible = true
+		var cb := func(done: int, t: int):
+			_bar.max_value = max(t, 1)
+			_bar.value = done
+			_status.text = "Загрузка ресурсов: %.1f / %.1f МБ" % [done / 1048576.0, t / 1048576.0]
+		Content.progress.connect(cb)
+		_status.text = "Загрузка ресурсов: 0 / %.1f МБ" % (total / 1048576.0)
+		var s := await Content.sync(true)
+		Content.progress.disconnect(cb)
+		_bar.visible = false
+		if not s.ok:
+			_fail(s.get("message", "Не удалось загрузить ресурсы"))
+			return
+	if Content.missing(false).is_empty() and not Content.up_to_date():
+		Content.pending = Content._set_from_manifest()
 	_status.text = "Вход в Крепость хранителей…"
 	var r := await Api.login()
 	if not r.ok:
@@ -89,6 +111,7 @@ func _run() -> void:
 	if not b.ok:
 		_fail("Не удалось загрузить профиль: %s" % b.message)
 		return
+	await Content.apply_pending()  # safe point: nothing from packages is on screen yet
 	Router.goto(Router.MAIN, {"screen": "home"})
 
 

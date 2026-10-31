@@ -61,8 +61,12 @@ func _ready() -> void:
 		Router.busy(false)
 		if not r.ok:
 			Router.error(r)
+	Content.activated.connect(_on_content_activated)
+	Content.pending_ready.connect(func(_v): if current == "home": Content.apply_pending())
+	_build_download_chip()
 	open(Router.params.get("screen", "home"))
 	_check_onboarding()
+	Content.start_background()
 
 
 # ------------------------------------------------------------------ worlds
@@ -83,6 +87,8 @@ func use_world(kind: String) -> Node3D:
 
 # ------------------------------------------------------------------ screens
 func open(screen_name: String, params := {}) -> void:
+	if screen_name == "home" and Content.has_pending():
+		await Content.apply_pending()
 	if screen:
 		screen.queue_free()
 	current = screen_name
@@ -201,6 +207,45 @@ func _style_nav(key: String, active: bool) -> void:
 	b.modulate = Color(1, 1, 1) if active else Color(0.82, 0.86, 0.95)
 	b.pivot_offset = b.size / 2
 	b.scale = Vector2(1.08, 1.08) if active else Vector2.ONE
+
+
+# ------------------------------------------------------------------ content updates
+var _dl_chip: PanelContainer
+var _dl_label: Label
+
+
+func _build_download_chip() -> void:
+	_dl_chip = UI.glass_panel(Color("#bfe3ff"), 24)
+	_dl_chip.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	_dl_chip.offset_left = -200
+	_dl_chip.offset_right = 200
+	_dl_chip.offset_top = 196
+	_dl_chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_dl_label = UI.label("", 24, UI.TEXT, true)
+	_dl_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_dl_chip.add_child(_dl_label)
+	_dl_chip.visible = false
+	ui.add_child(_dl_chip)
+	Content.progress.connect(func(done: int, total: int):
+		_dl_chip.visible = done < total
+		_dl_label.text = "Загрузка обновления %d%%" % int(100.0 * done / max(total, 1)))
+	Content.state_changed.connect(func(s: String, _i: String):
+		if s != "downloading":
+			_dl_chip.visible = false)
+
+
+func _on_content_activated(v: int) -> void:
+	Router.toast("Обновление контента применено (манифест v%d)" % v if v > 0 else "Контент-обновления отключены сервером")
+	Models.clear_cache()
+	Sfx.reload_music()
+	if world_kind == "hub" and world:
+		var code: String = world.hero_code
+		world.queue_free()
+		world = null
+		world_kind = ""
+		var w := use_world("hub")
+		if code != "":
+			w.show_hero(code)
 
 
 # ------------------------------------------------------------------ onboarding guide

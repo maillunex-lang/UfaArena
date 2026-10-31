@@ -50,7 +50,9 @@ func music(id: String, loop := true) -> void:
 	if id == _current:
 		return
 	_current = id
-	var stream: AudioStream = load(MUSIC[id])
+	var stream: AudioStream = Content.audio("music/%s.ogg" % id)  # content package override
+	if stream == null:
+		stream = load(MUSIC[id])
 	if stream is AudioStreamOggVorbis:
 		(stream as AudioStreamOggVorbis).loop = loop
 	var old := _music_a if _music_a.playing else _music_b
@@ -64,6 +66,13 @@ func music(id: String, loop := true) -> void:
 	if old.playing:
 		tw.tween_property(old, "volume_db", -40.0, 1.2)
 		tw.chain().tween_callback(old.stop)
+
+
+func reload_music() -> void:
+	var id := _current
+	_current = ""
+	if id != "":
+		music(id)
 
 
 func apply_volume() -> void:

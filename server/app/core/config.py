@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     # Content manifest signing key (RSA, PEM). Generated on first start in dev.
     content_signing_key_path: Path = SERVER_ROOT / "keys" / "content_signing.pem"
     content_channel: str = "dev"
+    content_store_path: Path = SERVER_ROOT / "var" / "content_store"
+    # Optional CDN prefix for package files, e.g. "https://cdn.example.com/uralia/" (files keyed by sha256)
+    content_base_url: str | None = None
 
     rate_limit_per_minute: int = 120
     auth_rate_limit_per_minute: int = 20

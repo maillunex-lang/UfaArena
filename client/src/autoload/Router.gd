@@ -34,6 +34,8 @@ func _ready() -> void:
 	Api.offline_changed.connect(_on_offline)
 	if OS.get_environment("URALIA_E2E") != "" and ResourceLoader.exists("res://tools/E2E.gd"):
 		add_child(load("res://tools/E2E.gd").new())  # dev-only UI test driver
+	if OS.get_environment("URALIA_E2E_UPDATE") != "" and ResourceLoader.exists("res://tools/E2EUpdate.gd"):
+		add_child(load("res://tools/E2EUpdate.gd").new())
 	Api.session_lost.connect(func(): toast("Сессия завершена. Выполняем повторный вход…", true); goto(BOOT))
 
 

@@ -60,6 +60,7 @@ class PlayerProfile(Base):
     exp: Mapped[int] = mapped_column(Integer, default=0)
     onboarding_step: Mapped[int] = mapped_column(Integer, default=0)
     is_ai: Mapped[bool] = mapped_column(Boolean, default=False)  # AI personas are always flagged
+    vip_level: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # cosmetic/convenience only
     afk_last_claim_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
     summon_pity: Mapped[int] = mapped_column(Integer, default=0)
     settings: Mapped[dict] = mapped_column(JSON, default=dict)
@@ -388,6 +389,25 @@ class ContentPackage(Base):
     description: Mapped[str] = mapped_column(Text, default="")
 
 
+class ContentPackageVersion(Base):
+    """Immutable published build of a package (stored by SHA-256 in the content store)."""
+
+    __tablename__ = "content_package_versions"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    package_id: Mapped[str] = mapped_column(ForeignKey("content_packages.package_id"), index=True)
+    version: Mapped[int] = mapped_column(Integer)
+    sha256: Mapped[str] = mapped_column(String(64), index=True)
+    size: Mapped[int] = mapped_column(BigInteger)
+    kind: Mapped[str] = mapped_column(String(32))
+    title: Mapped[str] = mapped_column(String(128), default="")
+    min_client_version: Mapped[str] = mapped_column(String(16), default="0.1.0")
+    dependencies: Mapped[list] = mapped_column(JSON, default=list)
+    required: Mapped[bool] = mapped_column(Boolean, default=False)
+    files: Mapped[list] = mapped_column(JSON, default=list)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    __table_args__ = (UniqueConstraint("package_id", "version", name="uq_package_version"),)
+
+
 class ContentManifestVersion(Base):
     __tablename__ = "content_manifest_versions"
     id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
@@ -398,6 +418,7 @@ class ContentManifestVersion(Base):
     packages: Mapped[list] = mapped_column(JSON)  # [{package_id, version, size, sha256, url, dependencies}]
     is_active: Mapped[bool] = mapped_column(Boolean, default=False)
     kill_switch: Mapped[bool] = mapped_column(Boolean, default=False)
+    notes: Mapped[str] = mapped_column(Text, default="", server_default="")
     created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
     __table_args__ = (UniqueConstraint("channel", "platform", "version", name="uq_manifest_version"),)
 
