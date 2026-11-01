@@ -171,6 +171,7 @@ def catalog() -> list[dict]:
         ("regions", "Регионы похода", "Баннеры глав на экране «Мир». Широкий кадр 1024×320, справа и слева можно обрезать, текст ложится сверху слева."),
         ("battle", "Бой", "Заголовки экрана результата боя."),
         ("story", "Сюжет и обучение", "Портрет рассказчика в сюжетных диалогах."),
+        ("shop", "Магазин", "Оформление магазина: табличка, кнопки меню разделов, карточка товара, золотая кнопка цены, лента-метка, баннеры разделов и картинка каждого товара. Карточки и кнопки растягиваются (9-slice)."),
         ("chat", "Оформление чата", "Элементы экрана чата. Рамки и кнопки растягиваются (9-slice), поэтому края и углы должны быть цельными."),
         ("guild", "Знамёна гильдий", "Знамёна гильдий (выбираются в «Управление гильдией» → «Флаг»). Вертикальное знамя на перекладине, прозрачный фон."),
     ]
@@ -280,6 +281,8 @@ def catalog() -> list[dict]:
         "Портрет старого мудреца-сказителя, по пояс, смотрит в кадр.",
         build_prompt("Fantasy portrait of an old Bashkir storyteller-chronicler (sesen) with a long grey beard, fur hat, holding a kurai flute and an old book",
                      "512×512", "bust shot, face in the upper third, looking at the viewer", TRANSPARENT), True))
+    # shop
+    by["shop"]["slots"] += _shop_slots()
     # chat
     for f, title, size, p in CHAT_UI:
         nine = f in ("panel.png", "title_plaque.png", "tab.png", "tab_active.png", "bubble.png", "bubble_mine.png")
@@ -301,6 +304,85 @@ def catalog() -> list[dict]:
         by["guild"]["slots"].append(_slot(f"guild/banner_{code}.png", f"Знамя «{name}»", "512×768", "экран гильдии, список гильдий",
                                           f"Знамя гильдии «{name}».", prompt, True))
     return sections
+
+
+SHOP_SECTION_LOOKS = {
+    "crystals": "an open ornate treasure chest overflowing with glowing turquoise crystals in a mountain forest at night",
+    "starter": "a golden chest with potions, scrolls and crystals at a campfire near a mountain fortress",
+    "resources": "piles of gold coins, green nature essence vials and ore sacks in a fortress storehouse",
+    "vip": "a golden crown on a velvet cushion in a throne hall with turquoise light",
+    "battlepass": "a war banner on a spear with seasonal ribbons above a valley at dawn",
+    "heroes": "silhouettes of legendary heroes in front of the Ural mountains with violet summoning light",
+    "cosmetics": "ornate hero portrait frames and a glowing cape on a mannequin in a tailor's tent",
+    "seasonal": "an autumn fair with lanterns, golden birch leaves and a festive tent",
+}
+
+
+def _shop_item_look(p: dict) -> str:
+    name, sec, sku = p["name"], p["section"], p["sku"]
+    if sec == "crystals":
+        n = int(sku.rsplit("_", 1)[-1])
+        sizes = ["a small handful of", "a leather pouch full of", "a big pouch overflowing with", "a small iron-bound chest of",
+                 "a large golden chest overflowing with", "a huge legendary chest bursting with"]
+        return f"{sizes[min(n, 6) - 1]} glowing turquoise crystals"
+    if sec == "starter":
+        return f"a gift chest for \"{name}\" with gold coins, crystals, potions and a scroll, richer for more expensive packs"
+    if sec == "resources":
+        return f"a supply container for \"{name}\": gold coins, green nature essence vials and ore"
+    if sec == "heroes":
+        return ("glowing violet hero soul shards" if sku.startswith("shards") else f"a radiant summoning card with a hero silhouette for \"{name}\"")
+    if sec == "cosmetics":
+        return f"a showcase item for the cosmetic \"{name}\" (frame, title plate, outfit, effect or banner as the name says)"
+    if sec == "vip":
+        return f"a royal charter scroll with a golden crown seal for the subscription \"{name}\""
+    if sec == "battlepass":
+        return "a premium battle pass: golden war banner with a crown emblem"
+    return f"a festive autumn fair gift for \"{name}\" with golden birch leaves"
+
+
+def _shop_slots() -> list[dict]:
+    from ..monetization.config import cfg as shop_cfg
+    sc = shop_cfg()
+    out = [
+        _slot("ui/shop/title_plaque.png", "Табличка «Магазин»", "880×200", "заголовок магазина (надпись игра рисует сама)",
+              "9-slice, края по 60 px. Середина пустая под надпись.",
+              build_prompt("Ornate horizontal title plaque: dark teal glass centre, gold frame with pointed diamond ends and turquoise gems",
+                           "880×200", NINE_SLICE + "; no text", TRANSPARENT), True),
+        _slot("ui/shop/rail.png", "Кнопка раздела (обычная)", "256×200", "левое меню разделов магазина",
+              "9-slice, углы 48 px. Иконка и подпись рисуются поверх.",
+              build_prompt("Vertical menu button plate: dark teal panel with a thin gold border and small gold diamonds at the top and bottom centre",
+                           "256×200", NINE_SLICE + "; no text", TRANSPARENT), True),
+        _slot("ui/shop/rail_active.png", "Кнопка раздела (выбрана)", "256×200", "левое меню разделов магазина — активный раздел",
+              "9-slice, углы 48 px. Тёплое золотое свечение.",
+              build_prompt("Selected vertical menu button plate: warm amber-gold glowing panel, bright gold ornate border, soft outer glow",
+                           "256×200", NINE_SLICE + "; no text", TRANSPARENT), True),
+        _slot("ui/shop/item_card.png", "Карточка товара", "384×480", "сетка товаров",
+              "9-slice, углы 48 px. Картинка товара, количество и кнопка цены рисуются поверх.",
+              build_prompt("Product card frame: dark teal panel with a subtle inner glow, gold border with ornamented corners",
+                           "384×480", NINE_SLICE, TRANSPARENT), True),
+        _slot("ui/shop/price_button.png", "Золотая кнопка цены", "400×100", "кнопка с ценой на каждом товаре",
+              "9-slice, края 50 px. Цену игра пишет тёмным текстом — середина светлая и ровная.",
+              build_prompt("Gold price button: polished gold capsule with pointed ends and a subtle bevel", "400×100",
+                           NINE_SLICE + "; dark text sits on it: keep the middle light and even; no text", TRANSPARENT), True),
+        _slot("ui/shop/ribbon.png", "Лента-метка", "256×64", "метки «Выгодно», «Популярно», «−N%» на товарах",
+              "9-slice, края 24 px. Текст метки игра пишет белым.",
+              build_prompt("Red ribbon tag with a thin gold border and folded ends", "256×64", NINE_SLICE + "; no text", TRANSPARENT), True),
+    ]
+    for code, title in sc["sections"]:
+        look = SHOP_SECTION_LOOKS.get(code, "a treasure display")
+        out.append(_slot(f"ui/shop/banner_{code}.png", f"Баннер раздела «{title}»", "1024×360",
+                         f"баннер вверху раздела «{title}» с лучшим текущим предложением",
+                         "Справа ложатся название, описание и кнопка цены: правая половина темнее и спокойнее.",
+                         build_prompt(f"Wide shop banner: {look}", "1024×360",
+                                      "main subject in the left 45%, the right half darker and calm for the offer title, text and price button",
+                                      "full illustration, no transparency"), False))
+    for prod in sc["products"]:
+        out.append(_slot(f"ui/shop/items/{prod['sku']}.png", prod["name"], "384×288",
+                         f"карточка товара «{prod['name']}» и окно покупки",
+                         "Картинка товара без цены и надписей: цену и количество игра пишет сама.",
+                         build_prompt(f"Shop item illustration: {_shop_item_look(prod)}", "384×288",
+                                      "object centered with a soft glow, filling about 85% of the width, no text, no price, no numbers", TRANSPARENT), True))
+    return out
 
 
 def slot_info(path: str) -> dict | None:

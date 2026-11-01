@@ -201,7 +201,7 @@ def view(db: Session, user_id: str, test_mode: bool) -> dict:
             "limit": lim or None, "bought": bought_count(db, user_id, p, now) if lim else 0,
             "available": ok, "unavailable_reason": why, "expires_at": expires.isoformat() if expires else None,
             "needs_hero_choice": bool((p.contents or {}).get("shards_choice") or (p.contents or {}).get("hero_choice")),
-            "hero_choice": (p.contents or {}).get("hero_choice"),
+            "hero_choice": (p.contents or {}).get("hero_choice"), "featured": int(p.featured or 0),
         })
     return {"test_mode": test_mode, "currency": "RUB", "sections": cfg()["sections"], "items": items,
             "server_time": now.isoformat()}

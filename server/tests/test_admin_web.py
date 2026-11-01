@@ -114,7 +114,7 @@ def test_art_catalog_groups_formats_and_jpeg(client):
     cat = client.get("/admin/api/web/art", headers=H()).json()
     ids = [s["id"] for s in cat["sections"]]
     assert {"screens", "shell", "buttons", "panels", "currency", "icons", "factions", "cards", "heroes", "bosses",
-            "regions", "battle", "story", "chat", "guild"} <= set(ids)
+            "regions", "battle", "story", "chat", "guild", "shop"} <= set(ids)
     slots = [sl for s in cat["sections"] for sl in s["slots"]]
     assert len({sl["path"] for sl in slots}) == len(slots)  # no duplicates across groups
     for sl in slots:
@@ -138,7 +138,8 @@ def test_every_art_slot_is_read_by_the_client():
     src = "\n".join(p.read_text(encoding="utf-8") for p in (Path(__file__).resolve().parents[2] / "client" / "src").rglob("*.gd"))
     templates = {"icons/": '"icons/%s.png"', "heroes/": '"heroes/%s.png"', "guild/banner_": '"guild/banner_%s.png"',
                  "ui/chat/": '"ui/chat/"', "ui/buttons/": '"ui/buttons/%s.png"', "ui/cards/frame_r": '"ui/cards/frame_r%d.png"',
-                 "regions/": '"regions/%s.png"', "ui/battle/": '"ui/battle/%s.png"'}
+                 "regions/": '"regions/%s.png"', "ui/battle/": '"ui/battle/%s.png"',
+                 "ui/shop/items/": '"ui/shop/items/%s.png"', "ui/shop/banner_": '"ui/shop/banner_%s.png"'}
     for sec in art.catalog():
         for sl in sec["slots"]:
             tpl = next((t for pre, t in templates.items() if sl["path"].startswith(pre)), None)
