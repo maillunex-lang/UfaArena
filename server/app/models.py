@@ -75,6 +75,8 @@ class PlayerProfile(Base):
     reputation: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     power: Mapped[int] = mapped_column(Integer, default=0, server_default="0")  # cached top-5 power for search/matchmaking
     ai_prefs: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")  # player's AI-participation switches
+    age_group: Mapped[str | None] = mapped_column(String(8))  # adult | minor | None (not asked yet), D-C1
+    age_set_at: Mapped[datetime | None] = mapped_column(TS)
     created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow, onupdate=utcnow)
 

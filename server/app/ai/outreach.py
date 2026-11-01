@@ -24,12 +24,14 @@ SECTION = Section(
     "ai_outreach",
     {"initiative": 50, "friendliness": 70, "aggressiveness": 20, "dm_per_player_day": 2, "invites_per_player_week": 2,
      "global_per_hour": 30, "absence_days": 3, "congratulate": True, "welcome_new": True, "welcome_back": True,
-     "offer_help": True, "invite_guild": True, "invite_events": True, "rivalry_messages": True, "first_contact": True},
+     "offer_help": True, "invite_guild": True, "invite_events": True, "rivalry_messages": True, "first_contact": True,
+     "flirt": True, "flirt_per_player_week": 3, "flirt_ignored_stop": 2},
     {"initiative": ("int", 0, 100), "friendliness": ("int", 0, 100), "aggressiveness": ("int", 0, 100),
      "dm_per_player_day": ("int", 0, 10), "invites_per_player_week": ("int", 0, 14), "global_per_hour": ("int", 0, 500),
      "absence_days": ("int", 1, 60), "congratulate": ("bool",), "welcome_new": ("bool",), "welcome_back": ("bool",),
      "offer_help": ("bool",), "invite_guild": ("bool",), "invite_events": ("bool",), "rivalry_messages": ("bool",),
-     "first_contact": ("bool",)},
+     "first_contact": ("bool",), "flirt": ("bool",), "flirt_per_player_week": ("int", 0, 21),
+     "flirt_ignored_stop": ("int", 1, 10)},
     {"initiative": "Инициативность ИИ, %", "friendliness": "Дружелюбие, %",
      "aggressiveness": "Дух соперничества (дружеские подначки после арены), %",
      "dm_per_player_day": "Сообщений от ИИ одному игроку в день, максимум",
@@ -38,7 +40,10 @@ SECTION = Section(
      "congratulate": "Поздравлять с достижениями", "welcome_new": "Приветствовать новичков",
      "welcome_back": "Радоваться возвращению", "offer_help": "Предлагать помощь новичкам",
      "invite_guild": "Приглашать в гильдии ИИ", "invite_events": "Приглашать на события",
-     "rivalry_messages": "Писать после боёв на арене", "first_contact": "Иногда первыми заводить знакомство"})
+     "rivalry_messages": "Писать после боёв на арене", "first_contact": "Иногда первыми заводить знакомство",
+     "flirt": "18+: ИИ флиртуют с взрослыми игроками в личке (если у игрока включено 18+)",
+     "flirt_per_player_week": "18+: флирт-сообщений одному игроку в неделю, максимум",
+     "flirt_ignored_stop": "18+: замолчать, если игрок не ответил на столько флирт-сообщений подряд"})
 EXC_KEY = "ai_outreach_exceptions"
 
 LINES = {
@@ -92,6 +97,9 @@ def may_contact(db: Session, player: PlayerProfile, persona: AiPersona | None = 
     from ..social.channels import SECTION as CHS
     if player is None or player.is_ai:
         return False, "not a player"
+    from ..social.ai.control import dm_allowed
+    if not dm_allowed(player):
+        return False, "minor or age not set"  # decision D-C1: AI never write privately to minors / unknown age
     if not CHS.get(db)["ai_dm_first"]:
         return False, "channel off"
     if not player_prefs(player).get("ai_contact", True):
@@ -228,8 +236,24 @@ def consider(db: Session, player: PlayerProfile, rng: random.Random, s: dict) ->
             trigger = "invite_event"
     if trigger is None and s["first_contact"] and not flags.get("met") and rng.random() < init * 0.15:
         trigger = "first_contact"
+    if trigger is None and _flirt_ok(db, player, w, flags, s) and rng.random() < init * 0.35:
+        trigger = "flirt"
     if trigger is None:
         return None
+    if trigger == "flirt":
+        from . import adult as ADULT
+        cands = [p for p in db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).order_by(func.random()).limit(30))
+                 if ADULT.flirt_persona_ok(p) and may_contact(db, player, p)[0]]
+        if not cands:
+            return None
+        persona = cands[0]
+        send(db, persona, player, "flirt", ADULT.opener(rng, player.nickname), rng)
+        fl = dict(w.flags or {})
+        fl["flirt_week"] = {"week": w.week, "n": int((fl.get("flirt_week") or {}).get("n", 0)) + 1 if (fl.get("flirt_week") or {}).get("week") == w.week else 1}
+        fl["flirt_unanswered"] = int(fl.get("flirt_unanswered", 0)) + 1
+        fl["met"] = True
+        w.flags = fl
+        return trigger
     if trigger == "invite_guild":
         pick = _guild_to_invite(db)
         if pick is None:
@@ -256,6 +280,30 @@ def consider(db: Session, player: PlayerProfile, rng: random.Random, s: dict) ->
                   "met": True})
     w.flags = flags
     return trigger
+
+
+def _flirt_ok(db: Session, player: PlayerProfile, w: AiPlayerWatch, flags: dict, s: dict) -> bool:
+    """18+ flirt outreach: adult with the setting on, not asked to stop, not ignoring us, within the weekly limit."""
+    from ..social.ai.control import adult_ok
+    if not s.get("flirt") or not adult_ok(player) or flags.get("no_flirt"):
+        return False
+    if int(flags.get("flirt_unanswered", 0)) >= int(s["flirt_ignored_stop"]):
+        return False
+    fw = flags.get("flirt_week") or {}
+    return not (fw.get("week") == w.week and int(fw.get("n", 0)) >= int(s["flirt_per_player_week"]))
+
+
+def player_replied(db: Session, player_id: str, text: str) -> None:
+    """Called when a real player writes to an AI privately: resets the 'ignored' counter; a stop phrase ends flirting."""
+    from . import adult as ADULT
+    w = db.get(AiPlayerWatch, player_id)
+    if w is None:
+        return
+    fl = dict(w.flags or {})
+    fl["flirt_unanswered"] = 0
+    if ADULT.is_stop(text):
+        fl["no_flirt"] = True
+    w.flags = fl
 
 
 def run(db: Session, rng: random.Random, limit: int = 30) -> dict:

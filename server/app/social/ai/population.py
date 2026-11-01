@@ -223,7 +223,9 @@ def ai_consider_friend(db: Session, ai_user_id: str, from_user: str) -> bool:
         from ...ai import social as SOC
         PERS.evolve(db, persona, "friend")
         SOC.relate(db, persona.user_id, from_user, "friend")
-        queue_reply(db, ai_user_id, from_user, None, "__welcome__")
+        from .control import dm_allowed
+        if dm_allowed(db.get(PlayerProfile, from_user)):
+            queue_reply(db, ai_user_id, from_user, None, "__welcome__")
     return ok
 
 
@@ -285,7 +287,30 @@ def handle_dm(db: Session, ai_uid: str, to_user: str, channel: str | None, text:
     if persona is None:
         return False
     from ...ai import speech as SP
+    from .control import adult_ok, dm_allowed
+    target = db.get(PlayerProfile, to_user)
+    if target is not None and not target.is_ai and not dm_allowed(target):
+        return False  # decision D-C1: never write privately to minors / unknown age
     ctx = _context(db, persona, to_user)
+    from ...ai import adult as ADULT
+    if text != "__welcome__" and ADULT.is_flirt(text) and not ADULT.is_stop(text):
+        if adult_ok(target) and ADULT.flirt_persona_ok(persona):
+            reply = SP.stylize(_rng, persona, ADULT.reply(_rng), {**SP.SECTION.get(db), "length": "medium", "emotions": False})
+            kind, source = "flirt", "template"
+            llm_text = None
+            s_ = SP.SECTION.get(db)
+            if int(s_["intelligence"]) >= 5 and s_.get("llm_enabled"):
+                from ...ai import llm as LLM
+                llm_text = LLM.reply(db, persona, text, s_, to_user=to_user, adult=True)
+            if llm_text and ADULT.safe(llm_text):
+                reply, source = llm_text, "llm"
+        else:
+            reply, kind, source = ADULT.deflect(_rng), "flirt_deflect", "template"
+        from ..chat import dm_channel
+        _say(db, persona, channel or dm_channel(ai_uid, to_user), reply)
+        remember(db, persona, to_user, "Флиртовали в личке" if kind == "flirt" else "Отшутился от флирта")
+        log(db, persona, "reply", to=to_user, intent=kind, source=source)
+        return True
     if text == "__welcome__":
         kind, reply = "welcome_dm", DLG.line(_rng, "welcome_dm", persona.style, ctx)
         source = "template"

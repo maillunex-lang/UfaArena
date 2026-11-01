@@ -290,9 +290,14 @@ def send(body: SendIn, user: CurrentUser = Depends(player), db: Session = Depend
     if channel.startswith("dm:"):
         other = [x for x in channel.split(":")[1:] if x != user.id]
         if other and db.get(PlayerProfile, other[0]) and db.get(PlayerProfile, other[0]).is_ai:
-            from .ai.population import queue_reply
-            queue_reply(db, other[0], user.id, channel, msg.text)
-            db.commit()
+            from .ai.control import dm_allowed
+            me = db.get(PlayerProfile, user.id)
+            if dm_allowed(me):  # decision D-C1: AI do not write privately to minors / unknown age (no replies either)
+                from ..ai.outreach import player_replied
+                from .ai.population import queue_reply
+                player_replied(db, user.id, msg.text)
+                queue_reply(db, other[0], user.id, channel, msg.text)
+                db.commit()
     elif channel == "global" or channel.startswith(("guild:", "region:", "event:", "alliance:", "group:")):
         from .ai.population import queue_mention
         queue_mention(db, channel, user.id, msg.text)

@@ -45,6 +45,7 @@ def profile_view(p: PlayerProfile, u: User | None = None) -> dict:
     return {"account_kind": (u.kind if u else "guest"), "email_masked": _mask_email(u.email if u else None),
             "uralia_id": p.uralia_id, "nickname": p.nickname, "level": p.level, "exp": p.exp,
             "onboarding_step": p.onboarding_step, "is_ai": p.is_ai, "settings": p.settings or {},
+            "age_group": p.age_group, "needs_setup": p.age_group is None and not p.is_ai,
             "vip_level": p.vip_level or 0, "vip_xp": p.vip_xp or 0, "battle_speeds": VIP.battle_speeds(p.vip_level or 0),
             "vip_speed_table": [{"vip": int(k), "speeds": s} for k, s in MCFG()["vip"]["battle_speeds"].items()],
             "created_at": as_utc(p.created_at).isoformat()}
@@ -91,6 +92,36 @@ def onboarding(body: OnboardingIn, user: CurrentUser = Depends(player), db: Sess
         p.onboarding_step = body.step
     db.commit()
     return {"onboarding_step": p.onboarding_step}
+
+
+class SetupIn(BaseModel):
+    nickname: str | None = Field(default=None, min_length=3, max_length=20, pattern=r"^[\w\- А-Яа-яЁё]+$")
+    adult: bool
+
+
+@router.post("/player/setup")
+def player_setup(body: SetupIn, user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
+    """Hero creation window (decision D-C1): nickname + "I am 18 or older". Minors never get private messages or
+    adult content from AI residents. Can be changed later in the settings."""
+    from ..social.ai.control import player_prefs
+    from ..social.chat import contains_bad
+    p = db.get(PlayerProfile, user.id)
+    if body.nickname:
+        if contains_bad(body.nickname):
+            raise GameError("bad_nickname", "Никнейм не прошёл фильтр")
+        p.nickname = body.nickname.strip()
+    first = p.age_group is None
+    p.age_group = "adult" if body.adult else "minor"
+    p.age_set_at = utcnow()
+    prefs = player_prefs(p)
+    if not body.adult:
+        prefs["adult_content"] = False
+    elif first or "adult_content" not in (p.ai_prefs or {}):
+        prefs["adult_content"] = True  # adults get adult AI content by default (can switch it off in the settings)
+    p.ai_prefs = prefs
+    audit(db, user.id, "player.setup", age_group=p.age_group)
+    db.commit()
+    return {"profile": profile_view(p, db.get(User, user.id))}
 
 
 class NicknameIn(BaseModel):

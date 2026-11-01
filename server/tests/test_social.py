@@ -484,7 +484,8 @@ def test_ai_population_is_labelled_bounded_and_separate(client, newplayer):
         ai_ids = {x.user_id for x in db.scalars(select(AiPersona))}
     assert not ai_ids & {x["user_id"] for x in power["items"]}
     assert p.get("/rankings/ai").json()["items"]
-    # friend request to an AI is decided by the persona; DMs get a labelled reply
+    # friend request to an AI is decided by the persona; DMs get a labelled reply (adult players only, D-C1)
+    assert p.post("/player/setup", {"adult": True}).status_code == 200
     ai_pid = db_public = None
     with session() as db:
         ai_pid = db.get(PlayerProfile, next(iter(ai_ids))).uralia_id

@@ -157,7 +157,7 @@ def test_outreach_privacy_limits_exceptions_and_triggers(client, newplayer):
     with session() as db:
         _ai(db, 6, 701)
     p = newplayer()  # a brand new player who is online now
-    set_profile(p, last_seen_at=utcnow())
+    set_profile(p, last_seen_at=utcnow(), age_group="adult")
     s_on = {"initiative": 100}
     client.post("/admin/api/ai/settings/outreach", headers=AH(), json=s_on)
 
@@ -226,3 +226,76 @@ def test_director_social_life_runs_without_errors(client):
         for k in ("outreach", "guilds", "groups"):
             assert k in out and "error" not in (out[k] or {}), out.get(k)
         ST.update(db, {"mode": "test"}, "test")
+
+
+def test_age_gate_minors_never_get_ai_dms_adults_get_flirt(client, newplayer):
+    """Decision D-C1: hero setup with an 18+ answer; minors / unknown age never get AI private messages or adult
+    content; adults get flirt (the 18+ toggle on by default) and a stop phrase ends it."""
+    import random as _r
+    from app.ai import adult as ADULT
+    from app.ai import outreach as OUT
+    from app.core.db import utcnow
+    from app.models import AiEvent, AiPersona, AiPlayerWatch, ChatMessage, PlayerProfile
+    from app.social import chat as CH
+    from app.social.ai.control import adult_ok
+    with session() as db:
+        ps = _ai(db, 6, 901)
+        for p_ in ps:
+            p_.style = "flirty"
+        ai_uid = ps[0].user_id
+    kid, adult = newplayer(), newplayer()
+    me = kid.get("/player/me").json()["profile"]
+    assert me["needs_setup"] is True and me["age_group"] is None
+    # unknown age = minor: no AI DMs, no replies
+    CH._recent.clear()
+    kid.post("/chat/send", {"to_user": ai_uid, "text": "привет, красотка 😘"}, key=False)
+    with session() as db:
+        assert not [e for e in db.query(AiEvent).filter(AiEvent.kind == "dm") if (e.payload or {}).get("to_user") == uid(kid)]
+        assert OUT.may_contact(db, db.get(PlayerProfile, uid(kid)))[0] is False
+    r = kid.post("/player/setup", {"nickname": "Малыш_Тест", "adult": False}).json()["profile"]
+    assert r["age_group"] == "minor" and r["needs_setup"] is False and r["nickname"] == "Малыш_Тест"
+    prefs = kid.get("/social/ai-prefs").json()
+    assert "adult_content" not in prefs["names"]
+    kid.post("/social/ai-prefs", {"adult_content": True}, key=False)  # a minor cannot turn it on
+    with session() as db:
+        assert adult_ok(db.get(PlayerProfile, uid(kid))) is False
+        set_profile(kid, last_seen_at=utcnow())
+    with session() as db:
+        assert OUT.consider(db, db.get(PlayerProfile, uid(kid)), _r.Random(1), {**OUT.SECTION.get(db), "initiative": 100}) is None
+    # adult: 18+ toggle on by default, flirt outreach and flirty replies
+    assert adult.post("/player/setup", {"adult": True}).json()["profile"]["age_group"] == "adult"
+    assert adult.get("/social/ai-prefs").json()["prefs"]["adult_content"] is True
+    set_profile(adult, last_seen_at=utcnow(), created_at=utcnow() - timedelta(days=30))
+    with session() as db:
+        w = OUT.watch(db, uid(adult))
+        w.flags = {"greeted": True, "helped": True, "met": True}
+    got = None
+    for seed in range(40):
+        with session() as db:
+            w = db.get(AiPlayerWatch, uid(adult))
+            w.contacted_at, w.contacts_today = None, 0
+            got = OUT.consider(db, db.get(PlayerProfile, uid(adult)), _r.Random(seed),
+                               {**OUT.SECTION.get(db), "initiative": 100, "first_contact": False, "invite_guild": False,
+                                "invite_events": False, "offer_help": False})
+        if got == "flirt":
+            break
+    assert got == "flirt"
+    with session() as db:
+        msgs = [m.text for m in db.query(ChatMessage).filter(ChatMessage.channel.like(f"dm:%{uid(adult)}%"), ChatMessage.is_ai.is_(True))]
+        assert msgs and all(ADULT.safe(t) for t in msgs)
+        from app.social.ai.population import handle_dm
+        p0 = db.query(AiPersona).filter(AiPersona.user_id == ai_uid).one()
+        assert handle_dm(db, ai_uid, uid(adult), None, "ты такая милашка 😘") is True
+        assert handle_dm(db, ai_uid, uid(kid), None, "ты такая милашка 😘") is False  # never to a minor
+        assert p0 is not None
+    # a stop phrase ends flirting
+    CH._recent.clear()
+    adult.post("/chat/send", {"to_user": ai_uid, "text": "не пиши мне больше такое, отстань"}, key=False)
+    with session() as db:
+        assert db.get(AiPlayerWatch, uid(adult)).flags.get("no_flirt") is True
+        assert OUT._flirt_ok(db, db.get(PlayerProfile, uid(adult)), db.get(AiPlayerWatch, uid(adult)),
+                             db.get(AiPlayerWatch, uid(adult)).flags, OUT.SECTION.get(db)) is False
+    # adult switched 18+ off -> no flirt
+    adult.post("/social/ai-prefs", {"adult_content": False}, key=False)
+    with session() as db:
+        assert adult_ok(db.get(PlayerProfile, uid(adult))) is False

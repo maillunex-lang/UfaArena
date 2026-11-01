@@ -570,8 +570,19 @@ const INTRO_STORY := [
 
 ## Onboarding steps (server-persisted, monotonic):
 ## 0 intro story -> 1 fight 1-1 -> 2 claim mail -> 3 summon -> 4 formation -> 5 AFK -> 6 done
+var _setup_open := false
+
+
 func _check_onboarding() -> void:
 	if not Game.loaded or _guide == null:
+		return
+	if bool(Game.profile.get("needs_setup", false)):  # hero creation: nickname + age (decision D-C1), once
+		if not _setup_open:
+			_setup_open = true
+			var dlg: Control = preload("res://src/ui/HeroSetupDialog.gd").open(ui, true)
+			await dlg.finished
+			_setup_open = false
+			_check_onboarding()
 		return
 	var step := int(Game.profile.get("onboarding_step", 0))
 	var cleared: Array = Game.campaign.get("cleared", [])

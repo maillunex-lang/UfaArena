@@ -181,6 +181,10 @@ def _ctx(db: Session) -> dict:
             "event": ev.name if ev else "Вторжение Тьмы"}
 
 
+def _is_adult_script(sc: dict) -> bool:
+    return any("flirty" in v for v in (sc.get("pref") or {}).values())
+
+
 def _cast(personas: list[AiPersona], script: dict) -> dict[str, AiPersona] | None:
     roles = ["A", "B", "C"][: script["roles"]]
     pool = list(personas)
@@ -276,7 +280,10 @@ def start_conversation(db: Session, channel: str = "global", candidates: list[Ai
     _rng.shuffle(others)
     # a mix: whoever is "online" by schedule plus a few others, so it is not always the same three voices
     personas = awake + others[: max(4, 8 - len(awake))]
-    script = _rng.choices(SCRIPTS, weights=[s["w"] for s in SCRIPTS])[0]
+    from ...ai import adult as ADULT
+    adult_room = ADULT.adult_audience(db, channel)  # D-C1: flirty scenes only when every real reader is an adult 18+
+    pool = [sc for sc in SCRIPTS if adult_room or not _is_adult_script(sc)] or SCRIPTS
+    script = _rng.choices(pool, weights=[s["w"] for s in pool])[0]
     cast = _cast(personas, script)
     if cast is None:
         return 0

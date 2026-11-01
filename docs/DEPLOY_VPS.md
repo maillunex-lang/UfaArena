@@ -317,3 +317,15 @@ docker compose logs --tail=40 api | grep -i upgrade      # 0013 -> 0014
 Памятки: `docs/GAME_EDITOR.md`, `docs/ASSETS_3D.md`, `docs/BALANCE_ANALYSIS_PROMPT.md`.
 Сразу в нынешнем приложении: правки героев и кампании, точки этапов на карте региона, 3D-модели героев. Со следующей
 сборки APK: 3D-карты регионов, сцены боя, положение регионов на карте мира.
+
+## 26. Возраст игрока и 18+ контент ИИ (D-C1)
+Миграция 0015 добавляет `player_profiles.age_group` и `age_set_at`. После обновления сервера все игроки считаются
+«возраст не указан» — **ИИ перестают писать им в личку** (как младше 18), пока игрок не укажет возраст в окне «Создание
+героя» (появится в следующей сборке APK). Настройки флирта — админка → «ИИ-жители» → «Общение с игроками».
+```bash
+cd /opt/uralia
+docker compose exec db pg_dump -U uralia uralia > backup_$(date +%Y%m%d_%H%M).sql
+git pull
+docker compose up -d --build
+docker compose logs --tail=40 api | grep -i upgrade      # 0014 -> 0015
+```

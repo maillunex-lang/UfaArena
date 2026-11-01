@@ -291,7 +291,8 @@ def _clean(text: str | None) -> tuple[str | None, str | None]:
     return text[:300], None
 
 
-def reply(db: Session, persona: AiPersona, user_text: str, s: dict, context: str = "", to_user: str | None = None) -> str | None:
+def reply(db: Session, persona: AiPersona, user_text: str, s: dict, context: str = "", to_user: str | None = None,
+          adult: bool = False) -> str | None:
     ok, why = availability(s, db)
     if not ok:
         return None
@@ -304,6 +305,10 @@ def reply(db: Session, persona: AiPersona, user_text: str, s: dict, context: str
             context = context.replace(tp.nickname, "собеседник")
     _calls.append(time.time())
     system = _system_prompt(db, persona) + (f" Контекст: {context}" if context else "")
+    if adult:  # D-C1: the player is an adult with the 18+ setting on
+        system += (" Собеседник — совершеннолетний игрок, разрешивший флирт. Можно игриво флиртовать, делать комплименты и "
+                   "лёгкие двусмысленные намёки, без откровенных сексуальных описаний, без давления и без просьб о "
+                   "покупках. Если собеседник просит остановиться — сразу вежливо прекрати.")
     text, err, ms = _call(url, model, key, system, user_text, s)
     if err and err.startswith("HTTP 404") and not (s.get("llm_model") or "").strip() and \
             time.time() - _state.get("repair_at", 0) > 3600:  # the model was retired: pick a current one (hourly at most)

@@ -307,6 +307,20 @@ func _tutorial() -> void:
 func _ai() -> void:
 	var box := _group("ИИ-жители")
 	_note(box, "ИИ-персонажи всегда помечены значком «ИИ» и не выдаются за реальных игроков.")
+	var age := str(Game.profile.get("age_group", ""))
+	var arow := HBoxContainer.new()
+	arow.add_theme_constant_override("separation", 12)
+	var al := UI.label("Возраст: " + ("18+" if age == "adult" else ("младше 18" if age == "minor" else "не указан")), 28, UI.TEXT)
+	al.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	arow.add_child(al)
+	var ab := UI.button("Изменить", "glass", 0, 72)
+	ab.pressed.connect(func():
+		var d: Control = preload("res://src/ui/HeroSetupDialog.gd").open(get_tree().root, false)
+		await d.finished
+		if is_inside_tree():
+			main.open("settings"))
+	arow.add_child(ab)
+	box.add_child(arow)
 	var r := await Api.get_json("/social/ai-prefs")
 	if not r.ok or not is_instance_valid(box):
 		if is_instance_valid(box):

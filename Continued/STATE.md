@@ -7,7 +7,7 @@
 - **Репозиторий:** `maillunex-lang/UfaArena`. Ветка разработки: `ccr-39bc6428-16s1r4`. Ветка `apk` — только файл APK
   (`https://github.com/maillunex-lang/UfaArena/raw/apk/uralia-latest.apk`).
 - **Клиент:** Godot 4.5.1 (`client/`), Android arm64, версия **0.7.5 (versionCode 17)** — последний собранный APK.
-- **Сервер:** FastAPI + PostgreSQL 16 + Redis (`server/`), модульный монолит, Alembic (голова миграций **0014**).
+- **Сервер:** FastAPI + PostgreSQL 16 + Redis (`server/`), модульный монолит, Alembic (голова миграций **0015**).
 - **Прод:** VPS 144.31.254.99 (1 vCPU, 2 ГБ, общий с другими проектами), `docker compose` в `/opt/uralia`,
   сервисы `api`, `db`, `redis`, `ai-director`. Админка: `http://144.31.254.99:8000/admin` (токен из `.env`).
 

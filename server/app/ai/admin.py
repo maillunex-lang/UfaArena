@@ -700,6 +700,7 @@ def player_ai_view(uralia_id: str, who: str = Depends(admin), db: Session = Depe
                      "rivalry": r.rivalry, "dislike": r.dislike, "interactions": r.interactions})
     g = SOC.group_of(db, p.user_id)
     return {"nickname": p.nickname, "uralia_id": p.uralia_id, "level": p.level, "prefs": player_prefs(p),
+            "age_group": p.age_group,
             "excluded": p.user_id in OUT.exceptions(db)["players"], "reputation": SOC.reputation(db, p.user_id),
             "watch": {"contacts_today": w.contacts_today, "invites_week": w.invites_week, "flags": w.flags,
                       "contacted_at": as_utc(w.contacted_at).isoformat() if w.contacted_at else None} if w else None,
@@ -852,3 +853,23 @@ def character_play(persona_id: str, who: str = Depends(admin), db: Session = Dep
     db.add(AdminAction(admin=who, action="ai_play_now", details={"persona": persona_id}))
     db.commit()
     return {"task_id": t.id if t else None}
+
+
+class AgeIn(BaseModel):
+    age_group: str = Field(pattern="^(adult|minor)$")
+
+
+@router.post("/players/{uralia_id}/age")
+def player_set_age(uralia_id: str, body: AgeIn, who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Moderation (D-C1): e.g. mark a player as a minor — AI stop writing privately and adult content is switched off."""
+    from ..social.ai.control import player_prefs
+    p = db.scalar(select(PlayerProfile).where(PlayerProfile.uralia_id == uralia_id.strip().upper()))
+    if p is None or p.is_ai:
+        raise GameError("not_found", "Игрок не найден", 404)
+    p.age_group = body.age_group
+    p.age_set_at = utcnow()
+    if body.age_group == "minor":
+        p.ai_prefs = {**player_prefs(p), "adult_content": False}
+    db.add(AdminAction(admin=who, action="player_age", details={"player": p.uralia_id, "age_group": body.age_group}))
+    db.commit()
+    return {"age_group": p.age_group}
