@@ -179,11 +179,17 @@ def test_glb_models_upload_settings_and_separate_package(client):
         row = db.scalar(select(ContentPackageVersion).where(ContentPackageVersion.package_id == "ui.models3d")
                         .order_by(ContentPackageVersion.version.desc()))
         assert row is not None
+        from app.content import service
         from app.content.store import path_for
         z = zipfile.ZipFile(io.BytesIO(path_for(row.sha256).read_bytes()))
         look = _json.loads(z.read("looks/ilgiz.json"))
         assert look["rig"] == "content:art/models/heroes/ilgiz.glb" and look["scale"] == 1.2
         assert "art/models/heroes/ilgiz.glb" in z.namelist()
+        for pid in ("ui.models3d", "ui.art"):  # blobs live in this test's temporary store
+            try:
+                service.remove(db, pid, "dev", admin="test")
+            except Exception:
+                pass
     finally:
         gen.close()
     client.post("/admin/api/web/art/remove?path=models/heroes/ilgiz.glb", headers=H())
