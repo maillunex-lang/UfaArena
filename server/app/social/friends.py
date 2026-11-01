@@ -174,10 +174,16 @@ def recommendations(user: CurrentUser = Depends(player), db: Session = Depends(g
         if m.defender_id not in exclude:
             picks.setdefault(m.defender_id, "activity")
     for p in db.scalars(select(PlayerProfile).where(
-            PlayerProfile.user_id.notin_(exclude), PlayerProfile.level.between(max(1, me.level - 5), me.level + 5))
-            .order_by(PlayerProfile.last_seen_at.desc().nullslast()).limit(30)):
+            PlayerProfile.user_id.notin_(exclude), PlayerProfile.is_ai.is_(False),
+            PlayerProfile.level.between(max(1, me.level - 5), me.level + 5))
+            .order_by(PlayerProfile.last_seen_at.desc().nullslast()).limit(14)):
         picks.setdefault(p.user_id, "level")
-    reason = {"guild": "Из вашей гильдии", "activity": "Встречались в боях", "level": "Близкий уровень"}
+    # a few labelled AI residents of similar level so a new world never looks empty
+    for p in db.scalars(select(PlayerProfile).where(PlayerProfile.user_id.notin_(exclude), PlayerProfile.is_ai.is_(True))
+                        .order_by(func.abs(PlayerProfile.level - me.level)).limit(6)):
+        picks.setdefault(p.user_id, "ai")
+    reason = {"guild": "Из вашей гильдии", "activity": "Встречались в боях", "level": "Близкий уровень",
+              "ai": "Житель Уралии"}
     items = []
     for uid, why in list(picks.items())[:20]:
         c = card(db, uid, user.id)

@@ -20,6 +20,11 @@ static func theme() -> Theme:
 	if _theme:
 		return _theme
 	var t := Theme.new()
+	var sys := SystemFont.new()  # emoji / symbols missing in Philosopher come from the device fonts
+	sys.font_names = PackedStringArray(["Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Noto Sans Symbols", "Roboto"])
+	for f in [FONT_REG, FONT_BOLD]:
+		if f.fallbacks.is_empty():
+			f.fallbacks = [sys]
 	t.default_font = FONT_REG
 	t.default_font_size = 34
 	t.set_color("font_color", "Label", TEXT)
@@ -139,6 +144,40 @@ static func autowrap_tree(root: Node) -> void:
 ## Keeps autowrap_tree applied as content is added later (async renders).
 static func keep_wrapped(root: Container) -> void:
 	root.sort_children.connect(func(): autowrap_tree(root))
+
+
+## Violet "ИИ" badge: AI personas are always labelled in social UI.
+static func ai_badge() -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := _flat(Color("#6a3fb5"), Color("#d6b8ff"), 10, 2)
+	sb.content_margin_left = 10
+	sb.content_margin_right = 10
+	p.add_theme_stylebox_override("panel", sb)
+	p.add_child(label("ИИ", 22, Color.WHITE, true))
+	p.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	p.tooltip_text = "Виртуальный персонаж (ИИ)"
+	return p
+
+
+static func presence_color(p: String) -> Color:
+	return {"online": Color("#5ee38a"), "recent": Color("#f4cf7a")}.get(p, Color(0.6, 0.62, 0.68))
+
+
+static func presence_text(p: String) -> String:
+	return {"online": "в сети", "recent": "был недавно", "hidden": "статус скрыт"}.get(p, "не в сети")
+
+
+## ISO UTC timestamp -> local "dd.MM HH:mm" (or "HH:mm" for today).
+static func local_time(iso: String) -> String:
+	if iso.length() < 19:
+		return ""
+	var unix := Time.get_unix_time_from_datetime_string(iso.substr(0, 19))
+	unix += Time.get_time_zone_from_system().get("bias", 0) * 60
+	var d := Time.get_datetime_dict_from_unix_time(int(unix))
+	var now := Time.get_datetime_dict_from_system()
+	if d.day == now.day and d.month == now.month:
+		return "%02d:%02d" % [d.hour, d.minute]
+	return "%02d.%02d %02d:%02d" % [d.day, d.month, d.hour, d.minute]
 
 
 static func title(text: String, size := 52) -> Label:

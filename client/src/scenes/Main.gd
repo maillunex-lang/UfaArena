@@ -16,7 +16,10 @@ const SCREENS := {
 	"settings": preload("res://src/screens/SettingsScreen.gd"),
 	"formation": preload("res://src/screens/FormationScreen.gd"),
 	"shop": preload("res://src/screens/ShopScreen.gd"),
+	"chat": preload("res://src/screens/ChatScreen.gd"),
+	"friends": preload("res://src/screens/FriendsScreen.gd"),
 }
+const UpdateDialog := preload("res://src/ui/UpdateDialog.gd")
 const NAV := [["campaign", "Кампания"], ["heroes", "Герои"], ["home", "Крепость"], ["summon", "Призыв"],
 	["modes", "Режимы"]]
 
@@ -66,7 +69,8 @@ func _ready() -> void:
 	Content.activated.connect(_on_content_activated)
 	Content.pending_ready.connect(func(_v): if current == "home": Content.apply_pending())
 	_build_download_chip()
-	open(Router.params.get("screen", "home"))
+	open(Router.params.get("screen", "home"), Router.params.get("params", {}))
+	UpdateDialog.check(ui)
 	_check_onboarding()
 	Content.start_background()
 

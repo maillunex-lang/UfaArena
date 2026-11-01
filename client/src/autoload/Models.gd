@@ -69,6 +69,16 @@ const FORGE_LOOKS := {
 		"anim": "1h", "scale": 0.22, "alpha": 0.7, "anims": DRAGON_ANIMS},
 	"dragon_echo": {"rig": "dragon", "keep": [], "tint": Color(1.25, 0.85, 0.5), "glow": Color(1.0, 0.65, 0.2),
 		"anim": "1h", "scale": 0.4, "alpha": 0.72, "anims": DRAGON_ANIMS},
+	# raid & world bosses (temporary looks on licensed rigs; final models can arrive via content packages)
+	"rb_kurgan_colossus": {"rig": "skeleton_warrior", "keep": ["Skeleton_Warrior_Helmet"],
+		"weapons": {"r": "Skeleton_Axe", "l": "Skeleton_Shield_Large_A"}, "anim": "1h", "scale": 2.1,
+		"tint": Color(0.72, 0.68, 0.6), "glow": Color(1.0, 0.55, 0.2)},
+	"rb_azhdaha": {"rig": "dragon", "keep": [], "tint": Color(0.55, 0.32, 0.3), "glow": Color(1.0, 0.35, 0.1),
+		"anim": "1h", "scale": 1.05, "anims": DRAGON_ANIMS},
+	"rb_ancient_root": {"rig": "tree", "keep": [], "tint": Color(0.55, 0.45, 0.6), "glow": Color(0.7, 0.3, 1.0),
+		"anim": "1h", "scale": 2.6, "static": true},
+	"rb_shulgan_shade": {"rig": "skeleton_mage", "keep": ["Skeleton_Mage_Hat"], "weapons": {"r": "Skeleton_Staff"},
+		"anim": "mage", "scale": 2.0, "tint": Color(0.45, 0.35, 0.7), "glow": Color(0.6, 0.2, 1.0)},
 }
 
 ## per-hero look: rig, attachments to keep visible, extra weapons, tint, scale, anim set

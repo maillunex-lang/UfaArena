@@ -82,7 +82,13 @@ func _run() -> void:
 	_url_row.visible = false
 	_status.text = "Проверяем обновления контента…"
 	var c := await Content.check()
-	if not c.ok and c.status in ["signature_invalid", "client_update_required"]:
+	if not c.ok and c.status == "client_update_required":
+		_fail(c.message)
+		var shown: bool = await load("res://src/ui/UpdateDialog.gd").check(_ui)
+		if not shown:
+			_status.text = "Требуется новая версия приложения. Скачайте её: %s/download" % Config.server_url
+		return
+	if not c.ok and c.status == "signature_invalid":
 		_fail(c.message)
 		return
 	if not c.ok:
@@ -141,7 +147,7 @@ func _fail(msg: String) -> void:
 
 ## Dev E2E runs start from a fresh guest without the login choice.
 func _auto_guest() -> bool:
-	for k in ["URALIA_E2E", "URALIA_E2E_SHOP", "URALIA_E2E_UPDATE"]:
+	for k in ["URALIA_E2E", "URALIA_E2E_SHOP", "URALIA_E2E_UPDATE", "URALIA_E2E_SOCIAL"]:
 		if OS.get_environment(k) != "":
 			return true
 	return false

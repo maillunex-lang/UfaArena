@@ -54,17 +54,27 @@ func _exit_tree() -> void:
 	Engine.time_scale = 1.0
 
 
+## External mode: arena / raid / tournament / event fights computed by the server elsewhere are only replayed.
+func _external() -> bool:
+	return Router.params.has("sim")
+
+
 func _start() -> void:
-	Router.busy(true)
-	var r := await Api.post_json("/battles/validate", {"node_id": node_code})
-	Router.busy(false)
-	if not r.ok:
-		Router.error(r)
-		_back()
-		return
-	battle_id = r.data.battle_id
-	sim = r.data.simulation
-	node_info = r.data.node
+	if _external():
+		sim = Router.params.sim
+		node_info = {"code": "", "name": String(Router.params.get("title", "Бой")), "story": [],
+			"territory": String(Router.params.get("territory", "dungeons")), "is_boss": bool(Router.params.get("is_boss", false))}
+	else:
+		Router.busy(true)
+		var r := await Api.post_json("/battles/validate", {"node_id": node_code})
+		Router.busy(false)
+		if not r.ok:
+			Router.error(r)
+			_back()
+			return
+		battle_id = r.data.battle_id
+		sim = r.data.simulation
+		node_info = r.data.node
 	events = sim.events
 	arena = ArenaScript.new()
 	add_child(arena)
@@ -507,7 +517,44 @@ func _finish() -> void:
 			Models.play(u.node, "cheer")
 	if victory:
 		Sfx.music("victory", false)
+	if _external():
+		_external_result(victory)
+		return
 	await _claim(victory)
+
+
+func _external_result(victory: bool) -> void:
+	var p: Dictionary = Router.params
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.45)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ui.add_child(dim)
+	var panel := UI.solid_panel(Color("#ffe1a0") if victory else Color("#ff9b9b"))
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.custom_minimum_size = Vector2(900, 0)
+	panel.position = Vector2(-450, -330)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", 20)
+	var head := String(p.get("result_title", "ПОБЕДА" if victory else "ПОРАЖЕНИЕ"))
+	var t := UI.title(head, 76)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(t)
+	for line in p.get("lines", []):
+		var l := UI.label(String(line), 32, UI.TEXT)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(l)
+	var rw: Dictionary = p.get("rewards", {})
+	if not rw.is_empty():
+		var row := UI.rewards_row(rw, 36)
+		row.alignment = BoxContainer.ALIGNMENT_CENTER
+		v.add_child(row)
+	var back := UI.button("Назад", "primary", 360)
+	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	back.pressed.connect(func(): Router.goto(Router.MAIN, {"screen": String(p.get("back", "home")), "params": p.get("back_params", {})}))
+	v.add_child(back)
+	panel.add_child(v)
+	_ui.add_child(panel)
 
 
 func _claim(victory: bool) -> void:

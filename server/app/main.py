@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .core.config import get_settings
 from .core.db import Base, get_engine, init_engine
 from .game.seed import seed_static
-from .modules import admin, auth, content, economy, game, health, shop
+from .modules import admin, auth, content, economy, game, health, release, shop
 from .social import (admin_social, arena, chat, events, friends, guilds, moderation, raids, rankings, scheduler,
                      tournaments)
 
@@ -40,12 +40,13 @@ def create_app() -> FastAPI:
                   docs_url="/docs" if get_settings().env != "prod" else None)
     for r in (auth.router, game.router, economy.router, content.router, shop.router, friends.router, guilds.router,
               chat.router, moderation.router, raids.router, arena.router, tournaments.router, events.router,
-              rankings.router):
+              rankings.router, release.router):
         app.include_router(r, prefix=API)
     app.include_router(health.router)
     app.include_router(admin.router)
     app.include_router(admin.page)
     app.include_router(admin_social.router)
+    app.include_router(release.page)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError):

@@ -4,9 +4,11 @@ extends Control
 var main: Node
 const MODES := [
 	["campaign", "Кампания: 7 глав Башкортостана", "Доступно", true],
-	["arena", "Арена хранителей (PvP)", "Блок «PvP/рейды» — после закрытого MVP", false],
+	["chat", "Чат Курултая", "Общий, гильдейский и личный чат", true],
+	["friends", "Друзья", "Поиск, подарки, помощь, жители Уралии", true],
+	["arena", "Арена хранителей (PvP)", "Сервер готов, экран — в следующем обновлении", false],
 	["quests", "Башня испытаний", "Блок «Режимы» — закрытая бета", false],
-	["guild", "Гильдейский босс", "Блок «Социальные режимы» — закрытая бета", false],
+	["guild", "Гильдии и рейды", "Сервер готов, экраны — в следующем обновлении", false],
 	["events", "Сезонные события", "LiveOps — после релиза", false],
 ]
 
@@ -18,7 +20,7 @@ func setup(m: Node, _p: Dictionary) -> void:
 	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	panel.offset_left = 24
 	panel.offset_right = -24
-	panel.offset_top = -980
+	panel.offset_top = -1180
 	panel.offset_bottom = -10
 	add_child(panel)
 	var v := VBoxContainer.new()
@@ -51,7 +53,8 @@ func setup(m: Node, _p: Dictionary) -> void:
 		h.add_child(info)
 		b.add_child(h)
 		if md[3]:
-			b.pressed.connect(func(): main.open("campaign"))
+			var key: String = md[0]
+			b.pressed.connect(func(): main.open(key))
 		else:
 			b.pressed.connect(func(): Router.toast(md[1] + ": " + md[2]))
 		v.add_child(b)

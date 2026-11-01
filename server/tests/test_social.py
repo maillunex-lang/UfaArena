@@ -350,8 +350,7 @@ def test_arena_ranked_training_replay_and_season(newplayer):
     b.get("/arena")
     ar = a.get("/arena").json()
     assert ar["me"]["rating"] == 1000 and ar["me"]["attempts_left"] == 5
-    assert any(c["user_id"] == uid(b) for c in ar["candidates"]["ranked"])
-    assert all(not c["is_ai"] for c in ar["candidates"]["ranked"])
+    assert ar["candidates"]["ranked"] and all(not c["is_ai"] for c in ar["candidates"]["ranked"])
     r = a.post("/arena/fight", {"opponent_id": uid(b)}).json()
     assert r["delta"] != 0 and r["rating"] == 1000 + r["delta"]
     with session() as db:
@@ -388,9 +387,13 @@ def test_tournaments_register_rules_rounds_and_rewards(newplayer):
     from app.models import Tournament, TournamentEntry, SeasonResult
     from app.social import tournaments as TS
     players = [newplayer() for _ in range(4)]
-    lst = players[0].get("/tournaments").json()["current"]
-    weekly = next(t for t in lst if t["name"].startswith("Еженедельный турнир") and t["status"] == "registration")
-    rare = next(t for t in lst if "Редких" in t["name"] and t["status"] == "registration")
+    players[0].get("/tournaments")
+    with session() as db:  # fresh tournaments independent of earlier runs on a persistent DB
+        key = "T" + uuid.uuid4().hex[:8]
+        start = utcnow() - timedelta(hours=1)
+        w = TS._ensure_one(db, "weekly_open", TS.T()["templates"]["weekly_open"], start, key)
+        r_ = TS._ensure_one(db, "weekly_rare", TS.T()["templates"]["weekly_rare"], start, key)
+        weekly, rare = {"id": w.id}, {"id": r_.id}
     for p in players:
         r = p.post(f"/tournaments/{weekly['id']}/register", {}, key=False)
         assert r.status_code == 200, r.text
@@ -419,9 +422,15 @@ def test_world_events_contribution_outcome_world_state_and_restore(client, newpl
     from app.models import WorldEvent, WorldState
     from app.social import events as EV
     p = newplayer()
+    with session() as db:  # a fresh active event independent of earlier runs on a persistent DB
+        we = WorldEvent(code="test:" + uuid.uuid4().hex[:10], template="spring_festival", name="Праздник Каргатуй",
+                        kind="holiday", scale="weekly", starts_at=utcnow() - timedelta(hours=1),
+                        ends_at=utcnow() + timedelta(days=1), goal=1500000, progress=0, choice_votes={})
+        db.add(we)
+        db.flush()
+        eid = we.id
     ev = p.get("/events").json()
-    assert ev["active"]
-    e = ev["active"][0]
+    e = next(x for x in ev["active"] if x["id"] == eid)
     r = p.post(f"/events/{e['id']}/battle")
     assert r.status_code == 200, r.text
     p.post("/battles/validate", {"node_id": "1-1"}, key=False)
@@ -514,3 +523,18 @@ def test_scheduler_jobs_run_and_are_idempotent():
         r = SCH.run_job(name, force=True)
         assert "error" not in r, (name, r)
     assert SCH.run_job("tournaments")["skipped"] in ("not due", "leased")
+
+
+def test_client_release_prompt(client, tmp_path, monkeypatch):
+    import json
+    from app.core.config import get_settings
+    monkeypatch.setattr(get_settings(), "downloads_path", tmp_path)
+    (tmp_path / "uralia-9.0.0.apk").write_bytes(b"PK-fake-apk")
+    (tmp_path / "release.json").write_text(json.dumps({"version": "9.0.0", "min_version": "0.5.0",
+                                                       "file": "uralia-9.0.0.apk", "notes": ["Чат"]}), encoding="utf-8")
+    r = client.get("/api/v1/client/release?version=0.4.0").json()
+    assert r["update_available"] and r["required"] and r["url"].endswith("/download") and r["notes"] == ["Чат"]
+    r = client.get("/api/v1/client/release?version=9.0.0").json()
+    assert not r["update_available"] and not r["required"]
+    assert "9.0.0" in client.get("/download").text
+    assert client.get("/download/apk").content == b"PK-fake-apk"

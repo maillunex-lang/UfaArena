@@ -36,6 +36,7 @@ func _draw() -> void:
 		"afk": _chest(c, r)
 		"events": _star(c, r, Color("#ffb38a"), Color("#ff6a6a"))
 		"friends": _people(c, r)
+		"chat": _chat_bubble(c, r)
 		"guild": _shield(c, r, Color("#a8c8ff"), Color("#2b4f8f"))
 		"shop": _bag(c, r)
 		"arena": _swords(c, r)
@@ -306,3 +307,13 @@ func _star4(c: Vector2, r: float, col: Color) -> void:
 	draw_colored_polygon(PackedVector2Array([c + Vector2(0, -r), c + Vector2(r * 0.3, -r * 0.3), c + Vector2(r, 0),
 		c + Vector2(r * 0.3, r * 0.3), c + Vector2(0, r), c + Vector2(-r * 0.3, r * 0.3), c + Vector2(-r, 0),
 		c + Vector2(-r * 0.3, -r * 0.3)]), col)
+
+
+func _chat_bubble(c: Vector2, r: float) -> void:
+	var rect := Rect2(c.x - r * 0.95, c.y - r * 0.75, r * 1.9, r * 1.25)
+	draw_rect(rect, Color("#2b4f8f"), true)
+	draw_rect(rect.grow(-r * 0.08), Color("#bfe3ff"), true)
+	draw_colored_polygon(PackedVector2Array([Vector2(c.x - r * 0.45, c.y + r * 0.45), Vector2(c.x - r * 0.1, c.y + r * 0.45),
+		Vector2(c.x - r * 0.55, c.y + r * 0.95)]), Color("#bfe3ff"))
+	for i in 3:
+		draw_circle(Vector2(c.x - r * 0.5 + i * r * 0.5, c.y - r * 0.12), r * 0.13, Color("#2b4f8f"))

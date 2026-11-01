@@ -79,7 +79,7 @@ def create_persona(db: Session, rng: random.Random | None = None) -> AiPersona:
         db.add(FortressBuilding(user_id=u.id, code=code, level=max(1, min(10, spec["level"] // 6 + rng.randint(0, 2)))))
     persona = AiPersona(user_id=u.id, archetype=spec["archetype"], temperament=spec["temperament"],
                         backstory=spec["backstory"], style=spec["style"], schedule=spec["schedule"],
-                        interests=spec["interests"], next_action_at=utcnow() + timedelta(seconds=rng.randint(30, 3600)),
+                        interests=spec["interests"], next_action_at=utcnow() + timedelta(seconds=rng.randint(20, 600)),
                         day=day())
     db.add(persona)
     db.flush()
@@ -102,6 +102,8 @@ def ensure_population(db: Session, max_new: int = 5) -> dict:
     """Adaptive population: grows towards the target a few personas per run, retires extras (kept, inactive)."""
     target = target_population(db)
     active = db.scalars(select(AiPersona).where(AiPersona.active.is_(True))).all()
+    if len(active) < AI()["min_population"]:
+        max_new = max(max_new, AI()["min_population"] - len(active))  # first start: fill the world at once
     created = 0
     while len(active) + created < target and created < max_new:
         create_persona(db)
@@ -238,11 +240,13 @@ def process_replies(db: Session, budget: int) -> int:
         persona = db.scalar(select(AiPersona).where(AiPersona.user_id == ai_uid))
         if persona is None:
             continue
-        kind = "welcome_dm" if text == "__welcome__" else DLG.intent(text)
         ctx = _context(db, persona, to_user)
-        if kind == "greet" and recall(db, persona, to_user):
-            ctx["name"] = ctx["name"] + ", снова"
-        reply = DLG.line(_rng, kind, persona.style, ctx)
+        if text == "__welcome__":
+            kind, reply = "welcome_dm", DLG.line(_rng, "welcome_dm", persona.style, ctx)
+        else:
+            if recall(db, persona, to_user):
+                ctx["name"] = ctx["name"] + ", снова"
+            kind, reply = DLG.reply(_rng, text, persona.style, ctx)
         from ..chat import dm_channel
         _say(db, persona, channel or dm_channel(ai_uid, to_user), reply)
         remember(db, persona, to_user, f"Говорили: {kind}")

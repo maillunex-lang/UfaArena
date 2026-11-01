@@ -41,8 +41,8 @@ func setup(m: Node, _p: Dictionary) -> void:
 	right.add_theme_constant_override("separation", 6)
 	add_child(right)
 	for it in [["fortress", "Здания", "fortress"], ["shop", "Магазин", "shop"], ["events", "Пропуск", "shop:battlepass"],
-			["guild", "Гильдия", ""], ["friends", "Друзья", ""]]:
-		var b := UI.icon_button(it[0], it[1])
+			["guild", "Гильдия", ""], ["friends", "Друзья", "friends"], ["chat", "Чат", "chat"]]:
+		var b := UI.icon_button(it[0], it[1], it[0] == "chat")
 		var target: String = it[2]
 		if target == "":
 			b.modulate = Color(0.75, 0.75, 0.8)
@@ -53,6 +53,9 @@ func setup(m: Node, _p: Dictionary) -> void:
 		else:
 			b.pressed.connect(func(): main.open(target))
 		right.add_child(b)
+		if it[0] == "chat":
+			b.get_node("Badge").visible = false
+			_chat_badge(b)
 	# bottom: hero plate + battle CTA
 	var bottom := VBoxContainer.new()
 	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
@@ -185,3 +188,9 @@ func _add_badge(b: Button) -> void:
 	dot.position = Vector2(108, 6)
 	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	b.add_child(dot)
+
+
+func _chat_badge(b: Button) -> void:
+	var r := await Api.get_json("/chat/unread")
+	if r.ok and is_instance_valid(b):
+		b.get_node("Badge").visible = int(r.data.unread) > 0

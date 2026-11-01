@@ -112,6 +112,18 @@ func catalog_hero(code: String) -> Dictionary:
 	return {}
 
 
+func hero_name(code: String) -> String:
+	var h := catalog_hero(code)
+	return String(h.get("name", code)) if not h.is_empty() else code
+
+
+const BUILDING_NAMES := {"summon_hall": "Зал призыва", "forge": "Кузница", "training": "Тренировочный двор", "alchemy": "Алхимическая башня", "storage": "Хранилище", "guild_house": "Дом гильдий"}
+
+
+func building_name(code: String) -> String:
+	return String(BUILDING_NAMES.get(code, code))
+
+
 func team_power() -> int:
 	var p := 0
 	for id in formation:

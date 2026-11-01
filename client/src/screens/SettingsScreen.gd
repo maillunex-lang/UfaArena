@@ -138,6 +138,9 @@ func setup(m: Node, _p: Dictionary) -> void:
 			main.open("settings"))
 	crow.add_child(rb)
 	v.add_child(crow)
+	var upd := UI.button("Проверить обновление приложения", "glass", 0, 90)
+	upd.pressed.connect(func(): load("res://src/ui/UpdateDialog.gd").check(main.ui, true))
+	v.add_child(upd)
 	var bg := CheckButton.new()
 	bg.text = "Загружать обновления в фоне"
 	bg.button_pressed = Content.background_enabled

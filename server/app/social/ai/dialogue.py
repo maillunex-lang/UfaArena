@@ -126,12 +126,32 @@ LINES = {
 }
 
 
-def intent(text: str) -> str:
+SPECIFIC_FIRST = ["who", "arena", "raid", "guild", "hero", "event", "tournament", "help", "thanks", "bye", "greet"]
+
+
+def intents(text: str) -> list[str]:
     t = text.lower()
-    for name, rx in INTENTS:
-        if re.search(rx, t):
-            return name
-    return "unknown"
+    found = {name for name, rx in INTENTS if re.search(rx, t)}
+    return [n for n in SPECIFIC_FIRST if n in found]
+
+
+def intent(text: str) -> str:
+    """Most specific topic wins: "Привет! Подскажи по арене" is answered about the arena."""
+    found = intents(text)
+    return found[0] if found else "unknown"
+
+
+def reply(rng: random.Random, text: str, style: str, ctx: dict) -> tuple[str, str]:
+    """Answer the main topic; a greeting in the same message gets a short greeting first."""
+    found = intents(text)
+    kind = found[0] if found else "unknown"
+    out = line(rng, kind, style, ctx)
+    if kind != "greet" and "greet" in found:
+        hello = {"laconic": "Привет.", "wise": "Здравствуй.", "shy": "Привет 🙂"}.get(style, "Привет!")
+        out = f"{hello} {out}"
+    if kind == "who" and len(found) > 1:  # "ты бот? подскажи по арене" -> label + the actual help
+        out = f"{out} {line(rng, found[1], style, ctx)}"
+    return kind, out
 
 
 def line(rng: random.Random, kind: str, style: str, ctx: dict) -> str:
