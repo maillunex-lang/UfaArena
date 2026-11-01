@@ -313,11 +313,12 @@ def test_raids_attempts_tickets_loot_and_coop(newplayer):
     # finishing the boss: loot rolled once per (raid, user, slot)
     gid = lead.get("/guilds/mine").json()["guild"]["id"]
     with session() as db:
-        inst = db.scalar(select(RaidInstance).where(RaidInstance.guild_id == gid, RaidInstance.status == "active"))
+        inst = db.scalar(select(RaidInstance).where(RaidInstance.guild_id == gid, RaidInstance.kind == "guild",
+                                                    RaidInstance.status == "active"))
         inst.hp_left = 10
     give(lead, raid_tickets=1)
     r = lead.post("/raids/attack", {"kind": "guild", "use_ticket": True}).json()
-    assert r["killed"]
+    assert r["killed"], {k: v for k, v in r.items() if k != "simulation"}
     with session() as db:
         rows = db.scalars(select(RaidLoot).where(RaidLoot.raid_id == inst.id, RaidLoot.user_id == uid(lead))).all()
         assert any(x.slot == "base" for x in rows)
