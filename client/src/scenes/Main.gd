@@ -416,11 +416,12 @@ func _on_content_activated(v: int) -> void:
 func _build_guide() -> void:
 	_guide = UI.glass_panel(Color("#ffe1a0"))
 	# sits just above the bottom navigation so it never covers dashboard content
-	_guide.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	# sits under the campaign strip of the game panel, above the squad — never over buttons
+	_guide.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	_guide.offset_left = -360
 	_guide.offset_right = 360
-	_guide.offset_top = -346
-	_guide.offset_bottom = -246
+	_guide.offset_top = 352
+	_guide.offset_bottom = 446
 	_guide.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_guide_label = UI.label("", 28, UI.TEXT, true)
 	_guide_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -464,14 +465,14 @@ func _check_onboarding() -> void:
 		1:
 			text = "Откройте «Поход» и пройдите бой «Берег Агидели»"
 			nav_hint = "campaign"
-		2: text = "На главной откройте «Почту» — там ждут дары предков"
+		2: text = "На главной слева нажмите «Почта» — там ждут дары предков"
 		3:
 			text = "«Ещё» → «Призыв»: призовите нового героя"
 			nav_hint = "more"
 		4:
 			text = "Герои → «Формация»: поставьте нового героя в отряд"
 			nav_hint = "heroes"
-		5: text = "На главной в блоке «Дозор» нажмите «Забрать»"
+		5: text = "На главной справа нажмите сундук «Дозор»"
 	_guide.visible = text != "" and current == "home"
 	_guide_label.text = text
 	_pulse_nav(nav_hint if nav_hint != current else "")

@@ -167,10 +167,10 @@ func _run() -> void:
 	await wait(1.5)
 	await press("Главная")
 	await wait(2.5)
-	await press("Забрать")  # first «Забрать» on the dashboard is the patrol (AFK) card
+	await press("Дозор")  # patrol chest on the game panel claims in one tap
 	await wait(2.0)
 	await shot("13_home_after_afk")
-	await press("Все задания")
+	get_tree().current_scene.open("quests")
 	await wait(2.0)
 	await shot("14_quests")
 	for i in 3:

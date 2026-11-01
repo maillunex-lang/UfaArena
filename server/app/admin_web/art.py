@@ -159,6 +159,7 @@ def catalog() -> list[dict]:
     """Every replaceable graphic element of the client, grouped. Each path is read by the client (UI.art)."""
     sec = [
         ("screens", "Экраны и фоны", "Полноэкранные фоны и логотип. Важное держите в центре: на разных телефонах края обрезаются."),
+        ("home", "Главный экран", "Игровая панель после входа: фон, большие кнопки «Магазин», «Призыв», «В бой» и рамка портретов отряда."),
         ("shell", "Верхняя панель и меню", "Фон верхней панели, фон нижнего меню и круглая подложка иконок меню."),
         ("buttons", "Кнопки", "Кнопки растягиваются по ширине текста (9-slice): углы и края должны быть цельными, середина — ровной, без надписей. Углы — 40 px при ширине 360."),
         ("panels", "Панели и карточки", "Окна, карточки и плитки растягиваются (9-slice): орнамент только в углах и по краю, середина спокойная."),
@@ -195,6 +196,28 @@ def catalog() -> list[dict]:
                            "1080×1920", "uniform vertical background without a focal point, darkest in the middle, very low contrast so cards and text stay readable",
                            "full illustration, no transparency"), False),
     ]
+    # home game panel
+    big = {"shop": ("Кнопка «Магазин»", "royal blue enamel with silver-gold trim and a merchant coin motif"),
+           "summon": ("Кнопка «Призыв»", "deep violet enamel with gold trim and a glowing summoning star motif"),
+           "battle": ("Кнопка «В бой»", "crimson lacquer with heavy gold trim, crossed sabers motif and a warm fiery glow")}
+    by["home"]["slots"] += [
+        _slot("ui/home_bg.png", "Фон главного экрана", "1080×1460", "главный экран за отрядом и иконками",
+              "Центр — место для портретов отряда, по бокам колонки иконок: держите края и центр спокойными, без мелких деталей.",
+              build_prompt("Atmospheric scene: courtyard of an ancient Bashkir mountain fortress at twilight, glowing turquoise runestones, "
+                           "banners, the Ural ridges and Toratau in the distance", "1080×1460",
+                           "vertical, an open empty plaza in the centre (the squad portraits are drawn there), darker left and right edges "
+                           "(icon columns), darker bottom fifth (buttons), low contrast overall", "full illustration, no transparency"), False),
+        _slot("ui/home/hero_ring.png", "Рамка портрета отряда", "256×256", "портреты героев отряда на главном экране",
+              "Круглая рамка; центр прозрачный — портрет героя виден сквозь неё.",
+              build_prompt("Round portrait frame: gold ring with Bashkir ornament and four small turquoise gems", "256×256",
+                           "ring centered, thickness about 8% of the size, the whole centre fully transparent", TRANSPARENT), True),
+    ]
+    for code, (title, look) in big.items():
+        by["home"]["slots"].append(_slot(
+            f"ui/home/{code}_button.png", title, "420×150", "нижний ряд больших кнопок главного экрана",
+            "9-slice, углы 56 px. Иконку и надпись игра рисует сама — без текста.",
+            build_prompt(f"Large mobile game action button plate, {look}, rounded rectangle with a bevel", "420×150",
+                         NINE_SLICE + "; light text sits on it: keep the middle evenly dark; no text", TRANSPARENT), True))
     # shell
     by["shell"]["slots"] += [
         _slot("ui/topbar.png", "Фон верхней панели", "1080×214", "верх каждого экрана: профиль, ресурсы, колокольчик",
