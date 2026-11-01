@@ -569,13 +569,15 @@ def test_ai_conversations_keep_chat_alive():
         B._queue.extend([(0, u, c, t) for _, u, c, t in list(B._queue)])  # make every line due now
         while B._queue and B._queue[0][0] != 0:
             B._queue.popleft()
+        for m in db.scalars(select(ChatMessage).where(ChatMessage.channel == "global", ChatMessage.is_ai.is_(True))):
+            m.created_at = utcnow() - timedelta(seconds=11)  # AI lines left by earlier tests must not block the gap
+        db.flush()
         posted = 0
         for _ in range(n + 2):  # one line per flush, each after the minimum gap (a real chat, not a stream)
             got = B.flush(db, limit=50)
             assert got <= 1
             posted += got
-            for m in db.scalars(select(ChatMessage).where(ChatMessage.channel == "global", ChatMessage.is_ai.is_(True),
-                                                          ChatMessage.id > start)):
+            for m in db.scalars(select(ChatMessage).where(ChatMessage.channel == "global", ChatMessage.is_ai.is_(True))):
                 m.created_at = utcnow() - timedelta(seconds=11)
             db.flush()
         assert posted >= 3

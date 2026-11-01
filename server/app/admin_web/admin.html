@@ -170,7 +170,7 @@ async art(){const d=await api('/web/art');
  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{await api('/web/art/remove?path='+encodeURIComponent(sec.slots[+b.dataset.rm].path),'POST',{});VIEWS.art()})},
 
 async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a></div>`},
-async ai(){const SECS=[['director','Director'],['switches','Переключатели'],['people','Персонажи'],['archetypes','Характеры и слои силы'],['speech','Речь'],['memory','Память'],['social','Отношения и группы'],['guilds','Гильдии ИИ'],['outreach','Общение с игроками'],['channels','Каналы'],['schedules','Расписания'],['tasks','Очередь задач'],['activity','Журнал действий']];
+async ai(){const SECS=[['director','Director'],['switches','Переключатели'],['people','Персонажи'],['archetypes','Характеры и слои силы'],['speech','Речь'],['memory','Память'],['social','Отношения и группы'],['guilds','Гильдии ИИ'],['outreach','Общение с игроками'],['channels','Каналы'],['game','Игра и экономика'],['schedules','Расписания'],['tasks','Очередь задач'],['activity','Журнал действий']];
  main.innerHTML=`<nav style="border:0;padding:0 0 12px;background:none;flex-wrap:wrap">${SECS.map(([k,t])=>`<button class="${k===aiSec?'on':''}" data-ais="${k}">${t}</button>`).join('')}</nav><div id="aibox"><p class="muted">Загрузка…</p></div>`;
  document.querySelectorAll('[data-ais]').forEach(b=>b.onclick=()=>{aiSec=b.dataset.ais;VIEWS.ai()});
  await AI[aiSec]($('#aibox'))}
@@ -186,7 +186,7 @@ const AI_SET={tick_seconds:['Такт, секунд','Как часто Director
  sleep_when_empty:['Спать, когда нет живых игроков (1 — да, 0 — нет)','ИИ не тратят ресурсы, пока никого нет; первый вошедший игрок их будит'],wake_grace_min:['Не засыпать ещё, минут','Сколько ИИ остаются активными после ухода последнего игрока']};
 const AI_TIER={newbie:'Новичок',regular:'Обычный',experienced:'Опытный',veteran:'Ветеран',elite:'Элита'};
 const AI_STRAT={balanced:'сбалансированная',aggressive:'атакующая',defensive:'оборонительная'};
-const AI_CHOICE={short:'Короткие',medium:'Обычные',long:'Развёрнутые',local:'Локальная (свой сервер)',groq:'Groq Cloud',google:'Google AI Studio (Gemini)',openrouter:'OpenRouter',cloudflare:'Cloudflare Workers AI',huggingface:'Hugging Face'};
+const AI_CHOICE={short:'Короткие',medium:'Обычные',long:'Развёрнутые',local:'Локальная (свой сервер)',groq:'Groq Cloud',google:'Google AI Studio (Gemini)',openrouter:'OpenRouter',cloudflare:'Cloudflare Workers AI',huggingface:'Hugging Face',rules:'По правилам игры',simulated:'Упрощённо (как раньше)',easy:'Слабее себя',fair:'Равные',challenging:'Сильнее себя'};
 const moodTxt=m=>m==null?'—':m>0.45?'😊 радостное':m<-0.45?'😣 расстроенное':m>0.15?'🙂 хорошее':m<-0.15?'😕 так себе':'😐 спокойное';
 const AI_TASK={pending:'ожидает',running:'выполняется',done:'выполнена',failed:'ошибка',simulated:'тест (не выполнялась)',cancelled:'отменена'};
 const AI_ARCH={competitor:'Соперник',collector:'Коллекционер',socializer:'Душа компании',strategist:'Стратег',explorer:'Исследователь',newbie:'Новичок',veteran:'Ветеран'};
@@ -259,6 +259,7 @@ async card(box,id){const d=await api('/ai/characters/'+id);const P=d.personality
  <p class="small muted">Манера речи: ${P.voice.catchphrase?'присказка «'+esc(P.voice.catchphrase)+'», ':''}эмодзи ${Math.round((P.voice.emoji||0)*100)}%${P.voice.lowercase?', пишет с маленькой буквы':''}${P.voice.ellipsis?', любит многоточия':''}.</p>
  <div class="row"><button class="primary" id="csave">Сохранить характер</button><button id="cchk">Создать контрольную точку</button><button id="cexp">Экспорт (перенос профиля)</button><button id="cexc">Не писать игрокам первым</button><label class="btn" style="text-align:center">Импорт…<input type="file" id="cimp" accept=".json" style="display:none"></label></div>
  <p class="small muted">Перед каждой правкой, восстановлением и импортом автоматически создаётся контрольная точка. Игровой прогресс (герои, уровень, ресурсы) не меняется.</p></div>
+ <div class="card" id="cgame"><h2>Игровой прогресс</h2><p class="muted small">Загрузка…</p></div>
  <div class="card"><h2>Отношения</h2><p class="small muted">Репутация среди ИИ-жителей: <b>${d.reputation}</b>${d.group?` · круг «${esc(d.group.name)}»`:''}</p>
  <table>${(d.relationships||[]).map(r=>`<tr><td><b>${esc(r.nickname)}</b> ${r.is_ai?'<span class="tag">ИИ</span>':'<span class="tag g">игрок</span>'}</td><td class="small">${esc(r.label)}</td><td class="small muted">симпатия ${r.sympathy} · доверие ${r.trust} · соперничество ${r.rivalry} · неприязнь ${r.dislike}</td><td class="small muted">${r.interactions} встреч</td></tr>`).join('')||'<tr><td class="muted">Пока ни с кем не знаком близко</td></tr>'}</table></div>
  <div class="card"><h2>Биография</h2>${d.biography.slice().reverse().map(e=>`<div class="msg"><span class="a">${esc(D.bio[e.kind]||e.kind)}</span> <span class="muted small">${time(e.at)}</span><div>${esc(e.text)}</div></div>`).join('')||'<p class="muted">Пока пусто</p>'}</div>
@@ -266,6 +267,7 @@ async card(box,id){const d=await api('/ai/characters/'+id);const P=d.personality
  <div class="card"><h2>Контрольные точки</h2><table>${d.snapshots.map(x=>`<tr><td class="small">v${x.version}</td><td>${esc(x.reason)}</td><td class="small muted">${esc(x.by)} · ${time(x.at)}</td><td><button class="small" data-rs="${x.id}">Восстановить</button></td></tr>`).join('')}</table></div>
  <div class="card"><h2>Архив</h2>${d.archive.map(a=>`<div class="small"><b>${a.period}</b>: ${Object.entries(a.stats).map(([k,v])=>esc(k.replace('act:','').replace('mem:','память: '))+' '+v).join(', ')}</div>`).join('')||'<p class="muted small">Архив появится, когда записям исполнится больше срока горячей памяти.</p>'}</div>`;
  $('#cback').onclick=()=>AI.people(box);
+ AI.cardGame($('#cgame'),id);
  $('#csave').onclick=async()=>{const tr={};box.querySelectorAll('[data-tr]').forEach(i=>tr[i.dataset.tr]=Math.max(0,Math.min(100,+i.value))/100);
   const sel=id=>[...$(id).selectedOptions].map(o=>o.value);
   await api('/ai/characters/'+id,'PATCH',{traits:tr,ambitions:sel('#camb'),habits:sel('#chab'),tier:$('#ctier').value,mood:Math.max(-100,Math.min(100,+$('#cmood').value))/100,backstory:$('#cback2').value});toast('Характер сохранён');AI.card(box,id)};
@@ -276,15 +278,40 @@ async card(box,id){const d=await api('/ai/characters/'+id);const P=d.personality
   await api('/ai/characters/'+id+'/import','POST',JSON.parse(await f.text()));toast('Профиль перенесён');AI.card(box,id)};
  box.querySelectorAll('[data-rs]').forEach(b=>b.onclick=async()=>{if(!confirm('Восстановить характер из этой контрольной точки?'))return;await api('/ai/characters/'+id+'/restore/'+b.dataset.rs,'POST',{});toast('Восстановлено');AI.card(box,id)})},
 
+async cardGame(el,id){const g=await api('/ai/characters/'+id+'/game');const RAR={1:'обычный',2:'необычный',3:'редкий',4:'эпический',5:'легендарный',6:'мифический'};
+ el.innerHTML=`<h2>Игровой прогресс</h2><p class="small muted">По умолчанию ИИ играют по тем же правилам, что игроки: ресурсы — из дозора, кампании и заданий, траты — по ценам игры. Правки ниже записываются в журнал (ресурсы — через общую книгу операций).</p>
+ <div class="grid">${[['Кампания',g.campaign.cleared+' этапов'+(g.campaign.next?' · далее «'+esc(g.campaign.next)+'»':'')],['Арена',g.arena?g.arena.rating+' ('+g.arena.wins+' / '+g.arena.losses+')':'—'],['Сила защиты',g.arena?fmt(g.arena.defense_power):'—'],['Экономика',esc(g.economies[g.economy])]].map(([a,b])=>`<div class="stat">${a}<b style="font-size:16px">${b}</b></div>`).join('')}</div>
+ <h3>Ресурсы</h3><div class="small">${Object.entries(g.wallet).filter(([k,v])=>v).map(([k,v])=>esc(k)+' '+fmt(v)).join(' · ')||'пусто'}</div>
+ <div class="row" style="margin-top:6px"><select id="gwc">${g.currencies.map(c=>`<option>${c}</option>`).join('')}</select><input id="gwd" type="number" placeholder="+ выдать / − забрать"><button id="gws">Применить</button></div>
+ <h3>Тактика и экономика</h3><div class="row"><select id="gst">${Object.entries(g.strategies).map(([k,n])=>`<option value="${k}" ${k===g.strategy?'selected':''}>${esc(n)}</option>`).join('')}</select><select id="gec">${Object.entries(g.economies).map(([k,n])=>`<option value="${k}" ${k===g.economy?'selected':''}>${esc(n)}</option>`).join('')}</select><button id="gss">Сохранить</button><button id="grb">Перестроить отряд</button><button class="primary" id="gpl">Сыграть заход сейчас</button></div>
+ <h3>Герои (${g.heroes.length})</h3><table>${g.heroes.map(h=>`<tr><td><b>${esc(h.name)}</b> <span class="small muted">${RAR[h.rarity]||h.rarity} · ${esc(h.class)}${g.formation.includes(h.id)?' · <span class="tag">в отряде</span>':''}</span></td><td><input type="number" data-hl="${h.id}" value="${h.level}" style="width:80px"> ур.</td><td><input type="number" data-hs="${h.id}" value="${h.stars}" style="width:70px"> ★</td><td><button class="small" data-hsave="${h.id}">Сохранить</button></td></tr>`).join('')}</table>
+ <div class="row" style="margin-top:6px"><select id="gha">${g.summonable.map(h=>`<option value="${h.code}">${esc(h.name)} (${RAR[h.rarity]||h.rarity})</option>`).join('')}</select><button id="ghadd">Выдать героя</button></div>`;
+ $('#gws').onclick=async()=>{await api('/ai/characters/'+id+'/wallet','POST',{currency:$('#gwc').value,delta:+$('#gwd').value});toast('Ресурсы изменены');AI.cardGame(el,id)};
+ $('#gss').onclick=async()=>{await api('/ai/characters/'+id+'/strategy','POST',{strategy:$('#gst').value,economy:$('#gec').value});toast('Сохранено')};
+ $('#grb').onclick=async()=>{await api('/ai/characters/'+id+'/rebuild','POST',{});toast('Отряд перестроен');AI.cardGame(el,id)};
+ $('#gpl').onclick=async()=>{await api('/ai/characters/'+id+'/play','POST',{});toast('Заход поставлен в очередь — выполнится в рабочем режиме Director')};
+ $('#ghadd').onclick=async()=>{await api('/ai/characters/'+id+'/heroes','POST',{hero_code:$('#gha').value});toast('Герой выдан');AI.cardGame(el,id)};
+ el.querySelectorAll('[data-hsave]').forEach(b=>b.onclick=async()=>{const h=b.dataset.hsave;await api('/ai/characters/'+id+'/heroes/'+h,'PATCH',{level:+el.querySelector(`[data-hl="${h}"]`).value,stars:+el.querySelector(`[data-hs="${h}"]`).value});toast('Герой изменён')})},
+
+async game(box){const e=await api('/ai/economy');
+ box.innerHTML=`<div class="card"><h2>Экономика ИИ</h2><p class="small muted">ИИ получают ресурсы только из тех же источников, что игроки, и тратят их по ценам игры. Торговли и аукциона в игре нет (решение D-04), поэтому ИИ не влияют на цены и не могут передать ресурсы игрокам. Ниже — балансы всех ИИ и движение за сутки по книге операций.</p>
+ <div class="grid">${Object.entries(e.balances).map(([k,v])=>`<div class="stat">${esc(k)}<b>${fmt(v)}</b></div>`).join('')||'<p class="muted">Пусто</p>'}</div>
+ <p class="small">Боёв кампании за сутки: <b>${fmt(e.battles_24h)}</b> · ${Object.entries(e.campaign_24h||{}).map(([k,v])=>esc(k)+' '+v).join(' · ')}</p>
+ <table><tr><th>Операция</th><th>Ресурс</th><th>Сумма за 24 ч</th><th>Раз</th></tr>${e.flows_24h.sort((a,b)=>Math.abs(b.sum)-Math.abs(a.sum)).slice(0,30).map(f=>`<tr><td class="small">${esc(f.reason)}</td><td class="small">${esc(f.currency)}</td><td class="${f.sum<0?'bad':'ok'}">${fmt(f.sum)}</td><td class="small">${f.count}</td></tr>`).join('')||'<tr><td class="muted">Операций пока нет</td></tr>'}</table></div>
+ <div id="gplay"></div><div id="gpvp"></div><div id="gev"></div>`;
+ await AI.section($('#gplay'),'play','Развитие ИИ по правилам игры','Кампания боями, улучшение героев за золото и эссенцию, призыв, модули каравана, задания, вклад в казну гильдии — те же функции, что у игрока. Лимиты в день не дают ИИ «жить в игре» круглосуточно.');
+ await AI.section($('#gpvp'),'pvp','PvP: арена, турниры, рейтинги','ИИ выбирают разрешённых соперников, анализируют их силу и фракции, перестраивают отряд после поражений и помнят бои. Места и награды рейтингов — только у игроков (D-03). Показ ИИ в общих рейтингах включайте после выхода нового APK.');
+ await AI.section($('#gev'),'events','События и активности ИИ','Вклад ИИ в мировые события — отдельной строкой «вклад ИИ-жителей», не больше 20% цели, без наград и мест (D-05). ИИ-гильдии проводят соревнования недели, круги друзей — дружеские турниры (без наград).')},
+
 async section(box,name,title,note,extra){const d=await api('/ai/settings/'+name);const S=d.settings;
  const inp=(k)=>{const f=d.fields[k],v=S[k];if(f.kind==='bool')return `<label class="chk"><input type="checkbox" data-sk="${k}" ${v?'checked':''}> ${esc(d.names[k]||k)}</label>`;
   if(f.kind==='choice')return `<label class="small">${esc(d.names[k]||k)}<select data-sk="${k}">${f.args.map(o=>`<option value="${o}" ${o===v?'selected':''}>${esc((AI_CHOICE[o]||o))}</option>`).join('')}</select></label>`;
   return `<label class="small">${esc(d.names[k]||k)}<input data-sk="${k}" ${f.kind==='int'?`type="number" min="${f.args[0]}" max="${f.args[1]}"`:''} value="${esc(v)}">${v!==d.defaults[k]?`<span class="muted">по умолчанию ${esc(d.defaults[k])}</span>`:''}</label>`};
  box.innerHTML=`<div class="card"><h2>${title}</h2><p class="small muted">${note}</p>${extra?extra(d):''}<div class="grid">${Object.keys(d.fields).map(inp).join('')}</div>
  <div class="row" style="margin-top:10px"><button class="primary" id="ssave">Сохранить</button><button id="srb">Откатить к предыдущим</button></div></div><div id="sx"></div>`;
- $('#ssave').onclick=async()=>{const ch={};box.querySelectorAll('[data-sk]').forEach(i=>{const k=i.dataset.sk,f=d.fields[k];const v=f.kind==='bool'?i.checked:f.kind==='int'?+i.value:i.value;if(v!==S[k])ch[k]=v});
-  if(!Object.keys(ch).length)return toast('Изменений нет');await api('/ai/settings/'+name,'POST',ch);toast('Сохранено');AI[aiSec](box)};
- $('#srb').onclick=async()=>{if(!confirm('Вернуть предыдущую версию настроек?'))return;await api('/ai/settings/'+name+'/rollback','POST',{});toast('Откат выполнен');AI[aiSec](box)};
+ box.querySelector('#ssave').onclick=async()=>{const ch={};box.querySelectorAll('[data-sk]').forEach(i=>{const k=i.dataset.sk,f=d.fields[k];const v=f.kind==='bool'?i.checked:f.kind==='int'?+i.value:i.value;if(v!==S[k])ch[k]=v});
+  if(!Object.keys(ch).length)return toast('Изменений нет');await api('/ai/settings/'+name,'POST',ch);toast('Сохранено');VIEWS.ai()};
+ box.querySelector('#srb').onclick=async()=>{if(!confirm('Вернуть предыдущую версию настроек?'))return;await api('/ai/settings/'+name+'/rollback','POST',{});toast('Откат выполнен');VIEWS.ai()};
  return d},
 
 async speech(box){await AI.section(box,'speech','Речь и интеллект ИИ','Основа — локальные шаблоны и сценарии, работают всегда. Каждый ИИ говорит в своей манере, настроение окрашивает речь, при интеллекте 3+ ИИ вспоминают прошлые разговоры. Языковая модель необязательна и отвечает только живым игрокам при интеллекте 5; беседы ИИ между собой всегда на шаблонах. При любой ошибке модели — шаблоны.',

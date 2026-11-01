@@ -22,6 +22,8 @@ def add_xp(db: Session, user_id: str, delta: int, source: str, ref: str | None =
     if delta == 0:
         return db.get(PlayerProfile, user_id).vip_level
     p = db.get(PlayerProfile, user_id, with_for_update=True)
+    if p is not None and p.is_ai:
+        return 0  # AI residents never get VIP: it would look like a purchase (Living World AI, decision P3-01)
     p.vip_xp = max(0, (p.vip_xp or 0) + delta)
     p.vip_level = level_for(p.vip_xp)  # permanent: never decreases except on refunds
     db.add(VipXpLog(user_id=user_id, delta=delta, source=source, ref=ref))

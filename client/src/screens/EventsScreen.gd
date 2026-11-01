@@ -105,8 +105,13 @@ func _event_rewards(e: Dictionary) -> String:
 func _world_event(e: Dictionary) -> void:
 	var eid := String(e.id)
 	var st := "Идёт · ваш вклад %s · боёв события сегодня: %d" % [Game.fmt(int(e.my_points)), int(e.battles_left)]
+	var ai_pts := int(e.get("ai_progress", 0))
+	var total := int(e.progress) + ai_pts
+	var goal_text := "Общая цель сервера %s / %s" % [Game.fmt(total), Game.fmt(int(e.goal))]
+	if ai_pts > 0:  # decision D-05: the AI residents' contribution is a separate, capped line
+		goal_text += " · из них вклад ИИ-жителей %s" % Game.fmt(ai_pts)
 	var c := ev_card(String(e.name), String(e.desc), String(e.ends_at),
-		[int(e.progress), int(e.goal), "Общая цель сервера %s / %s" % [Game.fmt(int(e.progress)), Game.fmt(int(e.goal))]],
+		[total, int(e.goal), goal_text],
 		_event_rewards(e), st, UI.GOLD, "Подробнее" if _open_event != eid else "Свернуть",
 		func(): _open_event = "" if _open_event == eid else eid; render())
 	if _open_event == eid:

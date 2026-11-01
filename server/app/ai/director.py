@@ -47,7 +47,7 @@ class Director:
         self.last_compact = -1e9
         self.last_archive = -1e9
         self.sleeping = False
-        self.last_social = {"outreach": -1e9, "guilds": -1e9, "groups": -1e9}
+        self.last_social = {"outreach": -1e9, "guilds": -1e9, "groups": -1e9, "activities": -1e9}
         self.slow_ticks = 0
 
     # ------------------------------------------------------------------ one tick
@@ -109,6 +109,7 @@ class Director:
         if now_mono - self.last_compact >= 600:
             self.last_compact = now_mono
             out["compacted"] = TQ.compact(db, s["compact_after_hours"])
+            out["idem_pruned"] = self._prune_ai_idempotency(db)
             out["events_pruned"] = EV.prune(db)
         ms = (time.perf_counter() - t0) * 1000
         self._adapt(ms, s, cap)
@@ -124,15 +125,32 @@ class Director:
         return out
 
     # ------------------------------------------------------------------ steps
+    def _prune_ai_idempotency(self, db: Session) -> int:
+        """AI play sessions leave idempotency keys ("ai<task>:…"); retries happen within minutes, so keys older than
+        two days are removed in bounded batches (players' keys are never touched)."""
+        from datetime import timedelta as _td
+        from sqlalchemy import delete
+        from ..models import IdempotencyKey, PlayerProfile
+        cutoff = utcnow() - _td(days=2)
+        ai = select(PlayerProfile.user_id).where(PlayerProfile.is_ai.is_(True))
+        rows = db.execute(select(IdempotencyKey.user_id, IdempotencyKey.key).where(
+            IdempotencyKey.user_id.in_(ai), IdempotencyKey.key.like("ai%"), IdempotencyKey.created_at < cutoff).limit(2000)).all()
+        for uid, k in rows:
+            db.execute(delete(IdempotencyKey).where(IdempotencyKey.user_id == uid, IdempotencyKey.key == k))
+        db.commit()
+        return len(rows)
+
     def _social(self, db: Session, s: dict, now_mono: float) -> dict:
         """Phase 4: reaching out to real players, guild life, informal groups — each on its own cadence, isolated so a
         failure in one never breaks the tick."""
         from . import guild_ai as GAI
+        from . import compete as COMP
         from . import outreach as OUT
         out = {}
         for key, every, fn in (("outreach", s["outreach_every_s"], lambda: OUT.run(db, _rng)),
                                ("guilds", s["guilds_every_s"], lambda: GAI.run(db, _rng)),
-                               ("groups", s["groups_every_s"], lambda: self._groups(db))):
+                               ("groups", s["groups_every_s"], lambda: self._groups(db)),
+                               ("activities", s["activities_every_s"], lambda: COMP.activities(db, _rng))):
             if now_mono - self.last_social[key] < every:
                 continue
             self.last_social[key] = now_mono
@@ -194,13 +212,18 @@ class Director:
         if acting:
             q = q.where(AiPersona.session_until > now)
         profs = SCH.profiles(db)
+        from . import play as PLAY
+        rules = PLAY.SECTION.get(db)["progression"] == "rules"
         n = 0
         for persona in db.scalars(q.order_by(AiPersona.next_action_at).limit(max(4, (self.budget or 4) * 2))):
             prof: AiScheduleProfile | None = profs.get(persona.schedule_profile or "")
             action = V1._choose(persona)
             slot = as_utc(persona.next_action_at).strftime("%Y%m%d%H%M%S")
             pk = SCH.peak(persona, prof, now)
-            t = TQ.enqueue(db, f"act:{action}", f"act:{persona.id}:{slot}", persona_id=persona.id,
+            kind = f"act:{action}"
+            if action == "level" and rules:  # decision D-02: progress by the game rules, not simulated
+                kind = "play"
+            t = TQ.enqueue(db, kind, f"act:{persona.id}:{slot}", persona_id=persona.id,
                            priority=PRIORITY["act"] + (10 if pk else 0), payload={"peak": pk},
                            status="pending" if acting else "simulated")
             if t is not None:
@@ -217,9 +240,27 @@ class Director:
         tasks = TQ.claim(db, budget)
         db.commit()  # leases are visible before work starts (crash -> recover_stale)
         done = failed = 0
+        from . import play as PLAY
+        play_cap, plays = PLAY.SECTION.get(db)["plays_per_tick"], 0
         for t in tasks:
             tid = t.id
+            if t.kind == "play":
+                plays += 1
+                if plays > play_cap:  # heavier task: at most N per tick, the rest waits for the next tick
+                    t.status, t.lease_until, t.run_after = "pending", None, utcnow() + timedelta(seconds=5)
+                    t.attempts = max(0, (t.attempts or 1) - 1)  # postponed, not attempted
+                    db.commit()
+                    continue
             try:
+                if t.kind == "play":
+                    # a play session = several player API calls, each committed like a client request and protected by
+                    # its own idempotency key (derived from the task id): a retry replays, never pays/rewards twice
+                    res = H.run(db, t)
+                    row = db.get(AiTask, tid)
+                    TQ.complete(row, res)
+                    db.commit()
+                    done += 1
+                    continue
                 with db.begin_nested():
                     res = H.run(db, t)
                     TQ.complete(t, res)  # action + completion in one transaction: idempotent

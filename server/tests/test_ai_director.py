@@ -85,7 +85,7 @@ def test_test_mode_plans_without_changing_the_world(client):
         out = Director().tick(db)
         assert out["mode"] == "test" and out["planned"] >= 1 and out["executed"] == 0
         sims = db.scalars(select(AiTask).where(AiTask.status == "simulated")).all()
-        assert sims and all(t.kind.startswith("act:") for t in sims)
+        assert sims and all(t.kind.startswith("act:") or t.kind == "play" for t in sims)
         after = {p.user_id: p.level for p in db.scalars(select(PlayerProfile).where(PlayerProfile.is_ai.is_(True)))}
         assert before == after  # nothing changed
         # a second tick re-plans the same slots -> idempotent, no new simulated rows for them

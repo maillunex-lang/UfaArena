@@ -226,6 +226,9 @@ def _fill_ai(db: Session, t: Tournament) -> None:
     """Individual brackets/groups may be topped up with labelled AI entries so the format can run."""
     if t.kind != "individual" or t.format == "points":
         return
+    from ..ai.compete import PVP
+    if not PVP.get(db)["tournaments"]:
+        return  # the admin switched AI tournament entries off (stage 10)
     entries = db.scalars(select(TournamentEntry).where(TournamentEntry.tournament_id == t.id)).all()
     need = int(T()["ai_fill_to"]) - len(entries)
     if need <= 0:

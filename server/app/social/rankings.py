@@ -31,16 +31,21 @@ def _board(db: Session, cat: str) -> list[dict]:
         return hit[1]
     rows: list[dict] = []
     real = PlayerProfile.is_ai.is_(False)
+    from ..ai.compete import PVP
+    show_ai = PVP.get(db)["ai_in_rankings"]  # decision D-03: AI in common tables only when the admin enables it
     if cat == "power":
-        for p in db.scalars(select(PlayerProfile).where(real).order_by(PlayerProfile.power.desc()).limit(100)):
-            rows.append({"user_id": p.user_id, "name": p.nickname, "value": p.power, "level": p.level})
+        q = select(PlayerProfile) if show_ai else select(PlayerProfile).where(real)
+        for p in db.scalars(q.order_by(PlayerProfile.power.desc()).limit(100)):
+            rows.append({"user_id": p.user_id, "name": p.nickname, "value": p.power, "level": p.level,
+                         **({"is_ai": True} if p.is_ai else {})})
     elif cat == "ai":
         for p in db.scalars(select(PlayerProfile).where(PlayerProfile.is_ai.is_(True)).order_by(PlayerProfile.power.desc()).limit(100)):
             rows.append({"user_id": p.user_id, "name": p.nickname, "value": p.power, "level": p.level, "is_ai": True})
     elif cat == "arena":
-        for ap in db.scalars(select(ArenaProfile).where(ArenaProfile.is_ai.is_(False)).order_by(ArenaProfile.rating.desc()).limit(100)):
+        q = select(ArenaProfile) if show_ai else select(ArenaProfile).where(ArenaProfile.is_ai.is_(False))
+        for ap in db.scalars(q.order_by(ArenaProfile.rating.desc()).limit(100)):
             rows.append({"user_id": ap.user_id, "name": card(db, ap.user_id)["nickname"], "value": ap.rating,
-                         "extra": league_of(ap.rating)["name"]})
+                         "extra": league_of(ap.rating)["name"], **({"is_ai": True} if ap.is_ai else {})})
     elif cat == "reputation":
         for p in db.scalars(select(PlayerProfile).where(real, PlayerProfile.reputation > 0).order_by(PlayerProfile.reputation.desc()).limit(100)):
             rows.append({"user_id": p.user_id, "name": p.nickname, "value": p.reputation, "extra": rep_title(p.reputation)})
@@ -69,8 +74,13 @@ def _board(db: Session, cat: str) -> list[dict]:
             rows.append({"user_id": uid, "name": card(db, uid)["nickname"], "value": v})
     else:
         raise GameError("not_found", "Нет такого рейтинга", 404)
-    for i, r in enumerate(rows, start=1):
-        r["rank"] = i
+    rank = 0
+    for r in rows:
+        if r.get("is_ai") and cat in ("power", "arena"):
+            r["rank"] = None  # AI shown with the label, without a place (D-03)
+        else:
+            rank += 1
+            r["rank"] = rank
     _cache[cat] = (time.monotonic(), rows)
     return rows
 

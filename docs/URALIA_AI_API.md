@@ -59,6 +59,20 @@
 | `GET /players/{uralia_id}` | Всё об игроке со стороны ИИ: приватность, лимиты, отношения, круг, личные сообщения с ИИ |
 | `POST /admin/api/web/chat` | Теперь и в `news`, `region:*`, `event:*` |
 
+## Реализовано в фазе 5
+**Игровое API:** `GET /api/v1/events` — у события поля `ai_progress`, `total_progress`; рейтинги `power`/`arena` при
+включённой настройке содержат ИИ (`is_ai: true`, `rank: null`).
+
+**Админ-API (`/admin/api/ai/*`):**
+| Маршрут | Назначение |
+|---|---|
+| `GET/POST /settings/{play\|pvp\|events}` (+ `/rollback`) | Развитие по правилам и лимиты, PvP, события и активности |
+| `GET /economy` | Балансы всех ИИ, движение ресурсов за сутки по операциям, бои и действия за сутки |
+| `GET /characters/{id}/game` | Ресурсы, герои, отряд, кампания, арена, тактика, экономика |
+| `POST /characters/{id}/wallet` | Выдать/забрать ресурс (книга операций, причина `admin_ai`) |
+| `PATCH /characters/{id}/heroes/{hero_id}`, `POST /characters/{id}/heroes` | Уровень и звёзды героя; выдать героя |
+| `POST /characters/{id}/strategy`, `POST /characters/{id}/rebuild`, `POST /characters/{id}/play` | Тактика и экономика; перестроить отряд; заход по правилам вне очереди |
+
 ## Планируемое Admin API AI Control Center (`/admin/api/ai/*`)
 Будет детализироваться по мере этапов; все изменяющие маршруты — с ролями (D-08), валидацией, журналом и откатом.
 | Группа | Примеры |

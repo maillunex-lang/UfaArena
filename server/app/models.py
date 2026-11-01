@@ -1067,6 +1067,7 @@ class WorldEvent(Base):
     ends_at: Mapped[datetime] = mapped_column(TS)
     goal: Mapped[int] = mapped_column(BigInteger)
     progress: Mapped[int] = mapped_column(BigInteger, default=0)
+    ai_progress: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")  # "AI residents' contribution" (D-05)
     outcome: Mapped[str | None] = mapped_column(String(16))  # success | failure
     choice_votes: Mapped[dict] = mapped_column(JSON, default=dict)
     version: Mapped[int] = mapped_column(Integer, default=0)

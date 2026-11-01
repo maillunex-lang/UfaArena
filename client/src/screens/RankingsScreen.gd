@@ -39,10 +39,11 @@ func _boards() -> void:
 	for r in d.items:
 		var mine: bool = r.get("user_id", "") == Api.user_id
 		var c := card(UI.GOLD if mine else Color(1, 1, 1, 0.15))
-		var medal: String = {1: "🥇 ", 2: "🥈 ", 3: "🥉 "}.get(int(r.rank), "")
+		var ranked: bool = r.get("rank") != null  # AI residents may be listed with the label but without a place
+		var medal: String = {1: "🥇 ", 2: "🥈 ", 3: "🥉 "}.get(int(r.rank), "") if ranked else ""
 		if r.has("user_id"):
 			var h := HBoxContainer.new()
-			h.add_child(UI.label("%s%d." % [medal, int(r.rank)], 28, UI.MUTED, true))
+			h.add_child(UI.label(("%s%d." % [medal, int(r.rank)]) if ranked else "—", 28, UI.MUTED, true))
 			c.info.add_child(h)
 			name_button(h, String(r.name), String(r.user_id), bool(r.get("is_ai", false)))
 		else:

@@ -63,7 +63,32 @@ def _chat_keepalive(db: Session, t: AiTask) -> dict:
     return {"chat": banter.keep_alive(db, V1.AI()), "reactions": banter.react_sometimes(db)}
 
 
-HANDLERS = {"dm": _dm, "mention": _mention, "chat_keepalive": _chat_keepalive}
+def _play(db: Session, t: AiTask) -> dict:
+    """A play session by the game rules (stages 5, 12; decision D-02)."""
+    from ..social.ai import population as V1
+    from ..social.common import day
+    from . import play as PLAY
+    persona = db.get(AiPersona, t.persona_id)
+    if persona is None or not persona.active:
+        return {"skipped": "persona disabled"}
+    if persona.day != day():
+        persona.day, persona.actions_today = day(), 0
+    if persona.actions_today >= V1.AI()["max_actions_per_persona_day"]:
+        return {"skipped": "daily cap"}
+    prof = db.get(PlayerProfile, persona.user_id)
+    prof.last_seen_at = utcnow()
+    persona.actions_today += 1
+    persona.last_action_at = utcnow()
+    db.commit()
+    res = PLAY.session(db, persona, str(t.id), _rng)
+    from . import personality as PERS
+    if PERS.wants_break(persona, _rng):
+        persona.session_until = utcnow()
+    db.commit()
+    return res
+
+
+HANDLERS = {"dm": _dm, "mention": _mention, "chat_keepalive": _chat_keepalive, "play": _play}
 
 
 def run(db: Session, t: AiTask) -> dict:

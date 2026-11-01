@@ -138,7 +138,7 @@ def finish(db: Session, ev: WorldEvent) -> None:
         return
     db.refresh(ev)
     tpl = E()["templates"][ev.template]
-    success = ev.progress >= ev.goal
+    success = (ev.progress or 0) + (ev.ai_progress or 0) >= ev.goal  # AI residents' line counts, capped (D-05)
     ev.outcome = "success" if success else "failure"
     ev.status = "finished"
     choice = None
@@ -213,6 +213,7 @@ def event_view(db: Session, ev: WorldEvent, user_id: str) -> dict:
     return {"id": ev.id, "name": ev.name, "kind": ev.kind, "scale": ev.scale, "desc": tpl["desc"], "status": ev.status,
             "starts_at": as_utc(ev.starts_at).isoformat(), "ends_at": as_utc(ev.ends_at).isoformat(),
             "goal": ev.goal, "progress": ev.progress, "outcome": ev.outcome, "participants": participants,
+            "ai_progress": int(ev.ai_progress or 0), "total_progress": int((ev.progress or 0) + (ev.ai_progress or 0)),
             "my_points": int(mine.points) if mine else 0, "my_choice": mine.choice if mine else None,
             "guild_points": int(guild_pts), "choices": tpl.get("choices"), "votes": ev.choice_votes,
             "top": [{"nickname": card(db, c.user_id)["nickname"], "points": int(c.points)} for c in top],

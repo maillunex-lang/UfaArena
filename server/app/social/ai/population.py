@@ -500,6 +500,9 @@ def act_arena(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     me = db.get(ArenaProfile, persona.user_id)
     if me is None or not me.defense:
         return
+    from ...ai import compete as COMP
+    if not COMP.arena_allowed(db, persona):
+        return  # daily arena limit for AI (stage 10, admin setting)
     from ..arena import current_season, elo
     season = current_season(db)
     vs_real = control.allowed(db, "arena") and _rng.random() < 0.5
@@ -524,10 +527,10 @@ def act_arena(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     if target is None:
         opp = db.scalars(select(ArenaProfile).where(ArenaProfile.is_ai.is_(True), ArenaProfile.user_id != me.user_id,
                                                     ArenaProfile.defense_power > 0)
-                         .order_by(func.abs(ArenaProfile.rating - me.rating)).limit(5)).all()
+                         .order_by(func.abs(ArenaProfile.rating - me.rating)).limit(10)).all()
         if not opp:
             return
-        target = _rng.choice(opp)
+        target = COMP.pick_opponent(db, persona, me, list(opp), _rng)  # analyses opponents (stage 10)
     seed = secrets.randbits(40)
     sim = pvp(db, me.defense, target.defense, seed)
     won = sim["result"] == "victory"
@@ -591,6 +594,8 @@ def _arena_experience(db: Session, persona: AiPersona, target: ArenaProfile, won
         MEM.add(db, persona, "defeat", f"Проиграл {name} на арене", subject=target.user_id,
                 importance=2 if row >= 3 else 1)
         PERS.evolve(db, persona, "arena_loss")
+        from ...ai import compete as COMP
+        COMP.maybe_rebuild_defense(db, persona)
         lost_to = [m for m in MEM.recall(db, persona, subject=target.user_id, kinds=("defeat",), limit=5)]
         if len(lost_to) >= 3 and target.is_ai and not MEM.recall(db, persona, subject=target.user_id, kinds=("relationship",), limit=1):
             MEM.add(db, persona, "relationship", f"{name} — соперник на арене", subject=target.user_id, importance=2)
@@ -627,10 +632,13 @@ def act_guild(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     policy = control.guild_policy(g)
     if not g.is_ai and not control.allowed(db, "guild_help"):
         return
-    # daily activity: virtual donation (no real currency is created for players) + contribution points
-    g.treasury = (g.treasury or 0) + _rng.randint(20, 80)
-    m.contribution_week = (m.contribution_week or 0) + 5
-    g.week_points = (g.week_points or 0) + 5
+    from ...ai import play as PLAY
+    if PLAY.SECTION.get(db)["progression"] != "rules" or g.is_ai:
+        # legacy / AI guilds: virtual daily activity (an AI guild's treasury is its own; real guilds get real
+        # donations only — under the rules the AI donates gold it earned, see app/ai/play.py)
+        g.treasury = (g.treasury or 0) + _rng.randint(20, 80)
+        m.contribution_week = (m.contribution_week or 0) + 5
+        g.week_points = (g.week_points or 0) + 5
     manage = m.role in ("leader", "deputy", "officer") and (g.is_ai or policy.get("management"))
     if manage:
         for a in db.scalars(select(GuildApplication).where(GuildApplication.guild_id == g.id, GuildApplication.status == "pending",
@@ -769,6 +777,10 @@ def act_event(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     from ...ai import personality as PERS
     if db.scalar(select(WorldEvent).where(WorldEvent.status == "active")) is not None:
         PERS.evolve(db, persona, "event")
+        from ...ai import compete as COMP
+        pts = COMP.contribute_event(db, persona)  # separate "AI residents' contribution", capped (D-05)
+        if pts:
+            log(db, persona, "event_contribution", points=pts)
     if _rng.random() < 0.5:
         act_chat(db, persona, prof)
 

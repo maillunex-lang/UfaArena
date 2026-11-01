@@ -206,8 +206,12 @@ from . import guild_ai as GAI  # noqa: E402
 from . import outreach as OUT  # noqa: E402
 from . import social as SOC  # noqa: E402
 
+from . import compete as COMP  # noqa: E402
+from . import play as PLAY  # noqa: E402
+
 SECTIONS = {"speech": SP.SECTION, "memory": MEM.SECTION, "tiers": TR.SECTION, "channels": CHN.SECTION,
-            "guilds": GAI.SECTION, "outreach": OUT.SECTION}
+            "guilds": GAI.SECTION, "outreach": OUT.SECTION, "play": PLAY.SECTION, "pvp": COMP.PVP,
+            "events": COMP.EVENTS}
 
 
 def _section(name: str):
@@ -700,3 +704,151 @@ def player_ai_view(uralia_id: str, who: str = Depends(admin), db: Session = Depe
             "watch": {"contacts_today": w.contacts_today, "invites_week": w.invites_week, "flags": w.flags,
                       "contacted_at": as_utc(w.contacted_at).isoformat() if w.contacted_at else None} if w else None,
             "relationships": rels, "group": g.name if g else None, "messages": OUT.history(db, p.user_id)}
+
+
+# ------------------------------------------------------------------ phase 5: game autonomy, economy, per-AI editing
+CURRENCIES = ("gold", "crystals", "summon_essence", "nature_essence", "ancient_seals", "guild_marks", "friend_tokens",
+              "raid_tickets")
+
+
+@router.get("/economy")
+def ai_economy(who: str = Depends(admin), db: Session = Depends(get_db)):
+    out = PLAY.stats(db)
+    from ..models import AiActivityLog
+    since = utcnow() - timedelta(hours=24)
+    out["campaign_24h"] = dict(db.execute(select(AiActivityLog.activity, func.count()).where(
+        AiActivityLog.activity.in_(("campaign", "arena", "event_contribution", "tier_up")), AiActivityLog.created_at >= since)
+        .group_by(AiActivityLog.activity)).all())
+    return out
+
+
+@router.get("/characters/{persona_id}/game")
+def character_game(persona_id: str, who: str = Depends(admin), db: Session = Depends(get_db)):
+    from ..models import ArenaProfile, Formation, PlayerHero
+    from ..services import cleared_count, next_node
+    p = _persona(db, persona_id)
+    heroes = []
+    for ph in db.scalars(select(PlayerHero).where(PlayerHero.user_id == p.user_id).order_by(PlayerHero.level.desc())):
+        heroes.append({"id": ph.id, "code": ph.hero_code, "name": ph.hero.name, "rarity": ph.hero.rarity, "level": ph.level,
+                       "stars": ph.stars, "class": ph.hero.class_code, "faction": ph.hero.faction_code})
+    f = db.get(Formation, (p.user_id, "campaign"))
+    ap = db.get(ArenaProfile, p.user_id)
+    nxt = next_node(db, p.user_id)
+    from ..models import Hero
+    return {"wallet": PLAY.wallet(db, p.user_id), "heroes": heroes, "formation": f.slots if f else [],
+            "campaign": {"cleared": cleared_count(db, p.user_id), "next": nxt.name if nxt else None},
+            "arena": {"rating": ap.rating, "wins": ap.wins, "losses": ap.losses, "defense_power": ap.defense_power} if ap else None,
+            "strategy": (p.counters or {}).get("strategy", "balanced"), "economy": PLAY.economy_of(p),
+            "economies": PLAY.ECONOMY, "strategies": TR.STRATEGY_NAMES, "currencies": list(CURRENCIES),
+            "summonable": [{"code": h.code, "name": h.name, "rarity": h.rarity} for h in
+                           db.scalars(select(Hero).where(Hero.summonable.is_(True), Hero.is_enemy.is_(False)).order_by(Hero.rarity.desc()))]}
+
+
+class WalletIn(BaseModel):
+    currency: str = Field(max_length=32)
+    delta: int = Field(ge=-10_000_000, le=10_000_000)
+    reason: str = Field("", max_length=120)
+
+
+@router.post("/characters/{persona_id}/wallet")
+def character_wallet(persona_id: str, body: WalletIn, who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Admin change of an AI's resources — through the same ledger as every currency change (auditable)."""
+    from ..services import apply_delta
+    p = _persona(db, persona_id)
+    if body.currency not in CURRENCIES or body.delta == 0:
+        raise GameError("bad_currency", "Неизвестный ресурс или нулевое изменение", 400)
+    apply_delta(db, p.user_id, {body.currency: body.delta}, "admin_ai", who)
+    db.add(AdminAction(admin=who, action="ai_wallet", details={"persona": persona_id, **body.model_dump()}))
+    db.commit()
+    return {"wallet": PLAY.wallet(db, p.user_id)}
+
+
+class HeroEditIn(BaseModel):
+    level: int | None = Field(None, ge=1, le=200)
+    stars: int | None = Field(None, ge=0, le=10)
+
+
+@router.patch("/characters/{persona_id}/heroes/{hero_id}")
+def character_hero_edit(persona_id: str, hero_id: str, body: HeroEditIn, who: str = Depends(admin), db: Session = Depends(get_db)):
+    from ..game import data as GD
+    from ..models import PlayerHero
+    from ..social.common import compute_power
+    p = _persona(db, persona_id)
+    ph = db.get(PlayerHero, hero_id)
+    if ph is None or ph.user_id != p.user_id:
+        raise GameError("not_found", "Герой не найден", 404)
+    old = {"level": ph.level, "stars": ph.stars}
+    if body.level is not None:
+        ph.level = min(GD.LEVEL_CAP_MVP, body.level)
+    if body.stars is not None:
+        ph.stars = min(GD.MAX_STARS, body.stars)
+    compute_power(db, p.user_id)
+    db.add(AdminAction(admin=who, action="ai_hero_edit", details={"persona": persona_id, "hero": hero_id, "old": old,
+                                                                  "new": body.model_dump(exclude_none=True)}))
+    db.commit()
+    return {"ok": True}
+
+
+class HeroAddIn(BaseModel):
+    hero_code: str = Field(max_length=48)
+
+
+@router.post("/characters/{persona_id}/heroes")
+def character_hero_add(persona_id: str, body: HeroAddIn, who: str = Depends(admin), db: Session = Depends(get_db)):
+    from ..models import Hero, PlayerHero
+    p = _persona(db, persona_id)
+    h = db.get(Hero, body.hero_code)
+    if h is None or h.is_enemy:
+        raise GameError("not_found", "Нет такого героя", 404)
+    if db.scalar(select(PlayerHero).where(PlayerHero.user_id == p.user_id, PlayerHero.hero_code == h.code)):
+        raise GameError("owned", "Этот герой уже есть у ИИ", 409)
+    db.add(PlayerHero(user_id=p.user_id, hero_code=h.code))
+    db.add(AdminAction(admin=who, action="ai_hero_add", details={"persona": persona_id, "hero": h.code}))
+    db.commit()
+    return {"ok": True}
+
+
+class StrategyIn(BaseModel):
+    strategy: str | None = Field(None, max_length=16)
+    economy: str | None = Field(None, max_length=16)
+
+
+@router.post("/characters/{persona_id}/strategy")
+def character_strategy(persona_id: str, body: StrategyIn, who: str = Depends(admin), db: Session = Depends(get_db)):
+    p = _persona(db, persona_id)
+    c = dict(p.counters or {})
+    if body.strategy is not None:
+        if body.strategy not in TR.STRATEGY_NAMES:
+            raise GameError("bad_strategy", "Неизвестная тактика", 400)
+        c["strategy"] = body.strategy
+    if body.economy is not None:
+        if body.economy not in PLAY.ECONOMY:
+            raise GameError("bad_economy", "Неизвестная экономическая стратегия", 400)
+        c["economy"] = body.economy
+    p.counters = c
+    db.add(AdminAction(admin=who, action="ai_strategy", details={"persona": persona_id, **body.model_dump(exclude_none=True)}))
+    db.commit()
+    return {"strategy": c.get("strategy"), "economy": PLAY.economy_of(p)}
+
+
+@router.post("/characters/{persona_id}/rebuild")
+def character_rebuild(persona_id: str, who: str = Depends(admin), db: Session = Depends(get_db)):
+    import random as _r
+    p = _persona(db, persona_id)
+    slots = PLAY.best_formation(db, p, _r.Random())
+    PLAY.set_team(db, p, slots)
+    db.add(AdminAction(admin=who, action="ai_rebuild", details={"persona": persona_id}))
+    db.commit()
+    return {"formation": slots}
+
+
+@router.post("/characters/{persona_id}/play")
+def character_play(persona_id: str, who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Queue a play session by the game rules with top priority (runs in an acting Director mode)."""
+    p = _persona(db, persona_id)
+    now = utcnow()
+    p.session_until = max(as_utc(p.session_until) if p.session_until else now, now + timedelta(minutes=15))
+    t = TQ.enqueue(db, "play", f"manualplay:{persona_id}:{now.isoformat()}", persona_id=persona_id, priority=95)
+    db.add(AdminAction(admin=who, action="ai_play_now", details={"persona": persona_id}))
+    db.commit()
+    return {"task_id": t.id if t else None}
