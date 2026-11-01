@@ -289,15 +289,23 @@ async speech(box){await AI.section(box,'speech','Речь и интеллект 
  sx.innerHTML=`<div class="card"><h2>Поставщики языковой модели</h2>
  <p class="small muted">Выберите поставщика в поле «Поставщик модели» выше, включите «Языковая модель…», поставьте «Интеллект» = 5 и сохраните. Ключ API хранится только на сервере: в журнал не пишется, обратно не показывается (видны последние 4 символа), в приложение не попадает. Ключ из файла .env (URALIA_LLM_GROQ_KEY и т. п.) важнее ключа из админки.</p>
  <p class="small bad">Внешние сервисы получают текст сообщения игрока (ник игрока заменяется на «собеседник») и описание ИИ-персонажа. Включая внешний сервис, укажите это в политике конфиденциальности игры. Бесплатные тарифы могут менять лимиты и использовать данные для обучения.</p>
- <table>${Object.entries(d.providers).map(([k,p])=>`<tr><td><b>${esc(p.name)}</b>${k===d.settings.llm_provider?' <span class="tag g">выбран</span>':''}<div class="small muted">${esc(p.hint)}</div><div class="small muted">Модель по умолчанию: ${esc(p.model)}</div></td>
-  <td class="small">${p.key?(d.keys[k]?.configured?`<span class="ok">ключ есть</span> ${esc(d.keys[k].mask)}${d.keys[k].source==='env'?' (из .env)':''}`:'<span class="muted">ключа нет</span>'):'ключ не нужен'}</td>
-  <td>${p.key?`<div class="row" style="flex-wrap:nowrap"><input type="password" data-key="${k}" placeholder="Вставьте ключ" autocomplete="off"><button class="small" data-ksave="${k}">Сохранить</button>${d.keys[k]?.source==='admin'?`<button class="small danger" data-kdel="${k}">Удалить</button>`:''}</div>`:''}
-  <button class="small copy" data-ltest="${k}" style="margin-top:4px">Проверить связь</button><div class="small" data-lres="${k}"></div></td></tr>`).join('')}</table></div>`;
+ <div>${Object.entries(d.providers).map(([k,p])=>`<div class="slot" style="margin:0 0 10px">
+  <div><b>${esc(p.name)}</b>${k===d.settings.llm_provider?' <span class="tag g">выбран</span>':''}</div>
+  <div class="small muted">${esc(p.hint)}</div>
+  <div class="small">Модель: <b>${esc(d.models[k]||p.model)}</b>${d.settings.llm_model&&k===d.settings.llm_provider?' <span class="muted">(в настройках выше указана своя: '+esc(d.settings.llm_model)+')</span>':''}</div>
+  <div class="small">${p.key?(d.keys[k]?.configured?`<span class="ok">ключ есть</span> ${esc(d.keys[k].mask)}${d.keys[k].source==='env'?' (из .env)':''}`:'<span class="muted">ключа нет</span>'):'ключ не нужен'}</div>
+  ${p.key?`<div class="row"><input type="password" data-key="${k}" placeholder="Вставьте ключ" autocomplete="off" style="flex:1 1 200px"><button class="small" data-ksave="${k}">Сохранить ключ</button>${d.keys[k]?.source==='admin'?`<button class="small danger" data-kdel="${k}">Удалить</button>`:''}</div>`:''}
+  <div class="row"><button class="small copy" data-ltest="${k}">Проверить связь</button><button class="small" data-lmods="${k}">Выбрать модель</button></div>
+  <div class="small" data-lres="${k}" style="word-break:break-word"></div><div class="small" data-lmbox="${k}"></div></div>`).join('')}</div></div>`;
  sx.querySelectorAll('[data-ksave]').forEach(b=>b.onclick=async()=>{const k=b.dataset.ksave,v=sx.querySelector(`[data-key="${k}"]`).value.trim();if(!v)return toast('Вставьте ключ',true);
   await api('/ai/llm/key','POST',{provider:k,key:v});toast('Ключ сохранён на сервере');AI.speech(box)});
  sx.querySelectorAll('[data-kdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Удалить ключ этого поставщика?'))return;await api('/ai/llm/key','POST',{provider:b.dataset.kdel,key:''});toast('Ключ удалён');AI.speech(box)});
  sx.querySelectorAll('[data-ltest]').forEach(b=>b.onclick=async()=>{const k=b.dataset.ltest,out=sx.querySelector(`[data-lres="${k}"]`);out.textContent='Проверяю…';b.disabled=true;
-  try{const r=await api('/ai/llm/test','POST',{provider:k});out.innerHTML=r.ok?`<span class="ok">Работает</span> за ${r.latency_ms} мс (${esc(r.model)}): «${esc(r.text)}»`:`<span class="bad">Не работает:</span> ${esc(r.error)}`}finally{b.disabled=false}})},
+  try{const r=await api('/ai/llm/test','POST',{provider:k});out.innerHTML=(r.repaired_model?`<span class="g">Прежняя модель снята с работы — автоматически выбрана ${esc(r.repaired_model)}.</span> `:'')+(r.ok?`<span class="ok">Работает</span> за ${r.latency_ms} мс (${esc(r.model)}): «${esc(r.text)}»`:`<span class="bad">Не работает:</span> ${esc(r.error)}`)}finally{b.disabled=false}});
+ sx.querySelectorAll('[data-lmods]').forEach(b=>b.onclick=async()=>{const k=b.dataset.lmods,box2=sx.querySelector(`[data-lmbox="${k}"]`);box2.textContent='Запрашиваю список моделей…';
+  const r=await api('/ai/llm/models?provider='+k);if(r.error||!r.models.length){box2.innerHTML=`<span class="bad">Список не получен:</span> ${esc(r.error||'пусто')}`;return}
+  box2.innerHTML=`<div class="row"><select data-msel="${k}" style="flex:1 1 220px">${r.models.map(m=>`<option ${m===(r.current)?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="small primary" data-mset="${k}">Использовать</button></div><div class="muted">Доступно моделей: ${r.models.length}. Рекомендую: ${esc(r.suggested||'—')}</div>`;
+  box2.querySelector('[data-mset]').onclick=async()=>{await api('/ai/llm/model','POST',{provider:k,model:box2.querySelector('[data-msel]').value});toast('Модель выбрана');AI.speech(box)}})},
 
 async archetypes(box){const [a,t]=await Promise.all([api('/ai/archetypes'),api('/ai/settings/tiers')]);
  const bias=b=>Object.entries(b||{}).map(([k,v])=>`${k}:${v}`).join(', ');

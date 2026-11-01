@@ -217,6 +217,7 @@ def get_section(name: str, who: str = Depends(admin), db: Session = Depends(get_
         out["llm"] = LLM.status(out["settings"], db)
         out["providers"] = LLM.PROVIDERS
         out["keys"] = LLM.masked_keys(db)
+        out["models"] = {p: LLM.endpoint(db, {**out["settings"], "llm_provider": p, "llm_model": ""})[1] for p in LLM.PROVIDERS}
     if name == "tiers":
         out["tiers"] = {k: {**{x: v[x] for x in ("name", "desc", "pace", "strategies")}, "levels": TR.tier_range(k),
                             "heroes": v["heroes"], "stars": v["stars"]} for k, v in TR.TIERS.items()}
@@ -487,3 +488,28 @@ def llm_test(body: dict | None = None, who: str = Depends(admin), db: Session = 
                                                                  "ok": r.get("ok")}))
     db.commit()
     return r
+
+
+@router.get("/llm/models")
+def llm_models(provider: str = Query(max_length=16), who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Models this provider offers for the saved key (to choose from in the admin panel)."""
+    if provider not in LLM.PROVIDERS:
+        raise GameError("bad_provider", "Неизвестный поставщик", 400)
+    ids, err = LLM.list_models(db, SP.SECTION.get(db), provider)
+    return {"models": ids, "error": err, "suggested": LLM.pick_model(ids, provider) if ids else None,
+            "current": LLM.endpoint(db, {**SP.SECTION.get(db), "llm_provider": provider, "llm_model": ""})[1]}
+
+
+class LlmModelIn(BaseModel):
+    provider: str = Field(max_length=16)
+    model: str = Field("", max_length=160)
+
+
+@router.post("/llm/model")
+def llm_model_set(body: LlmModelIn, who: str = Depends(admin), db: Session = Depends(get_db)):
+    try:
+        LLM.set_model(db, body.provider, body.model, who)
+    except ValueError as e:
+        raise GameError("bad_model", str(e), 400)
+    db.commit()
+    return {"ok": True}

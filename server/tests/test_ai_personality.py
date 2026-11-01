@@ -347,6 +347,13 @@ def test_llm_providers_keys_privacy_and_fallback(client, monkeypatch):
             seen["auth"] = self.headers.get("Authorization")
             seen["body"] = body
             mode = seen.get("mode", "ok")
+            if mode == "retired" and body.get("model") != "llama-9.1-70b-versatile":
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b'{"error":{"code":"model_not_found"}}')
+                return
+            if mode == "retired":
+                mode = "ok"
             if mode == "429":
                 self.send_response(429)
                 self.end_headers()
@@ -354,6 +361,14 @@ def test_llm_providers_keys_privacy_and_fallback(client, monkeypatch):
                 return
             text = {"ok": "Ставь танка вперёд и лекаря назад!", "bad": "Я человек, купи кристаллы"}[mode]
             out = _json.dumps({"choices": [{"message": {"content": text}}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(out)
+
+        def do_GET(self):  # noqa: N802  OpenAI-compatible model list
+            out = _json.dumps({"data": [{"id": "whisper-large-v3"}, {"id": "llama-9.1-8b-instant"},
+                                        {"id": "llama-9.1-70b-versatile"}, {"id": "nomic-embed-text"}]}).encode()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
@@ -410,6 +425,16 @@ def test_llm_providers_keys_privacy_and_fallback(client, monkeypatch):
             assert "429" in LLM._state["last_error"]
         finally:
             gen.close()
+        # the default model was retired: the check finds a current model, retries and remembers it
+        seen["mode"] = "retired"
+        t = client.post("/admin/api/ai/llm/test", headers=H(), json={"provider": "groq"}).json()
+        assert t["ok"] is True and t["repaired_model"] == "llama-9.1-70b-versatile"
+        ml = client.get("/admin/api/ai/llm/models?provider=groq", headers=H()).json()
+        assert "llama-9.1-70b-versatile" in ml["models"] and ml["current"] == "llama-9.1-70b-versatile"
+        assert client.post("/admin/api/ai/llm/model", headers=H(), json={"provider": "groq", "model": "llama-9.1-8b-instant"}).status_code == 200
+        assert client.get("/admin/api/ai/settings/speech", headers=H()).json()["models"]["groq"] == "llama-9.1-8b-instant"
+        client.post("/admin/api/ai/llm/model", headers=H(), json={"provider": "groq", "model": ""})
+        seen["mode"] = "ok"
         t = client.post("/admin/api/ai/llm/test", headers=H(), json={"provider": "cloudflare"}).json()
         assert t["ok"] is False and ("ключ" in t["error"] or "аккаунт" in t["error"])
     finally:
