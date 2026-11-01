@@ -286,7 +286,8 @@ def art_catalog(who: str = Depends(admin)):
     for sec in sections:
         for s in sec["slots"]:
             s["staged"] = idx["files"].get(s["path"])
-    return {"sections": sections, "published_version": idx.get("published_version", 0),
+    return {"sections": sections, "published_version": idx.get("published_version", 0), "anim_keys": art.ANIM_KEYS,
+            "models_version": idx.get("models_version", 0),
             "published_at": idx.get("published_at"), "dirty": bool(idx.get("dirty")) or any(not v.get("published") for v in idx["files"].values())}
 
 
@@ -303,6 +304,24 @@ async def art_upload(request: Request, path: str = Query(max_length=120), who: s
     return {"path": path, **meta}
 
 
+class ModelSettingsIn(BaseModel):
+    scale: float = Field(1.0, ge=0.05, le=20)
+    anims: dict[str, str] = Field(default_factory=dict)
+
+
+@router.post("/art/model-settings")
+def art_model_settings(body: ModelSettingsIn, path: str = Query(max_length=120), who: str = Depends(admin),
+                       db: Session = Depends(get_db)):
+    """Animation mapping (game action -> animation in the GLB) and scale of an uploaded 3D model."""
+    try:
+        meta = art.set_model_settings(path, body.scale, body.anims)
+    except ValueError as e:
+        raise GameError("bad_model", str(e), 400)
+    _log(db, who, "art_model_settings", path=path, scale=body.scale, anims=body.anims)
+    db.commit()
+    return {"path": path, **meta, "anim_keys": art.ANIM_KEYS}
+
+
 @router.post("/art/remove")
 def art_remove(path: str = Query(max_length=120), who: str = Depends(admin), db: Session = Depends(get_db)):
     art.unstage(path)
@@ -316,8 +335,10 @@ def art_file(path: str = Query(max_length=120), who: str = Depends(admin)):
     f = art.staged_file(path)
     if f is None:
         raise GameError("not_found", "Файл не загружен", 404)
-    head = f.read_bytes()[:3]
-    return FileResponse(f, media_type="image/jpeg" if head == b"\xff\xd8\xff" else "image/png")
+    head = f.read_bytes()[:4]
+    if head == b"glTF":
+        return FileResponse(f, media_type="model/gltf-binary")
+    return FileResponse(f, media_type="image/jpeg" if head[:3] == b"\xff\xd8\xff" else "image/png")
 
 
 @router.post("/art/publish")

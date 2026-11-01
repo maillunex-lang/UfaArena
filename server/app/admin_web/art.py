@@ -16,7 +16,15 @@ from ..game import data as D
 STYLE = ("dark fantasy mobile game art, Ural mountains and Bashkir ornament motifs, deep graphite and dark teal, "
          "polished gold accents, premium, high detail, no text, no watermark")
 MAX_BYTES = 8 * 1024 * 1024
+MODEL_MAX_BYTES = 40 * 1024 * 1024
 PACKAGE_ID = "ui.art"
+MODELS_PACKAGE_ID = "ui.models3d"   # 3D models and maps: a separate package, so a new picture never re-downloads them
+TERRITORIES = {"nature": "Природа", "settlements": "Поселения", "dungeons": "Подземелья", "resources": "Рудники и ресурсы",
+               "complexes": "Древние комплексы", "dimensions": "Иные измерения"}
+ANIM_KEYS = {"idle": "Стойка (повторяется)", "run": "Бег (повторяется)", "attack": "Обычная атака", "skill": "Умение",
+             "ultimate": "Ульта", "hit": "Получил удар", "death": "Смерть", "cheer": "Победа"}
+MODEL_REQ = ("Format: binary glTF (.glb), up to 40 MB, Y-up, 1 unit = 1 metre, origin at the feet, facing +Z. "
+             "Mobile budget: up to 15k triangles, PBR textures 1024-2048 px embedded in the file.")
 
 CURRENCY_ICONS = {
     "gold": ("Золото", "a stack of ancient gold coins with a Bashkir sun ornament"),
@@ -196,6 +204,8 @@ def catalog() -> list[dict]:
         ("caravan", "Караван", "Экран «Караван»: картинки девяти модулей (вместо встроенных иконок) и значок каравана на карте маршрута. Портреты членов совета берутся из разделов «Портреты героев» (Азамат, Гульназ, Юрек, Зархан) и «Сюжет и обучение» (Ильсур, Гаухар-апа). Видно с версии приложения после финальной сборки Living World AI."),
         ("shop", "Магазин", "Оформление магазина: табличка, кнопки меню разделов, карточка товара, золотая кнопка цены, лента-метка, баннеры разделов и картинка каждого товара. Карточки и кнопки растягиваются (9-slice)."),
         ("chat", "Оформление чата", "Элементы экрана чата. Рамки и кнопки растягиваются (9-slice), поэтому края и углы должны быть цельными."),
+        ("models", "3D-модели героев и врагов", "Замена 3D-модели героя или врага в бою, на главном экране и в портретах — файл GLB со скелетом и анимациями. После загрузки сопоставьте анимации файла действиям игры (стойка, атака, умение…) и задайте масштаб. Работает в нынешнем приложении: модель приходит пакетом контента, без нового APK. Без модели используется встроенная."),
+        ("maps3d", "3D-карты и сцены боя", "3D-карта региона (экран кампании) и сцена боя для каждого типа местности (и отдельно — для боссов) в формате GLB. Точки этапов игра ставит сама по координатам из редактора карты. Нужна версия приложения новее 0.7.5 (следующая сборка APK)."),
         ("guild", "Знамёна гильдий", "Знамёна гильдий (выбираются в «Управление гильдией» → «Флаг»). Вертикальное знамя на перекладине, прозрачный фон."),
     ]
     sections = [{"id": i, "title": t, "hint": h, "slots": []} for i, t, h in sec]
@@ -357,6 +367,41 @@ def catalog() -> list[dict]:
         "Портрет старого мудреца-сказителя, по пояс, смотрит в кадр.",
         build_prompt("Fantasy portrait of an old Bashkir storyteller-chronicler (sesen) with a long grey beard, fur hat, holding a kurai flute and an old book",
                      "512×512", "bust shot, face in the upper third, looking at the viewer", TRANSPARENT), True))
+    # 3D models of heroes and enemies (GLB with a skeleton and animations)
+    for h in list(D.HEROES) + _custom_heroes():
+        enemy = h.get("is_enemy")
+        looks = (h.get("extra") or {}).get("appearance", "")
+        cls = CLASS_EN.get(h.get("class_code", ""), "hero")
+        prompt = (f"3D game character for a mobile RPG: {h['name']}, a {cls} of the {FACTION_EN.get(h.get('faction_code', ''), 'Ural lands')}"
+                  + (f". Appearance (Russian description): {looks}" if looks else "")
+                  + (". Huge monstrous boss" if str(h.get("code", "")).startswith(("rb_", "e_boss")) else "")
+                  + ". Stylised dark fantasy, Ural mountains and Bashkir ornament motifs, readable silhouette, clean topology, "
+                    "humanoid skeleton (auto-rig friendly), A-pose. Animations: Idle (loop), Run (loop), Attack, Skill, "
+                    "Ultimate, Hit, Death, Victory.\n" + MODEL_REQ)
+        by["models"]["slots"].append({"path": f"models/heroes/{h['code']}.glb", "title": h["name"] + (" (враг)" if enemy else ""),
+                                      "size": "GLB", "where": "бой, главный экран, портреты, карточки героев",
+                                      "alpha": False, "formats": "GLB", "model": True, "kind": "hero",
+                                      "advice": "Скелет и анимации внутри файла. Рост ~1,8 м, ступни в начале координат, лицом вперёд (+Z).",
+                                      "prompt": prompt})
+    for r in D.REGIONS:
+        look = REGION_LOOKS.get(r["code"], f"landscape of {r['name']} in the Southern Urals")
+        by["maps3d"]["slots"].append({
+            "path": f"maps/regions/{r['code']}.glb", "title": f"3D-карта региона «{r['name']}»", "size": "GLB",
+            "where": "экран кампании: карта региона (точки этапов игра ставит по редактору карты)", "alpha": False,
+            "formats": "GLB", "model": True, "kind": "map",
+            "advice": "Диорама ~12 м в ширину и ~30 м в длину (путь снизу вверх), ровные площадки под точки этапов, без персонажей.",
+            "prompt": (f"Stylised 3D diorama of a game campaign region: {look}, Southern Urals. Long vertical strip about 12 m wide "
+                       f"and 30 m long, the journey goes from the bottom to the top, a clear walkable path with flat clearings for "
+                       f"stage markers, river and terrain features, no characters, no text. Up to 80k triangles.\n{MODEL_REQ}")})
+    for t, tname in list(TERRITORIES.items()) + [("boss", "Бой с боссом")]:
+        by["maps3d"]["slots"].append({
+            "path": f"maps/battle/{t}.glb", "title": f"Сцена боя: {tname}", "size": "GLB",
+            "where": "экран боя (арена вокруг отрядов)", "alpha": False, "formats": "GLB", "model": True, "kind": "arena",
+            "advice": "Круглая площадка ~13 м, ровный центр 10×6 м под отряды, декорации только по краю; камера сверху-сбоку.",
+            "prompt": (f"Stylised 3D battle arena diorama for a mobile RPG, theme: {tname} of the Southern Urals"
+                       + (", ominous boss lair" if t == "boss" else "") + ". Circular ground about 13 m across with a flat open "
+                       "centre 10 x 6 m where two squads stand, decorations (rocks, trees, ruins, banners) only around the edge, "
+                       f"no characters, no text. Up to 50k triangles.\n{MODEL_REQ}")})
     # caravan (lore stage S4): modules and the wagon marker
     module_looks = {
         "summon_hall": "a nomad summoning tent of felt with a glowing violet star above the smoke hole",
@@ -547,10 +592,71 @@ def image_size(data: bytes) -> tuple[str, int, int] | None:
     return None
 
 
+def glb_info(data: bytes) -> dict | None:
+    """Validates a binary glTF and reads what the admin needs: animation names, meshes, nodes."""
+    if len(data) < 20 or data[:4] != b"glTF":
+        return None
+    try:
+        ver, length = struct.unpack("<II", data[4:12])
+        clen, ctype = struct.unpack("<II", data[12:20])
+        if ver != 2 or ctype != 0x4E4F534A:  # "JSON"
+            return None
+        doc = json.loads(data[20:20 + clen].decode("utf-8"))
+    except (struct.error, ValueError, UnicodeDecodeError):
+        return None
+    return {"animations": [a.get("name") or f"animation_{i}" for i, a in enumerate(doc.get("animations", []))],
+            "meshes": len(doc.get("meshes", [])), "nodes": len(doc.get("nodes", [])), "skins": len(doc.get("skins", []))}
+
+
+def guess_anims(names: list[str]) -> dict:
+    """Maps the model's animation names to game actions by common words (editable in the admin panel)."""
+    low = {n: n.lower() for n in names}
+    words = {"idle": ["idle", "stand", "breath"], "run": ["run", "walk", "move"], "attack": ["attack", "slash", "strike", "punch", "shoot"],
+             "skill": ["skill", "cast", "spell", "special"], "ultimate": ["ultimate", "ult", "super"], "hit": ["hit", "damage", "hurt"],
+             "death": ["death", "die", "dead"], "cheer": ["victory", "cheer", "win", "celebrat"]}
+    out = {}
+    for key, ws in words.items():
+        for n, l in low.items():
+            if any(w in l for w in ws) and n not in out.values():
+                out[key] = n
+                break
+    return out
+
+
+def set_model_settings(path: str, scale: float, anims: dict) -> dict:
+    idx = index()
+    if path not in idx["files"] or idx["files"][path].get("format") != "glb":
+        raise ValueError("Сначала загрузите файл модели")
+    meta = idx["files"][path]
+    names = set(meta.get("animations", []))
+    clean = {k: v for k, v in (anims or {}).items() if k in ANIM_KEYS and v in names}
+    meta["scale"] = max(0.05, min(20.0, float(scale)))
+    meta["anims"] = clean
+    meta["published"] = False
+    idx["dirty_models"] = True
+    _save_index(idx)
+    return meta
+
+
 def stage(path: str, data: bytes) -> dict:
     info_slot = slot_info(path)
     if info_slot is None:
         raise ValueError("Неизвестный слот графики")
+    if info_slot.get("model"):
+        if len(data) > MODEL_MAX_BYTES:
+            raise ValueError("Файл модели больше 40 МБ")
+        gi = glb_info(data)
+        if gi is None:
+            raise ValueError("Нужен файл GLB (binary glTF 2.0)")
+        dst = staging() / path
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        dst.write_bytes(data)
+        idx = index()
+        idx["files"][path] = {"size": len(data), "format": "glb", "uploaded_at": utcnow().isoformat(), "published": False,
+                              "scale": 1.0, "anims": guess_anims(gi["animations"]), **gi}
+        idx["dirty_models"] = True
+        _save_index(idx)
+        return idx["files"][path]
     if len(data) > MAX_BYTES:
         raise ValueError("Файл больше 8 МБ")
     info = image_size(data)
@@ -566,6 +672,7 @@ def stage(path: str, data: bytes) -> dict:
     dst.write_bytes(data)
     idx = index()
     idx["files"][path] = {"size": len(data), "width": w, "height": h, "format": fmt, "uploaded_at": utcnow().isoformat(), "published": False}
+    idx["dirty_art"] = True
     _save_index(idx)
     return idx["files"][path]
 
@@ -574,8 +681,10 @@ def unstage(path: str) -> None:
     idx = index()
     if path in idx["files"]:
         (staging() / path).unlink(missing_ok=True)
+        was_model = idx["files"][path].get("format") == "glb"
         del idx["files"][path]
         idx["dirty"] = True
+        idx["dirty_models" if was_model else "dirty_art"] = True
         _save_index(idx)
 
 
@@ -584,12 +693,56 @@ def staged_file(path: str) -> Path | None:
     return p if path in index()["files"] and p.is_file() else None
 
 
+def _publish_models(db: Session, admin: str, idx: dict) -> dict | None:
+    """3D package: GLB files + generated `looks/<hero>.json` (rig, animation mapping, scale) read by the client."""
+    from ..content import pack, service
+    from sqlalchemy import func, select
+    from ..models import ContentPackageVersion
+    files: dict[str, bytes] = {}
+    for path, meta in sorted(idx["files"].items()):
+        if meta.get("format") != "glb":
+            continue
+        f = staging() / path
+        if not f.is_file():
+            continue
+        files[f"art/{path}"] = f.read_bytes()
+        if path.startswith("models/heroes/"):
+            code = path.rsplit("/", 1)[-1][:-4]
+            look = {"rig": f"content:art/{path}", "scale": meta.get("scale", 1.0), "keep": [], "anims": meta.get("anims", {})}
+            files[f"looks/{code}.json"] = json.dumps(look, ensure_ascii=False).encode()
+    if not files:
+        files["art/models/README.txt"] = "3D-модели из админ-панели пока не загружены.".encode()
+    last = db.scalar(select(func.max(ContentPackageVersion.version)).where(ContentPackageVersion.package_id == MODELS_PACKAGE_ID)) or 0
+    version = max(int(idx.get("models_version", 0)), int(last)) + 1
+    meta = {"package_id": MODELS_PACKAGE_ID, "version": version, "kind": "heroes", "title": "3D-модели и карты из админ-панели",
+            "min_client_version": "0.6.3", "dependencies": [], "required": False}
+    data = pack.build(meta, files)
+    pack.validate(data)
+    m = service.publish(db, data, channel="dev", notes=f"models v{version}: {len(files)} файлов", admin=admin)
+    idx["models_version"] = version
+    idx["dirty_models"] = False
+    return {"version": version, "files": len(files), "manifest": m.version}
+
+
 def publish(db: Session, admin: str) -> dict:
-    """Builds the full ui.art package from every staged file and publishes it to the dev channel."""
+    """Builds the ui.art package (pictures) and, if 3D files changed, the ui.models3d package; publishes to dev."""
     from ..content import pack, service
     idx = index()
+    models = None
+    if idx.get("dirty_models") or (any(v.get("format") == "glb" for v in idx["files"].values()) and not idx.get("models_version")):
+        models = _publish_models(db, admin, idx)
+        if not idx.get("dirty_art") and idx.get("published_version"):
+            _save_index(idx)  # only 3D changed: players do not re-download the pictures package
+            for v in idx["files"].values():
+                if v.get("format") == "glb":
+                    v["published"] = True
+            idx["dirty"] = False
+            _save_index(idx)
+            return {"version": idx["published_version"], "files": 0, "manifest": models["manifest"], "models": models}
     files = {}
     for path in sorted(idx["files"]):
+        if idx["files"][path].get("format") == "glb":
+            continue
         f = staging() / path
         if f.is_file():
             files[f"art/{path}"] = f.read_bytes()
@@ -607,7 +760,8 @@ def publish(db: Session, admin: str) -> dict:
     idx["published_version"] = version
     idx["published_at"] = utcnow().isoformat()
     idx["dirty"] = False
+    idx["dirty_art"] = False
     for v in idx["files"].values():
         v["published"] = True
     _save_index(idx)
-    return {"version": version, "files": len(files), "manifest": m.version}
+    return {"version": version, "files": len(files), "manifest": m.version, "models": models}

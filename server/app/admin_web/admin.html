@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Уралия — админ-панель</title>
+<script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
 <style>
 :root{--bg:#0b1416;--panel:#10201f;--panel2:#14292a;--line:#2c4a48;--gold:#e0ad4f;--gold2:#ffe3a1;--teal:#3fd6c8;
 --text:#eef3f2;--muted:#9fb7b4;--red:#ff7a6b;--green:#7fe39a}
@@ -146,26 +147,35 @@ async art(){const d=await api('/web/art');
  <div class="row"><span>Опубликовано: версия ${d.published_version} · ${time(d.published_at)} ${d.dirty?'<span class="tag g">есть неопубликованные изменения</span>':''}</span><button class="primary" id="apub">Опубликовать для игроков</button></div></div>
  <nav style="border:0;padding:0 0 12px;background:none;flex-wrap:wrap">${d.sections.map(s=>`<button class="${s.id===artSec?'on':''}" data-sec="${s.id}">${esc(s.title)} (${s.slots.filter(x=>x.staged).length}/${s.slots.length})</button>`).join('')}</nav><div id="slots"></div>`;
  document.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{artSec=b.dataset.sec;sessionStorage.removeItem('afind');VIEWS.art()});
- $('#apub').onclick=async()=>{if(!confirm('Опубликовать загруженную графику для всех игроков?'))return;const r=await api('/web/art/publish','POST',{});toast(`Опубликовано: версия ${r.version}, файлов ${r.files}`);VIEWS.art()};
+ $('#apub').onclick=async()=>{if(!confirm('Опубликовать загруженную графику для всех игроков?'))return;const r=await api('/web/art/publish','POST',{});toast(`Опубликовано: графика v${r.version}`+(r.models?`, 3D-модели v${r.models.version}`:''));VIEWS.art()};
  const q=(sessionStorage.getItem('afind')||'').toLowerCase();
  const sec=q?{id:'search',title:'Поиск',hint:'Результаты поиска по всем группам.',slots:d.sections.flatMap(x=>x.slots.filter(sl=>(sl.title+' '+sl.path).toLowerCase().includes(q)))}:(d.sections.find(s=>s.id===artSec)||d.sections[0]);
  $('#afind').value=sessionStorage.getItem('afind')||'';
  $('#afind').onchange=()=>{sessionStorage.setItem('afind',$('#afind').value.trim());VIEWS.art()};
  $('#slots').innerHTML=`<div class="card"><div class="row"><p class="muted small" style="flex:1 1 300px">${esc(sec.hint)} Нажмите на текст промпта или на кнопку — он скопируется.</p><button class="copy" id="copyall">📋 Копировать все промпты раздела</button></div><div class="grid">${sec.slots.map((s,i)=>`<div class="slot" data-i="${i}">
-  <b>${esc(s.title)}</b><span class="small">Размер: <span class="size">${esc(s.size)} px</span> · ${esc(s.formats)}${s.alpha?' <span class="tag g">прозрачный фон</span>':''} <span class="muted">· ${esc(s.path)}</span></span>
+  <b>${esc(s.title)}</b><span class="small">${s.model?'Формат: <span class="size">GLB (3D)</span>':`Размер: <span class="size">${esc(s.size)} px</span> · ${esc(s.formats)}`}${s.alpha?' <span class="tag g">прозрачный фон</span>':''} <span class="muted">· ${esc(s.path)}</span></span>
   <span class="small muted">Где в игре: ${esc(s.where||'')}</span>
-  <div class="pv">${s.staged?`<img data-src="${esc(s.path)}" alt="">`:'<div class="empty">Встроенная графика<br>(слот пуст)</div>'}</div>
-  ${s.staged?`<span class="small">${s.staged.width}×${s.staged.height} · ${(s.staged.size/1024).toFixed(0)} КБ ${s.staged.published?'<span class="tag">в игре</span>':'<span class="tag g">не опубликовано</span>'}</span>`:''}
+  <div class="pv">${s.staged?(s.model?`<model-viewer data-glb="${esc(s.path)}" camera-controls auto-rotate autoplay shadow-intensity="1" style="width:100%;height:150px;background:#081010"></model-viewer>`:`<img data-src="${esc(s.path)}" alt="">`):`<div class="empty">${s.model?'Встроенная модель':'Встроенная графика'}<br>(слот пуст)</div>`}</div>
+  ${s.staged?(s.model?`<span class="small">${(s.staged.size/1048576).toFixed(1)} МБ · анимаций ${(s.staged.animations||[]).length} · скелет ${s.staged.skins?'есть':'нет'} ${s.staged.published?'<span class="tag">в игре</span>':'<span class="tag g">не опубликовано</span>'}</span>
+   ${s.kind==='hero'?`<div class="small" data-mset="${i}">${Object.entries(d.anim_keys).map(([k,n])=>`<label class="small" style="display:block">${esc(n)}<select data-ak="${k}"><option value="">— встроенная —</option>${(s.staged.animations||[]).map(a=>`<option ${s.staged.anims?.[k]===a?'selected':''}>${esc(a)}</option>`).join('')}</select></label>`).join('')}
+   <label class="small" style="display:block">Масштаб<input type="number" step="0.05" data-as value="${s.staged.scale??1}"></label><button class="small primary" data-asave="${i}">Сохранить анимации и масштаб</button></div>`:''}`
+   :`<span class="small">${s.staged.width}×${s.staged.height} · ${(s.staged.size/1024).toFixed(0)} КБ ${s.staged.published?'<span class="tag">в игре</span>':'<span class="tag g">не опубликовано</span>'}</span>`):''}
   <span class="small">${esc(s.advice)}</span><div class="prompt" data-copy="${i}" title="Нажмите, чтобы скопировать">${esc(s.prompt)}</div>
-  <div class="row"><button class="small copy" data-copy="${i}">📋 Копировать промпт</button><label class="btn small" style="text-align:center">Загрузить ${s.alpha?'PNG':'PNG / JPEG'}<input type="file" accept="${s.alpha?'image/png':'image/png,image/jpeg'}" data-up="${i}" style="display:none"></label>
+  <div class="row"><button class="small copy" data-copy="${i}">📋 Копировать промпт</button><label class="btn small" style="text-align:center">Загрузить ${s.model?'GLB':s.alpha?'PNG':'PNG / JPEG'}<input type="file" accept="${s.model?'.glb,model/gltf-binary':s.alpha?'image/png':'image/png,image/jpeg'}" data-up="${i}" style="display:none"></label>
   ${s.staged?`<button class="small danger" data-rm="${i}">Убрать</button>`:''}</div></div>`).join('')}</div></div>`;
+ document.querySelectorAll('model-viewer[data-glb]').forEach(async mv=>{const r=await fetch('/admin/api/web/art/file?path='+encodeURIComponent(mv.dataset.glb),{headers:hdr()});if(r.ok)mv.src=URL.createObjectURL(await r.blob())});
+ document.querySelectorAll('[data-asave]').forEach(b=>b.onclick=async()=>{const box=document.querySelector(`[data-mset="${b.dataset.asave}"]`);const an={};box.querySelectorAll('[data-ak]').forEach(x=>{if(x.value)an[x.dataset.ak]=x.value});
+  await api('/web/art/model-settings?path='+encodeURIComponent(sec.slots[+b.dataset.asave].path),'POST',{scale:+box.querySelector('[data-as]').value,anims:an});toast('Сохранено — опубликуйте, чтобы игроки получили');VIEWS.art()});
  document.querySelectorAll('img[data-src]').forEach(async im=>{const r=await fetch('/admin/api/web/art/file?path='+encodeURIComponent(im.dataset.src),{headers:hdr()});if(r.ok)im.src=URL.createObjectURL(await r.blob())});
  document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{const ok=await copyText(sec.slots[+b.dataset.copy].prompt);
   toast(ok?'Промпт скопирован — вставьте его в генератор изображений':'Не удалось скопировать: выделите текст промпта вручную',!ok)});
- $('#copyall').onclick=async()=>{const t=sec.slots.map(s=>`=== ${s.title} → файл ${s.path.split('/').pop()} (${s.size} px) ===\n${s.prompt}`).join('\n\n');
+ $('#copyall').onclick=async()=>{const t=sec.slots.map(s=>`=== ${s.title} → файл ${s.path.split('/').pop()} (${s.model?'GLB':s.size+' px'}) ===\n${s.prompt}`).join('\n\n');
   const ok=await copyText(t);toast(ok?`Скопированы все промпты раздела (${sec.slots.length})`:'Не удалось скопировать',!ok)};
  document.querySelectorAll('[data-up]').forEach(inp=>inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const s=sec.slots[+inp.dataset.up];
-  const r=await api('/web/art/upload?path='+encodeURIComponent(s.path),'POST',f,true);const [w,h]=s.size.split('×').map(Number);
+  if(s.model&&f.size>40*1048576)return toast('Файл модели больше 40 МБ',true);
+  const r=await api('/web/art/upload?path='+encodeURIComponent(s.path),'POST',f,true);
+  if(s.model){toast(`Модель загружена: анимаций ${(r.animations||[]).length}`+(s.kind==='hero'&&!(r.animations||[]).length?' — в файле нет анимаций!':''));VIEWS.art();return}
+  const [w,h]=s.size.split('×').map(Number);
   toast(`Загружено ${r.width}×${r.height}`+((w&&(r.width/r.height).toFixed(2)!==(w/h).toFixed(2))?' — пропорции отличаются от рекомендованных':''));VIEWS.art()});
  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{await api('/web/art/remove?path='+encodeURIComponent(sec.slots[+b.dataset.rm].path),'POST',{});VIEWS.art()})},
 

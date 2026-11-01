@@ -35,6 +35,35 @@ func build(territory: String, is_boss: bool) -> void:
 	Hex.environment(self, mood)
 	var sun := Hex.sun(self, 0.95 if mood == "day" else 0.55, Color(1, 0.95, 0.88) if mood == "day" else Color(0.85, 0.7, 1.0))
 	sun.rotation_degrees = Vector3(-55, -30, 0)
+	# admin-panel battle scene (Graphics → «3D-карты и сцены боя»): a GLB replaces the built-in arena
+	var custom := _custom_scene(territory, is_boss)
+	if custom:
+		add_child(custom)
+	else:
+		_build_builtin(territory, mood, tint)
+	if is_boss and not custom:
+		var portal := _ring_mesh(Color(0.7, 0.25, 1.0), 2.4, 2.75)
+		portal.position = Vector3(0, 0.2, 0)
+		add_child(portal)
+	camera = Camera3D.new()
+	camera.keep_aspect = Camera3D.KEEP_WIDTH  # fixed horizontal view on any phone aspect
+	camera.fov = 37.0
+	add_child(camera)
+	camera.current = true
+	_update_camera()
+
+
+func _custom_scene(territory: String, is_boss: bool) -> Node3D:
+	for key in (["boss", territory] if is_boss else [territory]):
+		var path := "art/maps/battle/%s.glb" % key
+		if Content.has(path):
+			var n := Content.model(path)
+			if n:
+				return n
+	return null
+
+
+func _build_builtin(territory: String, mood: String, tint: Color) -> void:
 	for q in range(-8, 9):
 		for r in range(-8, 9):
 			var d := Hex.dist(q, r)
@@ -47,16 +76,6 @@ func build(territory: String, is_boss: bool) -> void:
 			if rr > ARENA_R + 1.6 and p.z < 5.0 and _rng.randf() < 0.55:
 				_decorate(territory, p)
 	_build_circle(territory, mood)
-	if is_boss:
-		var portal := _ring_mesh(Color(0.7, 0.25, 1.0), 2.4, 2.75)
-		portal.position = Vector3(0, 0.2, 0)
-		add_child(portal)
-	camera = Camera3D.new()
-	camera.keep_aspect = Camera3D.KEEP_WIDTH  # fixed horizontal view on any phone aspect
-	camera.fov = 37.0
-	add_child(camera)
-	camera.current = true
-	_update_camera()
 
 
 ## Round stone arena with engraved rings, rune rays and a golden rim; torches and banners around it.

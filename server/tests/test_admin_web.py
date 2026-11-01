@@ -118,6 +118,9 @@ def test_art_catalog_groups_formats_and_jpeg(client):
     slots = [sl for s in cat["sections"] for sl in s["slots"]]
     assert len({sl["path"] for sl in slots}) == len(slots)  # no duplicates across groups
     for sl in slots:
+        if sl.get("model"):
+            assert sl["formats"] == "GLB" and "glb" in sl["prompt"].lower() and sl["where"]
+            continue
         w, h = sl["size"].split("×")
         assert f"exactly {w}x{h} pixels" in sl["prompt"] and sl["where"] and sl["formats"] in ("PNG", "PNG / JPEG")
     opaque = next(sl for sl in slots if sl["path"] == "ui/app_bg.png")
@@ -140,9 +143,47 @@ def test_every_art_slot_is_read_by_the_client():
                  "ui/chat/": '"ui/chat/"', "ui/buttons/": '"ui/buttons/%s.png"', "ui/cards/frame_r": '"ui/cards/frame_r%d.png"',
                  "regions/": '"regions/%s.png"', "ui/battle/": '"ui/battle/%s.png"',
                  "ui/shop/items/": '"ui/shop/items/%s.png"', "ui/home/shop_button": '"ui/home/shop_button.png"', "ui/story/": '"ui/story/%s.png"', "ui/shop/banner_": '"ui/shop/banner_%s.png"',
-                 "caravan/modules/": '"caravan/modules/%s.png"'}
+                 "caravan/modules/": '"caravan/modules/%s.png"', "models/heroes/": '"looks/%s.json"',
+                 "maps/regions/": '"art/maps/regions/%s.glb"', "maps/battle/": '"art/maps/battle/%s.glb"'}
     for sec in art.catalog():
         for sl in sec["slots"]:
             tpl = next((t for pre, t in templates.items() if sl["path"].startswith(pre)), None)
             needle = tpl if tpl else '"' + sl["path"] + '"'
             assert needle in src, f"{sl['path']} is not used by the client ({needle})"
+
+
+def test_glb_models_upload_settings_and_separate_package(client):
+    """3D models: GLB validated, animations read, mapping + scale saved, published as ui.models3d with looks json."""
+    import io
+    import json as _json
+    import zipfile
+    from pathlib import Path
+    from sqlalchemy import select
+    glb = (Path(__file__).resolve().parents[2] / "client/assets/third_party/kaykit_adventurers/Knight.glb").read_bytes()
+    assert client.post("/admin/api/web/art/upload?path=models/heroes/ilgiz.glb", content=b"not a model", headers=H()).status_code == 400
+    r = client.post("/admin/api/web/art/upload?path=models/heroes/ilgiz.glb", content=glb, headers=H())
+    assert r.status_code == 200 and r.json()["format"] == "glb" and len(r.json()["animations"]) > 5
+    anims = r.json()["animations"]
+    assert r.json()["anims"].get("idle")  # guessed from the names
+    s = client.post("/admin/api/web/art/model-settings?path=models/heroes/ilgiz.glb", headers=H(),
+                    json={"scale": 1.2, "anims": {"idle": anims[0], "attack": anims[1], "bogus": "x"}}).json()
+    assert s["scale"] == 1.2 and "bogus" not in s["anims"]
+    assert client.get("/admin/api/web/art/file?path=models/heroes/ilgiz.glb", headers=H()).headers["content-type"] == "model/gltf-binary"
+    pub = client.post("/admin/api/web/art/publish", headers=H()).json()
+    assert pub.get("models") and pub["models"]["version"] >= 1
+    from app.core.db import get_db
+    from app.models import ContentPackageVersion
+    gen = get_db()
+    db = next(gen)
+    try:
+        row = db.scalar(select(ContentPackageVersion).where(ContentPackageVersion.package_id == "ui.models3d")
+                        .order_by(ContentPackageVersion.version.desc()))
+        assert row is not None
+        from app.content.store import path_for
+        z = zipfile.ZipFile(io.BytesIO(path_for(row.sha256).read_bytes()))
+        look = _json.loads(z.read("looks/ilgiz.json"))
+        assert look["rig"] == "content:art/models/heroes/ilgiz.glb" and look["scale"] == 1.2
+        assert "art/models/heroes/ilgiz.glb" in z.namelist()
+    finally:
+        gen.close()
+    client.post("/admin/api/web/art/remove?path=models/heroes/ilgiz.glb", headers=H())

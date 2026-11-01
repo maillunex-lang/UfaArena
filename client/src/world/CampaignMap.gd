@@ -34,7 +34,13 @@ func setup(region: Dictionary) -> void:
 	var occupied: Array[Vector3] = []
 	for n in nodes:
 		occupied.append(node_pos(n))
-	_build_terrain(occupied)
+	# admin-panel 3D region map (Graphics → «3D-карты и сцены боя»); stage markers stay at their map positions
+	var region_map := "art/maps/regions/%s.glb" % String(region.get("code", ""))
+	var custom: Node3D = Content.model(region_map) if Content.has(region_map) else null
+	if custom:
+		add_child(custom)
+	else:
+		_build_terrain(occupied)
 	_build_path()
 	for n in nodes:
 		_build_marker(n)
