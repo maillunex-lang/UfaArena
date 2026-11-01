@@ -126,7 +126,7 @@ func _build_hud() -> void:
 	if float(syn.get("bonus", 0)) > 0:
 		var sy := UI.label(" %s +%d%%" % [Game.faction_name(String(syn.faction)), int(float(syn.bonus) * 100)], 22,
 			Game.faction_color(String(syn.faction)), true)
-		sy.tooltip_text = "Бонус фракции: атака и здоровье"
+		sy.tooltip_text = "Бонус наследия: атака и здоровье"
 		pw_row.add_child(sy)
 	_timer_lbl = UI.label("1:30", 28, UI.MUTED)
 	pw_row.add_child(_timer_lbl)

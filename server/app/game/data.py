@@ -17,11 +17,11 @@ RARITIES = {
 RARITY_MULT = {1: 1.0, 2: 1.12, 3: 1.25, 4: 1.42, 5: 1.62, 6: 1.85}
 
 # Factions & classes come from the roster (docs/design/URALIA_HERO_FORGE_12_Heroes.md).
-# The enemy faction «Порождения Шульгана» stays as a non-playable faction for campaign foes.
+# The enemy faction «Порождения Глубины» (code "shulgan" kept for saved data) stays as a non-playable faction for campaign foes.
 from . import roster as _R
 
 FACTIONS = [dict(f, is_rare=False) for f in _R.factions()] + [
-    dict(code="shulgan", name="Порождения Шульгана", strong_against=None, is_rare=False, emblem="shulgan",
+    dict(code="shulgan", name="Порождения Глубины", strong_against=None, is_rare=False, emblem="shulgan",
          color="#8a5bd6", description="Тени подземного мира, пробудившиеся после Раскола. Только противники."),
 ]
 CLASSES = [dict(code=c["code"], name=c["name"], role=c["role"]) for c in _R.classes()]
@@ -36,8 +36,8 @@ HEROES = [
     dict(code="mirgali", name="Миргали", title="Лесоруб Ашкадара", faction_code="agidel", class_code="warrior",
          rarity=1, base_hp=820, base_atk=86, base_def=30, base_spd=96, model="barbarian",
          skill=dict(kind="strike", name="Удар топора", power=1.9, desc="Мощный удар по ближайшему врагу."),
-         lore="Рубит сухостой в борах у Ашкадара и сухие корни Шульгана."),
-    dict(code="gulnaz", name="Гульназ", title="Травница Агидели", faction_code="agidel", class_code="healer",
+         lore="Рубит сухостой в приречных борах и сухие корни, проросшие из Глубины."),
+    dict(code="gulnaz", name="Гульназ", title="Травница переправы", faction_code="agidel", class_code="healer",
          rarity=2, base_hp=700, base_atk=58, base_def=26, base_spd=104, model="mage",
          skill=dict(kind="heal", name="Отвар чабреца", power=1.6, desc="Лечит союзника с наименьшим здоровьем."),
          lore="Собирает травы на склонах шиханов и помнит песни бабушки."),
@@ -61,7 +61,7 @@ HEROES = [
          rarity=4, base_hp=820, base_atk=140, base_def=30, base_spd=130, model="rogue_hooded",
          skill=dict(kind="strike", name="Клинок зари", power=2.6, desc="Удар по самому слабому врагу."),
          lore="Её имя означает «утренняя звезда». Никто не видел её лица."),
-    dict(code="aigul", name="Айгуль", title="Голос Агидели", faction_code="agidel", class_code="mage",
+    dict(code="aigul", name="Айгуль", title="Голос реки", faction_code="agidel", class_code="mage",
          rarity=5, base_hp=880, base_atk=150, base_def=32, base_spd=110, model="mage",
          skill=dict(kind="aoe", name="Половодье", power=1.45, desc="Волна, поражающая всех врагов."),
          lore="Говорят, река отвечает ей, когда она поёт."),
@@ -69,7 +69,7 @@ HEROES = [
          rarity=6, base_hp=1000, base_atk=130, base_def=40, base_spd=120, model="mage_gold",
          skill=dict(kind="heal", name="Крыло рассвета", power=2.2, desc="Сильное исцеление и щит союзнику."),
          lore="Образ из эпоса: дух-покровительница, вернувшаяся к людям в час беды."),
-    # --- enemies (Порождения Шульгана)
+    # --- enemies (Порождения Глубины)
     dict(code="e_minion", name="Костяной прислужник", faction_code="shulgan", class_code="warrior", rarity=1,
          base_hp=520, base_atk=58, base_def=18, base_spd=90, model="skeleton_minion", is_enemy=True, summonable=False,
          skill=dict(kind="strike", name="Укус", power=1.5, desc="")),
@@ -82,7 +82,7 @@ HEROES = [
     dict(code="e_mage", name="Шаман подземья", faction_code="shulgan", class_code="mage", rarity=3,
          base_hp=640, base_atk=90, base_def=22, base_spd=100, model="skeleton_mage", is_enemy=True, summonable=False,
          skill=dict(kind="aoe", name="Чёрный туман", power=0.9, desc="")),
-    dict(code="e_boss_toratau", name="Страж Кургана", title="Узник Торатау", faction_code="shulgan",
+    dict(code="e_boss_toratau", name="Страж Кургана", title="Страж прохода в Глубь", faction_code="shulgan",
          class_code="guardian", rarity=5, base_hp=2400, base_atk=105, base_def=50, base_spd=86,
          model="skeleton_boss", is_enemy=True, summonable=False,
          skill=dict(kind="aoe", name="Обвал", power=1.2, desc="")),
@@ -118,7 +118,7 @@ RAID_BOSSES = [
          class_code="summoner", rarity=6, base_hp=5200, base_atk=110, base_def=75, base_spd=76,
          model="tree", is_enemy=True, summonable=False, skill=dict(kind="aoe", name="Шипы", power=1.2, desc=""),
          kit=_boss_kit("Хлёст ветви", "Пыльца забвения", "Корни-оковы", "Лес шипов", 0.7, 1.2)),
-    dict(code="rb_shulgan_shade", name="Тень Шульгана", title="Владыка подземья", faction_code="shulgan",
+    dict(code="rb_shulgan_shade", name="Тень Древнего", title="Воля из Глубины", faction_code="shulgan",
          class_code="mage", rarity=6, base_hp=4500, base_atk=140, base_def=60, base_spd=95,
          model="skeleton_mage", is_enemy=True, summonable=False, skill=dict(kind="aoe", name="Тьма", power=1.4, desc=""),
          kit=_boss_kit("Касание тьмы", "Шёпот бездны", "Хватка теней", "Пожиратель света", 0.65, 1.5)),
@@ -136,14 +136,13 @@ HEROES += _R.new_heroes()
 STARTER_HEROES = ["azamat", "yurek", "safariy", "tan_chechek"]
 ONBOARDING_SUMMON_HERO = "ai_tulgan"  # guaranteed first summon in onboarding (Редкий, Поддержка)
 
-# Region 1. Real places: шиханы Торатау, Юрактау, Куштау, Шахтау (Ишимбайский /
-# Стерлитамакский р-ны), реки Белая (Агидель) и Ашкадар, г. Стерлитамак.
-# Фэнтезийная интерпретация мест — гибридная структура кампании.
+# Land I «Таулар — край Одиноких Гор» (approved lore, docs/lore). Inspired by the shikhans above the Agidel valley
+# (Bashkortostan); names in the game are original (decision D-02). Codes are unchanged, so player progress is kept.
 REGIONS = [
-    dict(code="r1_shikhany", order=1, name="Шиханы Приагиделья",
-         real_place="Стерлитамакский и Ишимбайский районы, Республика Башкортостан",
-         description="Четыре одиноких горы-шихана над долиной Агидели. После Раскола "
-                     "из-под Торатау потянулись тени Шульгана."),
+    dict(code="r1_shikhany", order=1, name="Таулар",
+         real_place="Край Одиноких Гор",
+         description="Речная долина, над которой стоят четыре одиноких горы. На вершине главной — первая из семи печатей "
+                     "Древнего. В ночь Раскола она разрушилась."),
 ]
 
 
@@ -152,66 +151,96 @@ def _e(code, level, slot):
 
 
 NODES = [
-    dict(code="1-1", order=1, name="Берег Агидели", territory="nature", real_place="р. Белая (Агидель)",
+    dict(code="1-1", order=1, name="Ночная переправа", territory="nature", real_place="Таулар",
          map_pos=[0, 0], enemies=[_e("e_minion", 1, 0), _e("e_minion", 1, 1)],
          rewards=dict(gold=120), first_clear_rewards=dict(crystals=50, summon_essence=1),
-         story=[dict(speaker="yurek", text="Следы ведут из ила… Это не звери. Кости поднимаются со дна Агидели!"),
-                dict(speaker="azamat", text="Держитесь за мной. Крепость не падёт в первый же день.")]),
-    dict(code="1-2", order=2, name="Бор у Ашкадара", territory="nature", real_place="р. Ашкадар",
+         story=[dict(speaker="narrator", text="Ночь Раскола. Земля гудит, над главной горой бьют белые вспышки."),
+                dict(speaker="yurek", text="Это не звери. Кости поднимаются со дна реки — прямо к переправе!"),
+                dict(speaker="azamat", text="Стражи Заставы, ко мне! Люди уходят — мы держим берег.")]),
+    dict(code="1-2", order=2, name="Сосновый бор", territory="nature", real_place="Таулар",
          map_pos=[1, 0], enemies=[_e("e_minion", 2, 0), _e("e_rogue", 2, 2), _e("e_minion", 2, 1)],
          rewards=dict(gold=150), first_clear_rewards=dict(crystals=50, nature_essence=30),
-         story=[dict(speaker="yurek", text="В этом бору я знаю каждую тропу. Чужих следов нет — только мертвецы. И это хуже.")]),
-    dict(code="1-3", order=3, name="Застава Стерлитамака", territory="settlements", real_place="г. Стерлитамак",
+         story=[dict(speaker="timer", text="Я уведу людей через бор! Догоняй, слышишь? Не геройствуй!"),
+                dict(speaker="yurek", text="В этом бору я знаю каждую тропу. Чужих следов нет — только мертвецы. И это хуже.")]),
+    dict(code="1-3", order=3, name="Застава у Белой горы", territory="settlements", real_place="Таулар",
          map_pos=[2, -1], enemies=[_e("e_warrior", 4, 0), _e("e_minion", 4, 1), _e("e_rogue", 4, 2), _e("e_minion", 4, 3)],
          rewards=dict(gold=180), first_clear_rewards=dict(crystals=60, summon_essence=1),
-         story=[dict(speaker="azamat", text="Застава держится. Люди уходят под защиту Крепости хранителей.")]),
-    dict(code="1-4", order=4, name="Склоны Юрактау", territory="nature", real_place="шихан Юрактау",
+         story=[dict(speaker="kahym", text="Застава не устоит. Печать на вершине трескается — я поднимусь к ней."),
+                dict(speaker="azamat", text="Хранитель Кахым, один вы не удержите! Хранитель, за ним — мы прикроем!")]),
+    dict(code="1-4", order=4, name="Расколотая печать", territory="dimensions", real_place="Таулар",
          map_pos=[3, -1], enemies=[_e("e_warrior", 6, 0), _e("e_minion", 6, 1), _e("e_mage", 6, 2), _e("e_rogue", 6, 3)],
          rewards=dict(gold=210), first_clear_rewards=dict(crystals=60, nature_essence=40),
-         story=[dict(speaker="tan_chechek", text="Чабрец на Юрактау ещё цветёт. Значит, увядание сюда не дошло. Пока.")]),
-    dict(code="1-5", order=5, name="Каменные залы Куштау", territory="dungeons", real_place="шихан Куштау",
+         story=[dict(speaker="narrator", text="Вершина. Каменный круг печати раскалывается, и осколок света врезается тебе в ладонь."),
+                dict(speaker="kahym", text="Он… выбрал тебя. Береги… Ильсура…"),
+                dict(speaker="ancient", text="Наконец-то кто-то услышал. Не бойся. Пока — не бойся."),
+                dict(speaker="ilsur", text="Значит, он выбрал тебя. Я — Ильсур, ученик Кахыма. Объяснять потом. Сейчас — живые.")]),
+    dict(code="1-5", order=5, name="Залы сбившихся знаков", territory="dungeons", real_place="Таулар",
          map_pos=[3, 0], enemies=[_e("e_warrior", 8, 0), _e("e_warrior", 8, 1), _e("e_mage", 8, 2), _e("e_rogue", 8, 3)],
          rewards=dict(gold=240), first_clear_rewards=dict(crystals=80, summon_essence=2),
-         story=[dict(speaker="safariy", text="Руны на стенах Куштау сбились с ритма. Кто-то переписал их чужим языком."),
-                dict(speaker="safariy", text="Не трогайте знаки. Знание — это ответственность, а не любопытство.")]),
-    dict(code="1-6", order=6, name="Разлом Шахтау", territory="resources", real_place="шихан Шахтау (карьер)",
+         story=[dict(speaker="safariy", text="Знаки на стенах сбились с ритма. Кто-то переписал их чужим языком."),
+                dict(speaker="ilsur", text="Не чужим — древним. И переписали недавно: резец ещё не потемнел."),
+                dict(speaker="ancient", text="Видишь? Кто-то очень ждал этой ночи.")]),
+    dict(code="1-6", order=6, name="Разлом Третьей горы", territory="resources", real_place="Таулар",
          map_pos=[4, 0], enemies=[_e("e_warrior", 10, 0), _e("e_minion", 10, 1), _e("e_rogue", 10, 2), _e("e_mage", 10, 3), _e("e_rogue", 10, 4)],
          rewards=dict(gold=270), first_clear_rewards=dict(crystals=80, ancient_seals=1),
-         story=[dict(speaker="zarkhan", text="Разлом свежий. Тот, кто его открыл, ушёл к Торатау. Никто не исчезает бесследно.")]),
-    dict(code="1-7", order=7, name="Тропа на Торатау", territory="complexes", real_place="шихан Торатау",
+         story=[dict(speaker="zarkhan", text="Разлом свежий. Тот, кто его открыл, ушёл к Кургану. Никто не исчезает бесследно."),
+                dict(speaker="narrator", text="У разлома ждут рыцари Ордена Печатей. Им нужен носитель осколка — «для общего блага».")]),
+    dict(code="1-7", order=7, name="Курганная тропа", territory="complexes", real_place="Таулар",
          map_pos=[5, -1], enemies=[_e("e_warrior", 13, 0), _e("e_warrior", 13, 1), _e("e_rogue", 13, 2), _e("e_mage", 13, 3), _e("e_mage", 13, 4)],
          rewards=dict(gold=300), first_clear_rewards=dict(crystals=100, summon_essence=2),
-         story=[dict(speaker="ai_tulgan", text="Я слышу голоса в ветре над Торатау. Они просят пройти. Значит, пройдём.")]),
-    dict(code="1-8", order=8, name="Вершина Торатау", territory="dimensions", real_place="шихан Торатау",
+         story=[dict(speaker="narrator", text="На тропе караван выживших окружают порождения Глубины. Их отгоняют люди в тёмных плащах — Последователи Древнего."),
+                dict(speaker="ai_tulgan", text="Они называют тебя «избранником». Мне не нравится, как они это говорят."),
+                dict(speaker="ancient", text="Они верят в меня. Это трогательно. И опасно — для них.")]),
+    dict(code="1-8", order=8, name="Врата Глубины", territory="dimensions", real_place="Таулар",
          map_pos=[6, -1], is_boss=True,
          enemies=[_e("e_boss_toratau", 19, 0), _e("e_warrior", 15, 1), _e("e_mage", 15, 3), _e("e_rogue", 15, 4)],
          rewards=dict(gold=400), first_clear_rewards=dict(crystals=300, summon_essence=5, ancient_seals=2),
-         story=[dict(speaker="azamat", text="Страж Кургана! Он стерёг проход в подземье с начала времён."),
-                dict(speaker="ai_tulgan", text="Держитесь вместе. Если мы победим, Агидель снова станет светлой.")]),
+         story=[dict(speaker="azamat", text="Страж Кургана! Он стерёг проход в Глубь с начала времён — и обезумел, когда пала печать."),
+                dict(speaker="ilsur", text="Освободим его от долга. Потом караван уйдёт на тракт — здесь людям не выжить."),
+                dict(speaker="ancient", text="Спасибо. Он слишком долго стоял на страже.")]),
 ]
 
 # ---------------------------------------------------------------- chapters 2-7 (temporary extension)
-# 60 extra stages so testers have room to progress. Real places of Bashkortostan; stage content is
-# procedurally laid out and will be replaced by hand-made chapters (see roadmap).
+# Lands II-VII of the approved lore (docs/lore/URALIA_WORLD_MAP.md). Enemy squads are still laid out procedurally;
+# hand-made branch chapters of season 1 replace them in stage S6 of docs/lore/URALIA_DEVELOPMENT_ROADMAP.md.
 EXTRA_CHAPTERS = [
-    ("r2_iremel", "Склоны Иремеля", "хребет Иремель, Учалинский и Белорецкий районы",
-     ["Подножие Иремеля", "Курумник", "Каменные реки", "Таганайский перевал", "Ущелье ветров", "Плато Иремеля",
-      "Ледяной ручей", "Старый скит", "Туман вершины", "Вершина Иремеля"]),
-    ("r3_shulgantash", "Пещера Шульган-Таш", "Капова пещера, Бурзянский район",
-     ["Вход в Шульган-Таш", "Зал Знаков", "Голубое озеро", "Купольный зал", "Галерея рисунков", "Подземная река",
-      "Зал Хаоса", "Бриллиантовый зал", "Сердце пещеры", "Трон Шульгана"]),
-    ("r4_nugush", "Долина Нугуша", "р. Нугуш и Нугушское водохранилище, Мелеузовский район",
-     ["Берег Нугуша", "Бортевые леса", "Водохранилище", "Утёс Кузгун", "Брод у Ташасты", "Медовые поляны",
-      "Скала Ташбаш", "Затопленная деревня", "Плотина", "Омут Нугуша"]),
-    ("r5_yangantau", "Горящая гора Янгантау", "гора Янгантау, Салаватский район",
-     ["Дорога на Янгантау", "Тёплые камни", "Курортная тропа", "Дымящиеся трещины", "Пещера жара",
-      "Огненный склон", "Источник Кургазак", "Обугленный лес", "Жерло горы", "Сердце огня"]),
-    ("r6_ufa_plateau", "Уфимское плато", "Уфимское плато, Караидельский район",
-     ["Край плато", "Карстовые воронки", "Павловское водохранилище", "Лесная дорога", "Красный ключ",
-      "Скалы Уфы", "Сплавная река", "Охотничья заимка", "Обрыв плато", "Ворота разлома"]),
-    ("r7_zilair", "Зилаирское плато", "Зилаирское плато, Зилаирский и Баймакский районы",
-     ["Степной подъём", "Ковыльное море", "Курганы", "Стоянка кочевников", "Перевал Ирендык",
-      "Солёное озеро", "Каменная баба", "Пепельная степь", "Предел разлома", "Сердце Предела"]),
+    ("r2_iremel", "Ирентау", "Высокий Хребет",
+     ["Подножие Хребта", "Курумник", "Каменные реки", "Перевал Ордена", "Ущелье ветров", "Крыша мира",
+      "Ледяной ручей", "Старый скит", "Туман вершины", "Печать Хребта"],
+     "Гольцы, каменные реки и перевалы горцев. В сердце главного перевала — ледяная плита второй печати, уже в трещинах. "
+     "Здесь крепость Ордена Печатей.",
+     [dict(speaker="narrator", text="Глава 2: Ирентау. Караван поднимается к перевалам горцев."),
+      dict(speaker="ilsur", text="Плита печати теплее изнутри, чем снаружи. Как будто… он дышит.")]),
+    ("r3_shulgantash", "Ташкуль", "Подгорный край",
+     ["Вход в Подгорье", "Зал Знаков", "Голубое озеро", "Купольный зал", "Галерея росписей", "Подземная река",
+      "Зал Хаоса", "Кристальный грот", "Нижние залы", "Печать Глубины"],
+     "Сеть пещер под центром мира: подземные озёра и залы с росписями-летописями. Здесь голос в осколке звучит громче всего.",
+     [dict(speaker="narrator", text="Глава 3: Ташкуль. Под всеми землями лежит одна тьма — и одна тайна."),
+      dict(speaker="ancient", text="Здесь я слышу тебя лучше. И ты — меня.")]),
+    ("r4_nugush", "Нугаш", "Озёрный край",
+     ["Озёрный берег", "Бортевые леса", "Город на сваях", "Утёс Ворона", "Брод беженцев", "Медовые поляны",
+      "Скала-голова", "Затопленный город", "Древняя плотина", "Тёмный омут"],
+     "Цепь озёр, туманы и города на сваях Озёрной республики. Родники четвёртой печати темнеют — вода показывает чужие воспоминания.",
+     [dict(speaker="narrator", text="Глава 4: Нугаш. К каравану тянутся беженцы с тёмных озёр."),
+      dict(speaker="gulnaz", text="Вода больна не грязью. Она помнит что-то страшное — и показывает это.")]),
+    ("r5_yangantau", "Янкар", "Земля неугасимого огня",
+     ["Дорога к огню", "Тёплые камни", "Термальная тропа", "Дымящиеся трещины", "Пещера жара", "Огненный склон",
+      "Город-кузница", "Обугленный лес", "Кузница печатей", "Неугасимое пламя"],
+     "Гора, из трещин которой идёт жар. Огненное княжество, кузнецы и восстание Вольных Кланов. Пятая печать пылает сильнее обычного.",
+     [dict(speaker="narrator", text="Глава 5: Янкар. В Огненном княжестве — восстание."),
+      dict(speaker="vargat", text="Я знаю этот город. Однажды мне приказали его сжечь. Я отказался — и вот я здесь.")]),
+    ("r6_ufa_plateau", "Уракай", "Лесное плато",
+     ["Край плато", "Карстовые воронки", "Деревни в кронах", "Лесная дорога", "Красный ключ", "Каньон эха",
+      "Сплавная река", "Охотничья заимка", "Роща старейшин", "Больное Древо"],
+     "Древний лес на плато и карстовые каньоны. Корни Древа шестой печати уходят в Глубь — и Древо болеет. Здесь собирается Совет пяти сил.",
+     [dict(speaker="narrator", text="Глава 6: Уракай. Роды рощ зовут все пять сил к больному Древу."),
+      dict(speaker="sumbel", text="Лес не прощает тех, кто приходит с огнём. Но сегодня он просит помощи.")]),
+    ("r7_zilair", "Зилкай", "Ковыльная степь",
+     ["Степной подъём", "Ковыльное море", "Курганы", "Ханская ставка", "Перевал ветров", "Солёное озеро",
+      "Каменные стражи", "Пепельная степь", "Буря курганов", "Курганное кольцо"],
+     "Открытая степь, курганы и кочевые роды Ханства ветров. Седьмая печать — курганное кольцо — скрыта бурей.",
+     [dict(speaker="narrator", text="Глава 7: Зилкай. Буря скрывает седьмую печать."),
+      dict(speaker="zarkhan", text="В буре не теряй из виду повозку впереди. Здесь пропадают целые караваны.")]),
 ]
 _TERR = ["nature", "settlements", "dungeons", "nature", "complexes", "resources", "nature", "dungeons", "dimensions", "dimensions"]
 _SQUADS = [
@@ -221,9 +250,8 @@ _SQUADS = [
 ]
 _SLOTS = {"e_warrior": [0, 1], "e_minion": [1, 0], "e_rogue": [2, 4, 3], "e_mage": [3, 4, 2]}
 
-for _ci, (_rc, _rn, _place, _names) in enumerate(EXTRA_CHAPTERS):
-    REGIONS.append(dict(code=_rc, order=_ci + 2, name=_rn, real_place=_place + ", Республика Башкортостан",
-                        description="Временная глава для тестирования прогрессии."))
+for _ci, (_rc, _rn, _place, _names, _desc, _intro) in enumerate(EXTRA_CHAPTERS):
+    REGIONS.append(dict(code=_rc, order=_ci + 2, name=_rn, real_place=_place, description=_desc))
     for _k, _nm in enumerate(_names):
         _idx = _ci * 10 + _k + 1          # 1..60 after chapter 1
         _lvl = int(15 + _idx * 0.85)      # enemy level 15 -> 66
@@ -242,10 +270,9 @@ for _ci, (_rc, _rn, _place, _names) in enumerate(EXTRA_CHAPTERS):
         if _boss:
             _first.update(crystals=300 + 20 * _ci, summon_essence=3 + _ci, ancient_seals=2)
         NODES.append(dict(code=f"{_ci + 2}-{_k + 1}", region_code=_rc, order=_k + 1, name=_nm, territory=_TERR[_k],
-                          real_place=_place.split(",")[0], map_pos=[_k, -((_k // 2) % 2)], is_boss=_boss,
+                          real_place=_rn, map_pos=[_k, -((_k // 2) % 2)], is_boss=_boss,
                           enemies=_en, rewards=dict(gold=400 + 25 * _idx), first_clear_rewards=_first,
-                          story=[dict(speaker="narrator", text=f"Глава {_ci + 2}: {_rn}. Тени Шульгана уходят всё дальше — "
-                                      "хранители идут следом.")] if _k == 0 else []))
+                          story=_intro if _k == 0 else []))
 
 SUMMON_POOLS = [
     dict(code="standard", name="Зов предков",
@@ -286,8 +313,8 @@ def building_upgrade_cost(code: str, level: int) -> dict:
 
 
 QUESTS = [
-    dict(code="main_first_battle", kind="main", order=1, title="Первая кровь у Агидели",
-         description="Пройди бой «Берег Агидели».", event="campaign_clear", target=1,
+    dict(code="main_first_battle", kind="main", order=1, title="Первая кровь у переправы",
+         description="Пройди бой «Ночная переправа».", event="campaign_clear", target=1,
          rewards=dict(gold=300, crystals=100)),
     dict(code="main_first_summon", kind="main", order=2, title="Зов предков",
          description="Призови героя в Зале призыва.", event="summon", target=1,
@@ -301,8 +328,8 @@ QUESTS = [
     dict(code="main_fortress", kind="main", order=5, title="Стены крепости",
          description="Улучши любое здание крепости.", event="building_upgrade", target=1,
          rewards=dict(crystals=150), requires="main_level_up"),
-    dict(code="main_region1", kind="main", order=6, title="Освобождение Торатау",
-         description="Пройди всю главу «Шиханы Приагиделья».", event="campaign_clear", target=8,
+    dict(code="main_region1", kind="main", order=6, title="Исход из Таулара",
+         description="Пройди всю главу «Таулар» и выведи выживших на тракт.", event="campaign_clear", target=8,
          rewards=dict(crystals=500, ancient_seals=2), requires="main_fortress"),
     dict(code="daily_battles", kind="daily", order=10, title="Ежедневный дозор",
          description="Проведи 3 боя.", event="battle_fought", target=3, rewards=dict(gold=400, crystals=30)),

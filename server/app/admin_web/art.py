@@ -23,7 +23,7 @@ CURRENCY_ICONS = {
     "crystals": ("Кристаллы", "a cluster of glowing turquoise crystals"),
     "summon_essence": ("Эссенция призыва", "a swirling violet-and-gold spirit orb in a small vessel"),
     "nature_essence": ("Эссенция природы", "a green glowing leaf drop with a kurai reed"),
-    "ancient_seals": ("Древние печати", "a round bronze seal with ancient runes"),
+    "ancient_seals": ("Печатные знаки", "a round bronze seal with ancient runes"),
     "guild_marks": ("Знаки гильдии", "a gold medallion with an eagle emblem"),
     "friend_tokens": ("Жетоны дружбы", "two clasped hands on a small silver token"),
     "raid_tickets": ("Билеты рейда", "a parchment ticket with a stone-golem seal"),
@@ -56,7 +56,7 @@ FACTION_ICONS = {
     "stone_sky": ("Каменное Небо", "a mountain peak with a sky spirit eye, grey-blue and silver"),
     "living_kurai": ("Живой Курай", "a kurai reed flute wrapped in leaves, green and gold"),
     "ashen_reach": ("Пепельный Предел", "a burning ember in an ash swirl, crimson and bronze"),
-    "shulgan": ("Шульган", "a horned shadow skull with violet glow"),
+    "shulgan": ("Порождения Глубины", "a horned shadow skull with violet glow"),
 }
 BUTTONS = {
     "primary": ("Главная кнопка (золотая)", "polished warm gold", "«В бой», «Забрать», «Купить» — главные действия", "dark text sits on it: keep the middle light and even"),
@@ -106,7 +106,7 @@ CLASS_EN = {"guardian": "shield-bearing guardian tank", "warrior": "warrior", "m
 FACTION_EN = {"stone_sky": "Stone Sky faction (mountain stone and sky spirits, grey-blue, silver and gold palette)",
               "living_kurai": "Living Kurai faction (forest, reeds and kurai-flute nature magic, green and gold palette)",
               "ashen_reach": "Ashen Reach faction (ash, embers and steppe wind, crimson, black and bronze palette)",
-              "shulgan": "Shulgan underworld (bone, shadow and violet glow, menacing)"}
+              "shulgan": "the Spawn of the Deep (bone, shadow and violet glow, menacing)"}
 
 
 def _ratio(size: str) -> tuple[int, int, str]:
@@ -305,6 +305,28 @@ def catalog() -> list[dict]:
             "Надпись должна быть внутри картинки; проверьте, что буквы написаны правильно.",
             build_prompt(f"Game result title banner: {look}", "1024×256", "wide banner, lettering centered and filling 80% of the width",
                          TRANSPARENT, lettering=True), True))
+    # story characters of season 1 (docs/lore/URALIA_FACTIONS_AND_CHARACTERS.md)
+    npcs = {
+        "ilsur": ("Ильсур — ученик хранителей", "a calm 18-year-old young man, thin, dark hair tied in a knot, unusually light eyes, an oversized grey "
+                  "guardian's cloak, a carved key-stone and clay tablets on his belt, reserved knowing look"),
+        "aisylu": ("Айсылу — младшая сестра", "a brave curious 12-year-old girl from a river village, two braids, embroidered dress and felt vest, "
+                   "charcoal-smudged fingers from drawing, bright eyes"),
+        "timer": ("Тимер — лучший друг", "a cheerful hot-tempered 19-year-old young man, tousled hair, a patched leather jerkin of an outpost "
+                  "watchman, spear on the shoulder, crooked grin"),
+        "bayras": ("Байрас — наставник", "an old ferryman around 65 with a grey beard and a weathered face, a faded knightly scar, simple wool "
+                   "coat, kind but heavy eyes of a former warrior"),
+        "kahym": ("Хранитель Заставы Кахым", "a stern elderly guardian of an ancient outpost, long white hair, grey cloak with turquoise rune "
+                  "embroidery, a staff topped with a carved stone ring"),
+        "ancient": ("Голос Древнего", "an abstract presence in darkness: a vast shape of stone and violet light under the mountains, one calm "
+                    "glowing eye-like crack, no human face"),
+    }
+    for code, (title, look) in npcs.items():
+        by["story"]["slots"].append(_slot(
+            f"ui/story/{code}.png", title, "512×512", "сюжетные диалоги (портрет говорящего)",
+            "Портрет по пояс, лицо в верхней трети, взгляд в кадр." if code != "ancient" else "Без лица: голос из глубины.",
+            build_prompt(f"Fantasy character portrait: {look}", "512×512",
+                         "bust shot, face in the upper third, looking at the viewer" if code != "ancient" else "centered abstract shape, dark edges",
+                         TRANSPARENT), True))
     # story
     by["story"]["slots"].append(_slot(
         "ui/story/narrator.png", "Летописец (рассказчик)", "512×512", "сюжетные диалоги и обучение",

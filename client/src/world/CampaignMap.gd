@@ -4,7 +4,7 @@ extends Node3D
 
 signal node_selected(code: String)
 
-const SHIKHAN := {"1-4": "Юрактау", "1-5": "Куштау", "1-6": "Шахтау", "1-8": "Торатау"}
+const SHIKHAN := {"1-4": "Белая гора", "1-5": "Вторая гора", "1-6": "Третья гора", "1-8": "Курган"}
 
 var camera: Camera3D
 var nodes: Array = []
@@ -162,7 +162,7 @@ func _build_marker(n: Dictionary) -> void:
 	root.add_child(lbl)
 	if SHIKHAN.has(n.code):
 		var sub := Label3D.new()
-		sub.text = "шихан " + SHIKHAN[n.code]
+		sub.text = SHIKHAN[n.code]
 		sub.font = UI.FONT_REG
 		sub.font_size = 48
 		sub.pixel_size = 0.006

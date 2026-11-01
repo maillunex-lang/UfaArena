@@ -317,7 +317,7 @@ func _show_detail(h: Dictionary, cat: Dictionary, owned: bool) -> void:
 			body.add_child(stats)
 			for f in Game.catalog.get("factions", []):
 				if f.code == fac and f.get("strong_against"):
-					var adv := UI.label("Фракция: %s. Преимущество над «%s» (+20%% урона). Бонус отряда при 3/4/5 героях фракции." % [
+					var adv := UI.label("Наследие: %s. Преимущество над «%s» (+20%% урона). Бонус отряда при 3/4/5 героях одного наследия." % [
 						f.description, Game.faction_name(f.strong_against)], 23, UI.MUTED)
 					adv.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 					body.add_child(adv)

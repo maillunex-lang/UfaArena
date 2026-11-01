@@ -9,7 +9,7 @@ signal afk_changed
 
 const CURRENCY_NAMES := {
 	"gold": "Золото", "crystals": "Кристаллы", "summon_essence": "Эссенция призыва",
-	"ancient_seals": "Древние печати", "guild_marks": "Знаки гильдии", "nature_essence": "Эссенция природы",
+	"ancient_seals": "Печатные знаки", "guild_marks": "Знаки гильдии", "nature_essence": "Эссенция природы",
 }
 ## Fallbacks; the server catalog (factions[].color/name) overrides these at runtime.
 const FACTION_COLORS := {
@@ -23,7 +23,7 @@ const RARITY_COLORS := {
 const CLASS_NAMES := {"warrior": "Воин", "guardian": "Защитник", "mage": "Маг", "healer": "Поддержка",
 	"ranger": "Следопыт", "summoner": "Призыватель", "assassin": "Убийца", "hybrid": "Гибрид"}
 const FACTION_NAMES := {"stone_sky": "Каменное Небо", "living_kurai": "Живой Курай", "ashen_reach": "Пепельный Предел",
-	"shulgan": "Порождения Шульгана"}
+	"shulgan": "Порождения Глубины"}
 const STATUS_NAMES := {"atk+": "Атака ↑", "atk-": "Атака ↓", "def+": "Защита ↑", "def-": "Защита ↓", "spd+": "Скорость ↑",
 	"spd-": "Замедление", "dr+": "Урон ↓", "cc_resist+": "Стойкость", "accuracy-": "Точность ↓", "heal_received-": "Лечение ↓",
 	"regen+": "Восстановление", "dodge+": "Уклонение", "taunt": "Провокация", "guard": "Заслон"}

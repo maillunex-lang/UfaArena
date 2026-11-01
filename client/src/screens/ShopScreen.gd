@@ -19,7 +19,7 @@ const RAIL := {"crystals": ["Кристаллы", "crystals"], "starter": ["На
 	"wardrobe": ["Гардероб", "settings"], "history": ["Заказы", "quests"]}
 const RAIL_ORDER := ["crystals", "starter", "vip", "battlepass", "resources", "heroes", "cosmetics", "seasonal", "lavka", "wardrobe", "history"]
 const CUR := {"gold": "Золото", "crystals": "Кристаллы", "summon_essence": "Эссенция призыва",
-	"ancient_seals": "Древние печати", "guild_marks": "Знаки гильдии", "nature_essence": "Эссенция природы"}
+	"ancient_seals": "Печатные знаки", "guild_marks": "Знаки гильдии", "nature_essence": "Эссенция природы"}
 const GOLD_C := Color("#e6b452")
 
 

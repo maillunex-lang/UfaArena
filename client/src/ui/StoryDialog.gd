@@ -9,6 +9,9 @@ var _name: Label
 var _text: Label
 var _typing := false
 var _skipped := false
+## Story characters of season 1 «Пробуждение» (docs/lore/URALIA_FACTIONS_AND_CHARACTERS.md).
+const NPC := {"ancient": "Голос", "ilsur": "Ильсур", "aisylu": "Айсылу", "timer": "Тимер", "bayras": "Байрас",
+	"kahym": "Хранитель Кахым"}
 
 
 func _init() -> void:
@@ -78,11 +81,21 @@ func play(lines: Array) -> void:
 		if _skipped:
 			break
 		var sp: String = line.get("speaker", "narrator")
-		var hero := Game.catalog_hero(sp)
-		_name.text = hero.get("name", "Летописец") if sp != "narrator" else "Летописец"
-		_portrait.texture = UI.art("ui/story/narrator.png") if sp == "narrator" else null  # admin-panel portrait
-		if sp != "narrator":
+		_text.add_theme_color_override("font_color", UI.TEXT)
+		if sp == "narrator":
+			_name.text = "Летописец"
+			_portrait.texture = UI.art("ui/story/narrator.png")  # admin-panel portrait
+		elif NPC.has(sp):
+			# story characters who are not (yet) collectible heroes; portraits come from the admin panel
+			_name.text = String(NPC[sp])
+			_portrait.texture = UI.art("ui/story/%s.png" % sp)
+			if sp == "ancient":  # the Voice of the Ancient: violet, no face unless an image is uploaded
+				_text.add_theme_color_override("font_color", Color("#d6b8ff"))
+		else:
+			_name.text = String(Game.catalog_hero(sp).get("name", "Летописец"))
 			_portrait.texture = await Models.portrait(sp)
+		_name.add_theme_color_override("font_color", Color("#c9a8ff") if sp == "ancient" else UI.GOLD)
+		_portrait.visible = _portrait.texture != null  # no empty frame until a portrait is uploaded
 		if _skipped:
 			break
 		_text.text = line.get("text", "")
