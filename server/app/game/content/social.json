@@ -1262,13 +1262,18 @@
     "tick_seconds": 60,
     "max_actions_per_tick": 12,
     "max_actions_per_persona_day": 40,
-    "chat_global_per_hour": 10,
+    "chat_global_per_hour": 20,
     "chat_cooldown_s": 240,
     "ai_guilds": 4,
-    "reply_chance": 0.6
+    "reply_chance": 0.6,
+    "chat_ai_per_hour": 50,
+    "quiet_minutes": 2,
+    "conversation_every_s": 200,
+    "guild_chat_chance": 0.25,
+    "guild_quiet_minutes": 20
   },
   "scheduler": {
     "enabled": true,
-    "tick_seconds": 30
+    "tick_seconds": 15
   }
 }

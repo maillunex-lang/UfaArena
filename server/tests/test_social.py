@@ -538,3 +538,28 @@ def test_client_release_prompt(client, tmp_path, monkeypatch):
     assert not r["update_available"] and not r["required"]
     assert "9.0.0" in client.get("/download").text
     assert client.get("/download/apk").content == b"PK-fake-apk"
+
+
+def test_ai_conversations_keep_chat_alive():
+    from app.models import ChatMessage
+    from app.social.ai import banter as B
+    from app.social.ai import population as AIP
+    from app.social.chat import contains_bad
+    with session() as db:
+        AIP.ensure_population(db, max_new=6)
+    with session() as db:
+        start = db.scalar(select(func.max(ChatMessage.id))) or 0
+        B._queue.clear()
+        n = B.start_conversation(db)
+        assert n >= 3
+        B._queue.extend([(0, u, c, t) for _, u, c, t in list(B._queue)])  # make every line due now
+        while B._queue and B._queue[0][0] != 0:
+            B._queue.popleft()
+        assert B.flush(db, limit=50) >= 3
+    with session() as db:
+        msgs = db.scalars(select(ChatMessage).where(ChatMessage.id > start, ChatMessage.channel == "global")).all()
+        assert len({m.user_id for m in msgs}) >= 2 and all(m.is_ai for m in msgs)
+        assert not any(contains_bad(m.text) for m in msgs)
+        assert any("@" in m.text for m in msgs)  # personas address each other
+        stats = B.keep_alive(db, AIP.AI())
+        assert "posted" in stats

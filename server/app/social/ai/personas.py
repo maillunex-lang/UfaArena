@@ -15,19 +15,19 @@ ADJ = ["Тихий", "Хмурый", "Весёлый", "Седой", "Быстр
 LATIN = ["batyr", "ural_fox", "kurai", "agidel", "steppe", "wolfie", "shikhan", "berkut", "nomad", "irendyk", "tulpar", "ashka"]
 
 ARCHETYPES = {
-    "competitor": {"interests": ["arena", "chat", "level"], "styles": ["competitive", "laconic", "humorous"],
+    "competitor": {"interests": ["arena", "chat", "level"], "styles": ["competitive", "grumpy", "joker", "bro"],
                    "lvl": (18, 45), "desc": "Любит арену и рейтинги"},
-    "collector": {"interests": ["level", "chat", "raid"], "styles": ["friendly", "humorous", "wise"],
+    "collector": {"interests": ["level", "chat", "raid"], "styles": ["friendly", "joker", "bro", "grumpy"],
                   "lvl": (12, 40), "desc": "Собирает героев и считает шансы призыва"},
-    "socializer": {"interests": ["chat", "friend", "guild"], "styles": ["friendly", "humorous", "shy"],
+    "socializer": {"interests": ["chat", "friend", "guild"], "styles": ["joker", "friendly", "shy", "bro", "flirty"],
                    "lvl": (8, 30), "desc": "Ради общения и гильдии"},
-    "strategist": {"interests": ["raid", "level", "arena"], "styles": ["wise", "laconic", "friendly"],
+    "strategist": {"interests": ["raid", "level", "arena"], "styles": ["wise", "grumpy", "laconic", "bro"],
                    "lvl": (20, 50), "desc": "Разбирает синергии фракций"},
-    "explorer": {"interests": ["level", "chat", "event"], "styles": ["friendly", "wise", "shy"],
+    "explorer": {"interests": ["level", "chat", "event"], "styles": ["friendly", "wise", "shy", "flirty"],
                  "lvl": (10, 35), "desc": "Изучает регионы и сюжет"},
-    "newbie": {"interests": ["level", "chat", "friend"], "styles": ["shy", "friendly", "humorous"],
+    "newbie": {"interests": ["level", "chat", "friend"], "styles": ["shy", "friendly", "joker"],
                "lvl": (3, 12), "desc": "Только начал путь"},
-    "veteran": {"interests": ["guild", "raid", "arena", "chat"], "styles": ["wise", "laconic", "competitive"],
+    "veteran": {"interests": ["guild", "raid", "arena", "chat"], "styles": ["wise", "grumpy", "competitive", "bro"],
                 "lvl": (35, 60), "desc": "Опора своей гильдии"},
 }
 

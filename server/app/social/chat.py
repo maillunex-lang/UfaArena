@@ -39,9 +39,22 @@ def _norm(text: str) -> str:
     return re.sub(r"[\s\.\-_*]+", "", t)
 
 
+def _bad_word(word: str) -> bool:
+    w = _norm(word)
+    for b in C()["bad_words"]:
+        # short roots only at the start of a word ("плохо" is fine), longer ones anywhere inside it
+        if (len(b) <= 4 and w.startswith(b)) or (len(b) > 4 and b in w):
+            return True
+    return False
+
+
 def contains_bad(text: str) -> bool:
-    n = _norm(text)
-    return any(w in n for w in C()["bad_words"])
+    words = re.findall(r"[\w*@.\-]+", text.lower())
+    if any(_bad_word(w) for w in words):
+        return True
+    # spaced-out evasion ("д у р а к"): join runs of single letters
+    singles = "".join(w for w in re.findall(r"\b\w\b", text.lower()))
+    return len(singles) >= 3 and any(b in _norm(singles) for b in C()["bad_words"])
 
 
 def clean(text: str) -> tuple[str, bool]:
@@ -50,10 +63,13 @@ def clean(text: str) -> tuple[str, bool]:
     filtered = False
     words = t.split(" ")
     for i, w in enumerate(words):
-        if contains_bad(w):
+        if _bad_word(w):
             words[i] = "***"
             filtered = True
     t = " ".join(words)
+    if contains_bad(t):  # spaced-out letters left after the per-word pass
+        t = re.sub(r"(?:\b\w\b\s*){3,}", "*** ", t).strip()
+        filtered = True
     for rx in (_LINK, _PHONE):
         if rx.search(t):
             t = rx.sub("[скрыто]", t)

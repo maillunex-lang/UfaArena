@@ -114,8 +114,28 @@ def ensure_population(db: Session, max_new: int = 5) -> dict:
             p.active = False
             retired += 1
     db.flush()
+    _refresh_styles(db)
     ensure_ai_guilds(db)
     return {"target": target, "active": len(active) + created - retired, "created": created, "retired": retired}
+
+
+NEW_STYLES = ("joker", "grumpy", "flirty", "bro")
+
+
+def _refresh_styles(db: Session) -> None:
+    """Personas created before the bigger character set get some of the new characters (once)."""
+    rows = db.scalars(select(AiPersona)).all()
+    if not rows:
+        return
+    flirty = [p for p in rows if p.style == "flirty"]
+    if len(flirty) > max(3, len(rows) // 8):  # keep flirting a spice, not the main course
+        for p in flirty[max(3, len(rows) // 8):]:
+            p.style = _rng.choice(["joker", "bro", "grumpy", "friendly"])
+    if any(p.style in NEW_STYLES for p in rows):
+        return
+    for p in rows:
+        if _rng.random() < 0.5:
+            p.style = _rng.choices(NEW_STYLES, weights=[3, 2, 1, 3])[0]
 
 
 # ------------------------------------------------------------------ guild AI controller
@@ -307,6 +327,9 @@ def tick(db: Session) -> dict:
     now = utcnow()
     limit = AI()["max_actions_per_tick"]
     stats = {"actions": 0, "replies": process_replies(db, max(2, limit // 3))}
+    from . import banter
+    stats["chat"] = banter.keep_alive(db, AI())  # AI-to-AI conversations keep the chat alive
+    stats["reactions"] = banter.react_sometimes(db)
     due = db.scalars(select(AiPersona).where(AiPersona.active.is_(True), AiPersona.next_action_at <= now)
                      .order_by(AiPersona.next_action_at).limit(limit * 3)).all()
     for persona in due:
@@ -364,21 +387,18 @@ def act_level(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
 
 
 def act_chat(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
-    if not _chat_allowed():
+    from . import banter
+    if banter.ai_messages_last_hour(db) >= AI().get("chat_ai_per_hour", 45):
         return
-    import time
     m = db.scalar(select(GuildMember).where(GuildMember.user_id == persona.user_id))
     channel = "global"
-    if m and _rng.random() < 0.5:
+    if m and _rng.random() < 0.4:
         humans = db.scalar(select(func.count()).select_from(GuildMember).join(PlayerProfile, PlayerProfile.user_id == GuildMember.user_id)
                            .where(GuildMember.guild_id == m.guild_id, PlayerProfile.is_ai.is_(False))) or 0
         if humans:  # talk in a guild chat only where real players can read it
             channel = f"guild:{m.guild_id}"
-    topic = _rng.choice(["ambient", "ambient", "event", "raid", "hero", "arena", "tournament", "guild"])
-    ctx = _context(db, persona)
-    _say(db, persona, channel, DLG.line(_rng, topic, persona.style, ctx))
-    _chat_times.append(time.monotonic())
-    log(db, persona, "chat", channel=channel, topic=topic)
+    text = banter.ambient(db, persona, channel)
+    log(db, persona, "chat", channel=channel, text=text[:60])
 
 
 def act_arena(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:

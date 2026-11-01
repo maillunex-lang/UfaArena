@@ -94,7 +94,7 @@ def _raids(db):
 
 
 JOBS: dict[str, tuple[int, callable]] = {
-    "ai_tick": (60, _ai_tick),
+    "ai_tick": (15, _ai_tick),
     "ai_population": (600, _ai_population),
     "tournaments": (300, _tournaments),
     "events": (300, _events),
