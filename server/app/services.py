@@ -246,8 +246,11 @@ def create_player(db: Session, device_id: str | None) -> User:
 def ordered_nodes(db: Session) -> list[CampaignNode]:
     """All stages in play order: chapter (region order), then stage order."""
     from .models import CampaignRegion
+    from .game_editor.overrides import hidden_nodes, hidden_regions
+    hid_n, hid_r = hidden_nodes(db), hidden_regions(db)  # admin-hidden stages/chapters leave the chain
     rorder = {r.code: r.order for r in db.scalars(select(CampaignRegion))}
-    return sorted(db.scalars(select(CampaignNode)), key=lambda n: (rorder.get(n.region_code, 99), n.order))
+    return sorted((n for n in db.scalars(select(CampaignNode)) if n.code not in hid_n and n.region_code not in hid_r),
+                  key=lambda n: (rorder.get(n.region_code, 99), n.order))
 
 
 def next_node(db: Session, user_id: str) -> CampaignNode | None:
@@ -261,6 +264,8 @@ def next_node(db: Session, user_id: str) -> CampaignNode | None:
 def node_unlocked(db: Session, user_id: str, node: CampaignNode) -> bool:
     """A stage opens when the previous stage in play order is cleared (also across chapters)."""
     nodes = ordered_nodes(db)
-    i = next(k for k, n in enumerate(nodes) if n.code == node.code)
+    i = next((k for k, n in enumerate(nodes) if n.code == node.code), None)
+    if i is None:
+        return False  # hidden by the admin
     return i == 0 or db.get(PlayerCampaignProgress, (user_id, nodes[i - 1].code)) is not None
 

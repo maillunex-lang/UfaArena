@@ -358,10 +358,17 @@ def campaign(user: CurrentUser = Depends(player), db: Session = Depends(get_db))
     flat = ordered_nodes(db)
     prev_cleared = {n.code: (i == 0 or flat[i - 1].code in cleared) for i, n in enumerate(flat)}
     regions = []
+    from ..game_editor.overrides import hidden_regions
+    hid_r = hidden_regions(db)
+    from ..game_editor.overrides import world_positions
+    world_xy = world_positions(db)
     for r in db.scalars(select(CampaignRegion).order_by(CampaignRegion.order)):
+        if r.code in hid_r:
+            continue
         nodes = [n for n in flat if n.region_code == r.code]
         from ..social.events import region_status
         regions.append({"code": r.code, "order": r.order, "name": r.name, "real_place": r.real_place,
+                        "map_xy": world_xy.get(r.code),
                         "description": r.description, "world_status": region_status(db, r.code),
                         "nodes": [_node_view(n, prev_cleared[n.code], n.code in cleared) for n in nodes]})
     return {"regions": regions}

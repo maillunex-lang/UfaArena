@@ -34,6 +34,9 @@ func set_regions(r: Array) -> void:
 func _pos(i: int) -> Vector2:
 	var code := String(regions[i].get("code", ""))
 	var p: Vector2 = POS.get(code, Vector2(0.15 + 0.7 * float(i) / maxf(1, regions.size() - 1), 0.5))
+	var xy: Variant = regions[i].get("map_xy")  # admin map editor (server), overrides the built-in position
+	if xy is Array and (xy as Array).size() == 2:
+		p = Vector2(clampf(float(xy[0]), 0.02, 0.98), clampf(float(xy[1]), 0.02, 0.98))
 	return Vector2(p.x * size.x, p.y * size.y)
 
 

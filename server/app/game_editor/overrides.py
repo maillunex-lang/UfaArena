@@ -18,7 +18,10 @@ from ..models import AdminAction, CampaignNode, CampaignRegion, Hero, ServerSett
 
 KEY = "game_overrides"
 HIST = "game_overrides_history"
-EMPTY = {"heroes": {}, "regions": {}, "nodes": {}}
+EMPTY = {"heroes": {}, "regions": {}, "nodes": {}, "world_map": {}}
+# built-in world map positions (client WorldMap.POS), shown in the editor before the first change
+WORLD_DEFAULT = {"r1_shikhany": [0.43, 0.55], "r2_iremel": [0.74, 0.42], "r3_shulgantash": [0.58, 0.70],
+                 "r4_nugush": [0.38, 0.72], "r5_yangantau": [0.64, 0.22], "r6_ufa_plateau": [0.40, 0.25], "r7_zilair": [0.60, 0.89]}
 HERO_DEFAULTS = {"title": "", "lore": "", "is_enemy": False, "summonable": True, "role": "", "kit": None, "extra": {},
                  "skill": {}, "model": "knight"}
 
@@ -136,3 +139,8 @@ def hidden_regions(db: Session) -> set[str]:
 
 def disabled_heroes(db: Session) -> set[str]:
     return {c for c, ov in get(db)["heroes"].items() if ov.get("disabled")}
+
+
+def world_positions(db: Session) -> dict:
+    """Region positions on the world map (fractions 0…1) set in the admin map editor."""
+    return dict(get(db).get("world_map") or {})
