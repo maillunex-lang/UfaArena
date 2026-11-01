@@ -41,7 +41,7 @@ func setup(m: Node, _p: Dictionary) -> void:
 	right.add_theme_constant_override("separation", 6)
 	add_child(right)
 	for it in [["fortress", "Здания", "fortress"], ["shop", "Магазин", "shop"], ["events", "Пропуск", "shop:battlepass"],
-			["guild", "Гильдия", ""], ["friends", "Друзья", "friends"], ["chat", "Чат", "chat"]]:
+			["guild", "Гильдия", "guild"], ["friends", "Друзья", "friends"], ["chat", "Чат", "chat"]]:
 		var b := UI.icon_button(it[0], it[1], it[0] == "chat")
 		var target: String = it[2]
 		if target == "":

@@ -18,6 +18,12 @@ const SCREENS := {
 	"shop": preload("res://src/screens/ShopScreen.gd"),
 	"chat": preload("res://src/screens/ChatScreen.gd"),
 	"friends": preload("res://src/screens/FriendsScreen.gd"),
+	"guild": preload("res://src/screens/GuildScreen.gd"),
+	"raids": preload("res://src/screens/RaidsScreen.gd"),
+	"arena": preload("res://src/screens/ArenaScreen.gd"),
+	"tournaments": preload("res://src/screens/TournamentsScreen.gd"),
+	"events": preload("res://src/screens/EventsScreen.gd"),
+	"rankings": preload("res://src/screens/RankingsScreen.gd"),
 }
 const UpdateDialog := preload("res://src/ui/UpdateDialog.gd")
 const NAV := [["campaign", "Кампания"], ["heroes", "Герои"], ["home", "Крепость"], ["summon", "Призыв"],

@@ -147,7 +147,7 @@ func _fail(msg: String) -> void:
 
 ## Dev E2E runs start from a fresh guest without the login choice.
 func _auto_guest() -> bool:
-	for k in ["URALIA_E2E", "URALIA_E2E_SHOP", "URALIA_E2E_UPDATE", "URALIA_E2E_SOCIAL"]:
+	for k in ["URALIA_E2E", "URALIA_E2E_SHOP", "URALIA_E2E_UPDATE", "URALIA_E2E_SOCIAL", "URALIA_E2E_ONLINE"]:
 		if OS.get_environment(k) != "":
 			return true
 	return false

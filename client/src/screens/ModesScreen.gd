@@ -4,12 +4,14 @@ extends Control
 var main: Node
 const MODES := [
 	["campaign", "Кампания: 7 глав Башкортостана", "Доступно", true],
+	["arena", "Арена хранителей", "PvP 5×5, лиги и сезоны", true],
+	["raids", "Рейды и мировые боссы", "Фазы, уязвимости, совместная охота", true],
+	["guild", "Гильдия", "Управление, крепость, задания, войны", true],
+	["tournaments", "Турниры Курултая", "Недельные и месячные", true],
+	["events", "События мира", "Общая цель сервера и летопись", true],
+	["rankings", "Рейтинги и достижения", "Наследие и рекорды", true],
 	["chat", "Чат Курултая", "Общий, гильдейский и личный чат", true],
 	["friends", "Друзья", "Поиск, подарки, помощь, жители Уралии", true],
-	["arena", "Арена хранителей (PvP)", "Сервер готов, экран — в следующем обновлении", false],
-	["quests", "Башня испытаний", "Блок «Режимы» — закрытая бета", false],
-	["guild", "Гильдии и рейды", "Сервер готов, экраны — в следующем обновлении", false],
-	["events", "Сезонные события", "LiveOps — после релиза", false],
 ]
 
 
@@ -27,9 +29,12 @@ func setup(m: Node, _p: Dictionary) -> void:
 	v.add_theme_constant_override("separation", 14)
 	panel.add_child(v)
 	v.add_child(UI.title("Режимы", 52))
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 12)
+	v.add_child(UI.scroll(list))
 	for md in MODES:
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(0, 140)
+		b.custom_minimum_size = Vector2(0, 128)
 		b.focus_mode = Control.FOCUS_NONE
 		var sb := UI._flat(Color(0.02, 0.03, 0.07, 0.5), UI.GOLD if md[3] else Color(1, 1, 1, 0.2), 24, 3 if md[3] else 2)
 		for st in ["normal", "hover", "pressed"]:
@@ -40,7 +45,7 @@ func setup(m: Node, _p: Dictionary) -> void:
 		h.add_theme_constant_override("separation", 20)
 		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		var ic := GameIcon.new()
-		ic.kind = md[0] if md[3] else "lock"
+		ic.kind = {"raids": "events", "tournaments": "summon", "rankings": "quests"}.get(md[0], md[0]) if md[3] else "lock"
 		ic.custom_minimum_size = Vector2(96, 96)
 		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -57,4 +62,4 @@ func setup(m: Node, _p: Dictionary) -> void:
 			b.pressed.connect(func(): main.open(key))
 		else:
 			b.pressed.connect(func(): Router.toast(md[1] + ": " + md[2]))
-		v.add_child(b)
+		list.add_child(b)

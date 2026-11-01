@@ -125,6 +125,8 @@ AI_GUILD_NAMES = [("Дети Урала", "УРАЛ"), ("Ветер Иренды
 
 def ensure_ai_guilds(db: Session) -> int:
     have = db.scalars(select(Guild).where(Guild.is_ai.is_(True))).all()
+    for g in have:  # virtual guilds always welcome newcomers (the guild must never be locked for a new player)
+        g.min_level = 1
     made = 0
     used: set[str] = set()
     for name, tag in AI_GUILD_NAMES[: AI()["ai_guilds"]]:
@@ -139,7 +141,7 @@ def ensure_ai_guilds(db: Session) -> int:
         leader = max(free[:12], key=lambda p: db.get(PlayerProfile, p.user_id).level)
         spec = _rng.choice(["warriors", "hunters", "keepers"])
         g = Guild(name=name, tag=tag, description="Виртуальная гильдия ИИ-персонажей. Новички приветствуются!",
-                  join_mode="approval", min_level=_rng.choice([1, 5, 10]), leader_id=leader.user_id, is_ai=True,
+                  join_mode="approval", min_level=1, leader_id=leader.user_id, is_ai=True,
                   specialization=spec, treasury=_rng.randint(500, 3000))
         db.add(g)
         db.flush()
