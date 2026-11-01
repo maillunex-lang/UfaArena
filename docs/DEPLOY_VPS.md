@@ -211,3 +211,10 @@ mkdir -p downloads
 docker compose up -d --build
 docker compose exec -u root api chown -R uralia /srv/var/downloads
 ```
+
+## 16. Где скачивать APK
+Готовые сборки выкладываются в ветку `apk` репозитория (только файл APK, без истории версий):
+https://github.com/maillunex-lang/UfaArena/raw/apk/uralia-latest.apk
+APK собирается только под ARM64 (все современные телефоны), поэтому весит около 50 МБ.
+Эту же ссылку можно указать в админке («Сервер и APK» → «Внешняя ссылка»), чтобы окно
+«Вышло обновление» в игре вело прямо на GitHub.
