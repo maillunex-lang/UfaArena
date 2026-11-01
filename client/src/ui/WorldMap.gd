@@ -107,12 +107,16 @@ func _draw() -> void:
 			if code == caravan_at:
 				# the caravan: a small wagon badge above the node
 				var b := p + Vector2(0, -52)
-				draw_circle(b, 22, Color(UI.BG, 0.95))
-				draw_arc(b, 22, 0, TAU, 32, UI.GOLD, 3, true)
-				draw_rect(Rect2(b + Vector2(-13, -8), Vector2(26, 12)), UI.GOLD)
-				draw_arc(b + Vector2(0, -8), 13, PI, TAU, 16, UI.GOLD, 3, true)
-				draw_circle(b + Vector2(-8, 7), 4, UI.TEAL)
-				draw_circle(b + Vector2(8, 7), 4, UI.TEAL)
+				var wagon := UI.art("caravan/wagon.png")  # admin-panel art (section «Караван»)
+				if wagon:
+					draw_texture_rect(wagon, Rect2(b - Vector2(30, 30), Vector2(60, 60)), false)
+				else:
+					draw_circle(b, 22, Color(UI.BG, 0.95))
+					draw_arc(b, 22, 0, TAU, 32, UI.GOLD, 3, true)
+					draw_rect(Rect2(b + Vector2(-13, -8), Vector2(26, 12)), UI.GOLD)
+					draw_arc(b + Vector2(0, -8), 13, PI, TAU, 16, UI.GOLD, 3, true)
+					draw_circle(b + Vector2(-8, 7), 4, UI.TEAL)
+					draw_circle(b + Vector2(8, 7), 4, UI.TEAL)
 		_rects.append(Rect2(p - Vector2(48, 48), Vector2(96, 120)))
 
 

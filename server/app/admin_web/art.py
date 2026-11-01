@@ -37,7 +37,10 @@ SECTION_ICONS = {
     "more": ("Ещё (меню)", "four rounded tiles in a 2x2 grid, gold and teal"),
     "bell": ("Уведомления (колокольчик)", "a bell with a small turquoise gem"),
     "profile": ("Профиль", "a silhouette bust in a round medallion"),
-    "fortress": ("Крепость", "a stone fortress tower"),
+    "fortress": ("Башня (обзор гильдии, модули каравана)", "a stone fortress tower"),
+    "caravan": ("Караван", "a covered nomad caravan wagon with a felt roof and a small banner"),
+    "search": ("Поиск", "a bronze magnifying glass with a turquoise lens"),
+    "modes": ("Режимы боёв", "two crossed sabers over a round shield"),
     "summon": ("Призыв", "a glowing summoning star portal"),
     "quests": ("Задания", "an unrolled quest scroll with a seal"),
     "mail": ("Почта", "a sealed envelope with a wax seal"),
@@ -172,6 +175,7 @@ def catalog() -> list[dict]:
         ("regions", "Регионы похода", "Баннеры глав на экране «Мир». Широкий кадр 1024×320, справа и слева можно обрезать, текст ложится сверху слева."),
         ("battle", "Бой", "Заголовки экрана результата боя."),
         ("story", "Сюжет и обучение", "Портрет рассказчика в сюжетных диалогах."),
+        ("caravan", "Караван", "Экран «Караван»: картинки девяти модулей (вместо встроенных иконок) и значок каравана на карте маршрута. Портреты членов совета берутся из разделов «Портреты героев» (Азамат, Гульназ, Юрек, Зархан) и «Сюжет и обучение» (Ильсур, Гаухар-апа). Видно с версии приложения после финальной сборки Living World AI."),
         ("shop", "Магазин", "Оформление магазина: табличка, кнопки меню разделов, карточка товара, золотая кнопка цены, лента-метка, баннеры разделов и картинка каждого товара. Карточки и кнопки растягиваются (9-slice)."),
         ("chat", "Оформление чата", "Элементы экрана чата. Рамки и кнопки растягиваются (9-slice), поэтому края и углы должны быть цельными."),
         ("guild", "Знамёна гильдий", "Знамёна гильдий (выбираются в «Управление гильдией» → «Флаг»). Вертикальное знамя на перекладине, прозрачный фон."),
@@ -335,6 +339,31 @@ def catalog() -> list[dict]:
         "Портрет старого мудреца-сказителя, по пояс, смотрит в кадр.",
         build_prompt("Fantasy portrait of an old Bashkir storyteller-chronicler (sesen) with a long grey beard, fur hat, holding a kurai flute and an old book",
                      "512×512", "bust shot, face in the upper third, looking at the viewer", TRANSPARENT), True))
+    # caravan (lore stage S4): modules and the wagon marker
+    module_looks = {
+        "summon_hall": "a nomad summoning tent of felt with a glowing violet star above the smoke hole",
+        "forge": "a travelling forge wagon with an anvil, glowing coals and hanging sabers",
+        "training": "wooden battle training platforms with straw dummies and spears",
+        "alchemy": "a field infirmary yurt with herbal bundles, potions and a green healing glow",
+        "storage": "loaded merchant wagons with sacks, chests and rolled carpets",
+        "guild_house": "a cluster of living yurts with warm lights and smoke at dusk",
+        "library": "a library wagon with scrolls, clay tablets and an old book on a lectern",
+        "research": "an ancient-mechanism workshop: brass gears, rune stones and a glowing turquoise device",
+        "towers": "portable wooden defence towers with gold-tipped spears and banners",
+    }
+    for code, b in D.BUILDINGS.items():
+        look = module_looks.get(code, f"caravan module {b['name']}")
+        by["caravan"]["slots"].append(_slot(
+            f"caravan/modules/{code}.png", f"Модуль «{b['name']}»", "256×256", "экран «Караван» → вкладка «Модули» (картинка модуля)",
+            f"Модуль «{b['name']}». Показывается 96×96 — нужен крупный узнаваемый силуэт.",
+            build_prompt(f"Game icon of a caravan module: {look}, gold and turquoise accents, soft magical glow", "256×256",
+                         "single object centered, filling about 85% of the canvas, strong silhouette readable at 64x64 px, no frame, no text",
+                         TRANSPARENT), True))
+    by["caravan"]["slots"].append(_slot(
+        "caravan/wagon.png", "Значок каравана на карте", "256×256", "экран «Караван» → «Маршрут»: значок над землёй, где стоит караван",
+        "Показывается 60×60 поверх карты — простой силуэт повозки в круглом медальоне.",
+        build_prompt("Round map marker medallion with a covered nomad caravan wagon inside, gold rim, dark teal centre", "256×256",
+                     "medallion centered, filling 92% of the canvas, readable at 48x48 px, no text", TRANSPARENT), True))
     # shop
     by["shop"]["slots"] += _shop_slots()
     # chat

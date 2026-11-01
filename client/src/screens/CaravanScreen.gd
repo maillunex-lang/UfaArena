@@ -136,11 +136,21 @@ func _modules() -> void:
 		var card := UI.card()
 		var h := HBoxContainer.new()
 		h.add_theme_constant_override("separation", UI.SP.m)
-		var ic := GameIcon.new()
-		ic.kind = String(MODULE_ICONS.get(String(b.code), "fortress"))
-		ic.custom_minimum_size = Vector2(80, 80)
-		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-		h.add_child(ic)
+		var mod_art := UI.art("caravan/modules/%s.png" % String(b.code))  # admin-panel art (section «Караван»)
+		if mod_art:
+			var tr := TextureRect.new()
+			tr.texture = mod_art
+			tr.custom_minimum_size = Vector2(96, 96)
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tr.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			h.add_child(tr)
+		else:
+			var ic := GameIcon.new()
+			ic.kind = String(MODULE_ICONS.get(String(b.code), "fortress"))
+			ic.custom_minimum_size = Vector2(80, 80)
+			ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+			h.add_child(ic)
 		var info := VBoxContainer.new()
 		info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		info.add_child(UI.label("%s · ур. %d/%d" % [b.name, int(b.level), int(b.max_level)], UI.FS.body_l, UI.GOLD, true))

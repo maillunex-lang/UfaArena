@@ -139,7 +139,8 @@ def test_every_art_slot_is_read_by_the_client():
     templates = {"icons/": '"icons/%s.png"', "heroes/": '"heroes/%s.png"', "guild/banner_": '"guild/banner_%s.png"',
                  "ui/chat/": '"ui/chat/"', "ui/buttons/": '"ui/buttons/%s.png"', "ui/cards/frame_r": '"ui/cards/frame_r%d.png"',
                  "regions/": '"regions/%s.png"', "ui/battle/": '"ui/battle/%s.png"',
-                 "ui/shop/items/": '"ui/shop/items/%s.png"', "ui/home/shop_button": '"ui/home/shop_button.png"', "ui/story/": '"ui/story/%s.png"', "ui/shop/banner_": '"ui/shop/banner_%s.png"'}
+                 "ui/shop/items/": '"ui/shop/items/%s.png"', "ui/home/shop_button": '"ui/home/shop_button.png"', "ui/story/": '"ui/story/%s.png"', "ui/shop/banner_": '"ui/shop/banner_%s.png"',
+                 "caravan/modules/": '"caravan/modules/%s.png"'}
     for sec in art.catalog():
         for sl in sec["slots"]:
             tpl = next((t for pre, t in templates.items() if sl["path"].startswith(pre)), None)
