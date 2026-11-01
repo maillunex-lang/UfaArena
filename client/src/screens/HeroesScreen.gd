@@ -48,7 +48,12 @@ func setup(m: Node, p: Dictionary) -> void:
 	for f in Game.playable_factions():
 		var code: String = f.code
 		fac.add_child(_tab(f.name, code, f_faction == code, func(): _set_faction(code)))
-	v.add_child(fac)
+	# faction names are long: the row scrolls sideways instead of clipping captions
+	var fsc := ScrollContainer.new()
+	fsc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	fsc.custom_minimum_size = Vector2(0, 84)
+	fsc.add_child(fac)
+	v.add_child(fsc)
 	_filter_row = HBoxContainer.new()
 	_filter_row.add_theme_constant_override("separation", 8)
 	v.add_child(_filter_row)
@@ -87,15 +92,17 @@ func _set_faction(code: String) -> void:
 func _tab(text: String, emblem: String, active: bool, cb: Callable) -> Button:
 	var b := UI.button(text, "primary" if active else "glass", 0, 78)
 	b.add_theme_font_size_override("font_size", 25)
-	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if emblem != "":
+		for st in ["normal", "hover", "pressed", "focus", "disabled"]:
+			var sb := b.get_theme_stylebox(st).duplicate() as StyleBox
+			sb.content_margin_left = 62  # room for the faction emblem
+			b.add_theme_stylebox_override(st, sb)
 		var ic := GameIcon.new()
 		ic.kind = emblem
 		ic.size = Vector2(46, 46)
 		ic.position = Vector2(8, 16)
 		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		b.add_child(ic)
-		b.add_theme_constant_override("h_separation", 40)
 	b.pressed.connect(cb)
 	return b
 

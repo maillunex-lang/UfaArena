@@ -101,10 +101,11 @@ func _run() -> void:
 	await advance_dialogs()
 	await wait(1.5)
 	await shot("02_home")
-	await press("Кампания")
+	# new navigation: dashboard «В бой» opens the campaign with the next stage's preparation panel
+	await press("В бой")
 	await wait(3.0)
 	await shot("03_campaign")
-	await press("Сражаться")
+	await press("В бой")
 	await wait_scene("Battle")
 	await wait(2.5)
 	await shot("04_battle_story")
@@ -117,19 +118,21 @@ func _run() -> void:
 	await press("x1", 2.0)
 	await press("x2", 2.0)
 	var t := 0.0
-	while find_button("В крепость") == null and t < 120.0:
+	while find_button("На главную") == null and t < 120.0:
 		await wait(0.5)
 		t += 0.5
 	await wait(1.0)
 	await shot("06_battle_result")
-	await press("В крепость")
+	await press("На главную")
 	await wait_scene("Main")
 	await wait(2.0)
-	await press("Почта")
+	get_tree().current_scene.open("mail")  # dashboard card «Почта» → «Открыть»
 	await wait(1.5)
 	await shot("07_mail")
 	await press("Забрать")
 	await wait(1.5)
+	await press("Ещё")
+	await wait(1.0)
 	await press("Призыв")
 	await wait(2.0)
 	await shot("08_summon")
@@ -162,32 +165,31 @@ func _run() -> void:
 	await shot("12_formation")
 	await press("Сохранить отряд")
 	await wait(1.5)
-	await press("Крепость")
+	await press("Главная")
+	await wait(2.5)
+	await press("Забрать")  # first «Забрать» on the dashboard is the patrol (AFK) card
 	await wait(2.0)
-	await press("Дозор")
-	await wait(1.5)
 	await shot("13_home_after_afk")
-	await press("Задания")
-	await wait(1.5)
+	await press("Все задания")
+	await wait(2.0)
 	await shot("14_quests")
 	for i in 3:
 		if not await press("Забрать", 1.0):
 			break
 		await wait(1.0)
-	await press("Назад")
-	await press("Здания")
+	get_tree().current_scene.open("fortress")
 	await wait(1.5)
 	await shot("15_fortress")
 	await press("Улучшить")
 	await wait(1.5)
-	await press("Назад")
-	await wait(0.5)
-	# second campaign battle: 1-2 straight from the campaign card
-	await press("Кампания")
+	await press("Главная")
+	await wait(2.0)
+	# second campaign battle: 1-2 from the dashboard campaign card
+	await press("В бой")
 	await wait(3.0)
 	await shot("16_campaign_after")
 	# real-time battle 1-2: all units fight at once (side view)
-	await press("Сражаться")
+	await press("В бой")
 	await wait_scene("Battle")
 	await wait(2.5)
 	await advance_dialogs()
@@ -195,11 +197,11 @@ func _run() -> void:
 		await wait(2.0)
 		await shot("16b_battle_%d" % i)
 	var t2 := 0.0
-	while find_button("В крепость") == null and t2 < 120.0:
+	while find_button("На главную") == null and t2 < 120.0:
 		await wait(0.5)
 		t2 += 0.5
 	await shot("16c_battle_result")
-	await press("В крепость")
+	await press("На главную")
 	await wait_scene("Main")
 	await wait(1.5)
 	var gold_before := int(Game.wallet.get("gold", 0))

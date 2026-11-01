@@ -31,6 +31,7 @@ services:
       - contentstore:/srv/var/content_store     # published content packages (by SHA-256)
       - ./content_src:/srv/content_src:ro       # package sources for `python -m app.content.admin publish`
       - ./downloads:/srv/var/downloads          # APK + release.json (uploads from the web admin panel)
+      - ./web:/srv/var/web:ro                   # Web version (Godot Web export) served at /play, optional
     # Без домена/HTTPS: "8000:8000". С Caddy на этом же сервере: "127.0.0.1:8000:8000"
     ports: ["${URALIA_API_BIND:-8000}:8000"]
 volumes:

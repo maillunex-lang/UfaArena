@@ -620,7 +620,7 @@ func _result_panel(victory: bool, rewards: Dictionary, r: Dictionary) -> void:
 		var nb := UI.button("Далее", "primary", 260)
 		nb.pressed.connect(func(): Router.goto(Router.MAIN, {"screen": "campaign"}))
 		row.add_child(nb)
-	var home := UI.button("В крепость", "glass", 300)
+	var home := UI.button("На главную", "glass", 300)
 	home.pressed.connect(_back)
 	row.add_child(home)
 	v.add_child(row)

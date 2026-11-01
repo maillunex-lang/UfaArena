@@ -78,9 +78,9 @@ func _run() -> void:
 	for d in get_tree().root.find_children("*", "Control", true, false):
 		if d.get_script() and (String(d.get_script().resource_path).ends_with("StoryDialog.gd") or String(d.get_script().resource_path).ends_with("UpdateDialog.gd")):
 			d.queue_free()
-	main().open("modes")
+	main().open("world")
 	await wait(1.5)
-	await shot("o00_modes")
+	await shot("o00_world")
 	# guild: join an AI guild that accepts level 1
 	main().open("guild")
 	await wait(3.0)

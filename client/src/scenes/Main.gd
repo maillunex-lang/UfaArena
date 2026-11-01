@@ -10,7 +10,6 @@ const SCREENS := {
 	"heroes": preload("res://src/screens/HeroesScreen.gd"),
 	"summon": preload("res://src/screens/SummonScreen.gd"),
 	"fortress": preload("res://src/screens/FortressScreen.gd"),
-	"modes": preload("res://src/screens/ModesScreen.gd"),
 	"quests": preload("res://src/screens/QuestsScreen.gd"),
 	"mail": preload("res://src/screens/MailScreen.gd"),
 	"settings": preload("res://src/screens/SettingsScreen.gd"),

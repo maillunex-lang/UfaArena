@@ -218,3 +218,18 @@ https://github.com/maillunex-lang/UfaArena/raw/apk/uralia-latest.apk
 APK собирается только под ARM64 (все современные телефоны), поэтому весит около 50 МБ.
 Эту же ссылку можно указать в админке («Сервер и APK» → «Внешняя ссылка»), чтобы окно
 «Вышло обновление» в игре вело прямо на GitHub.
+
+## 17. Обновление 0.7: новый интерфейс, восстановление доступа, магазин гильдии, Web-версия
+Миграция 0008 только добавляет колонку `users.recovery_hash`. Перед обновлением — бэкап:
+```bash
+cd /opt/uralia
+docker compose exec db pg_dump -U uralia uralia > backup_before_0008.sql
+git pull
+docker compose up -d --build
+docker compose logs --tail=40 api        # должно быть: Running upgrade 0007 -> 0008
+```
+Новый APK 0.7.0: ссылка из раздела 16 (ветка `apk`) или загрузка в `/admin` → «Выпуски», чтобы игроки увидели окно обновления.
+
+**Web-версия (по желанию).** Скопируйте папку экспорта Web (`index.html`, `index.js`, `index.wasm`, `index.pck` и др.)
+в `/opt/uralia/web/` и выполните `docker compose up -d`. Игра откроется по адресу `http://144.31.254.99:8000/play/`.
+Без файлов маршрут `/play` просто не подключается. Подробности сборки — `docs/ui/build.md`, откат — `docs/ui/rollback.md`.
