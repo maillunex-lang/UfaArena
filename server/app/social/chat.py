@@ -147,13 +147,49 @@ def system_message(db: Session, channel: str, text: str) -> None:
     db.add(ChatMessage(channel=channel, user_id=None, text=text[:400], reactions={}))
 
 
+def _avatar_hero(db: Session, user_id: str) -> str:
+    """Portrait for the chat avatar: the hero in the first filled formation slot."""
+    from ..models import Formation, PlayerHero
+    f = db.scalar(select(Formation).where(Formation.user_id == user_id, Formation.kind == "campaign"))
+    for pid in (f.slots if f else []):
+        if pid:
+            ph = db.get(PlayerHero, pid)
+            if ph:
+                return ph.hero_code
+    return "azamat"
+
+
+def prune(db: Session) -> int:
+    """Keeps the newest N messages per channel (older ones are deleted), except messages under open reports."""
+    keep = int(C().get("keep_per_channel", 100))
+    reported = set(db.scalars(select(ChatReport.message_id).where(ChatReport.status == "open", ChatReport.message_id.is_not(None))))
+    removed = 0
+    for (ch,) in db.execute(select(ChatMessage.channel).group_by(ChatMessage.channel)
+                            .having(func.count() > keep)).all():
+        border = db.scalar(select(ChatMessage.id).where(ChatMessage.channel == ch).order_by(ChatMessage.id.desc())
+                           .offset(keep - 1).limit(1))
+        if border is None:
+            continue
+        q = db.query(ChatMessage).filter(ChatMessage.channel == ch, ChatMessage.id < border)
+        if reported:
+            q = q.filter(ChatMessage.id.notin_(reported))
+        removed += q.delete(synchronize_session=False)
+    db.flush()
+    return removed
+
+
 def view(db: Session, m: ChatMessage, viewer: str, cards: dict) -> dict:
     a = None
     if m.user_id:
         if m.user_id not in cards:
             p = db.get(PlayerProfile, m.user_id)
+            gm = db.scalar(select(GuildMember).where(GuildMember.user_id == m.user_id))
+            from ..models import Guild
+            g = db.get(Guild, gm.guild_id) if gm else None
             cards[m.user_id] = {"user_id": m.user_id, "nickname": p.nickname if p else "?", "is_ai": bool(p and p.is_ai),
                                 "level": p.level if p else 1, "avatar": p.avatar if p else "",
+                                "avatar_hero": _avatar_hero(db, m.user_id),
+                                "guild_tag": g.tag if g else "", "guild_name": g.name if g else "",
                                 "frame": (p.cosmetics or {}).get("frame") if p else None}
         a = cards[m.user_id]
     return {"id": m.id, "channel": m.channel, "author": a, "system": m.user_id is None, "text": m.text,
@@ -203,7 +239,9 @@ def messages(channel: str = Query(max_length=80), after: int = Query(0, ge=0), b
         if before:
             stmt = stmt.where(ChatMessage.id < before)
         rows = list(reversed(db.scalars(stmt.order_by(ChatMessage.id.desc()).limit(C()["page"])).all()))
-    rows = [m for m in rows if m.user_id not in hide]
+    from .ai.control import player_prefs
+    hide_ai = channel == "global" and not player_prefs(db.get(PlayerProfile, user.id)).get("show_ai_chat", True)
+    rows = [m for m in rows if m.user_id not in hide and not (hide_ai and m.is_ai)]
     cards: dict = {}
     out = [view(db, m, user.id, cards) for m in rows]
     if out:

@@ -27,7 +27,7 @@ const SCREENS := {
 }
 const UpdateDialog := preload("res://src/ui/UpdateDialog.gd")
 const NAV := [["campaign", "Кампания"], ["heroes", "Герои"], ["home", "Крепость"], ["summon", "Призыв"],
-	["modes", "Режимы"]]
+	["modes", "Режимы"], ["chat", "Чат"]]
 
 var world: Node3D
 var world_kind := ""
@@ -222,7 +222,7 @@ func _build_nav() -> void:
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_theme_constant_override("separation", 6)
 	panel.add_child(h)
-	var icons := {"campaign": "campaign", "heroes": "heroes", "home": "fortress", "summon": "summon", "modes": "modes"}
+	var icons := {"campaign": "campaign", "heroes": "heroes", "home": "fortress", "summon": "summon", "modes": "modes", "chat": "chat"}
 	for item in NAV:
 		var b := UI.icon_button(icons[item[0]], item[1])
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL

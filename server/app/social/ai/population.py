@@ -250,6 +250,11 @@ def _say(db: Session, persona: AiPersona, channel: str, text: str) -> None:
 
 def process_replies(db: Session, budget: int) -> int:
     import time
+    from .control import global_switches
+    if not global_switches(db).get("chat", True):
+        _reply_queue.clear()
+        _mention_queue.clear()
+        return 0
     now = time.monotonic()
     done = 0
     keep = deque()
@@ -359,7 +364,7 @@ def tick(db: Session) -> dict:
 
 
 def _choose(persona: AiPersona) -> str:
-    weights = {"level": 3, "chat": 2, "arena": 2, "guild": 2, "friend": 1, "raid": 1, "event": 1}
+    weights = {"level": 3, "chat": 2, "arena": 3, "guild": 3, "friend": 1, "raid": 3, "event": 1, "war": 1}
     for i in persona.interests or []:
         if i in weights:
             weights[i] += 3
@@ -387,7 +392,9 @@ def act_level(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
 
 
 def act_chat(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
-    from . import banter
+    from . import banter, control
+    if not control.allowed(db, "chat"):
+        return
     if banter.ai_messages_last_hour(db) >= AI().get("chat_ai_per_hour", 45):
         return
     m = db.scalar(select(GuildMember).where(GuildMember.user_id == persona.user_id))
@@ -402,58 +409,100 @@ def act_chat(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
 
 
 def act_arena(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
-    """AI ladder only: AI vs AI training matches that never touch real ratings."""
+    """AI ladder matches, and (when allowed) training attacks on real players' defenses so defense history
+    stays lively. Real ratings change only if the owner enabled "arena_rated"."""
+    from . import control
     me = db.get(ArenaProfile, persona.user_id)
     if me is None or not me.defense:
         return
-    opp = db.scalars(select(ArenaProfile).where(ArenaProfile.is_ai.is_(True), ArenaProfile.user_id != me.user_id,
-                                                ArenaProfile.defense_power > 0)
-                     .order_by(func.abs(ArenaProfile.rating - me.rating)).limit(5)).all()
-    if not opp:
-        return
-    o = _rng.choice(opp)
-    seed = secrets.randbits(40)
-    sim = pvp(db, me.defense, o.defense, seed)
-    won = sim["result"] == "victory"
     from ..arena import current_season, elo
-    d = elo(me.rating, o.rating, 1.0 if won else 0.0)
-    me.rating += d
-    o.rating -= round(d * 0.5)
+    season = current_season(db)
+    vs_real = control.allowed(db, "arena") and _rng.random() < 0.5
+    target = None
+    if vs_real:
+        cands = db.scalars(select(ArenaProfile).where(ArenaProfile.is_ai.is_(False), ArenaProfile.defense_power > 0)
+                           .order_by(func.abs(ArenaProfile.defense_power - me.defense_power)).limit(20)).all()
+        today = utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        for c in cands:
+            p = db.get(PlayerProfile, c.user_id)
+            from .control import player_prefs
+            if not player_prefs(p).get("arena_defense", True):
+                continue
+            hits = db.scalar(select(func.count()).select_from(ArenaMatch).join(PlayerProfile, PlayerProfile.user_id == ArenaMatch.attacker_id)
+                             .where(ArenaMatch.defender_id == c.user_id, ArenaMatch.created_at >= today,
+                                    PlayerProfile.is_ai.is_(True))) or 0
+            if hits < 5:
+                target = c
+                break
+    if target is None:
+        opp = db.scalars(select(ArenaProfile).where(ArenaProfile.is_ai.is_(True), ArenaProfile.user_id != me.user_id,
+                                                    ArenaProfile.defense_power > 0)
+                         .order_by(func.abs(ArenaProfile.rating - me.rating)).limit(5)).all()
+        if not opp:
+            return
+        target = _rng.choice(opp)
+    seed = secrets.randbits(40)
+    sim = pvp(db, me.defense, target.defense, seed)
+    won = sim["result"] == "victory"
+    d_att = elo(me.rating, target.rating, 1.0 if won else 0.0)
+    rated = target.is_ai or control.global_switches(db).get("arena_rated", False)
+    d_def = -round(d_att * 0.5) if rated else 0
+    me.rating += d_att
+    target.rating += d_def
     me.wins += won
     me.losses += not won
-    db.add(ArenaMatch(season_id=current_season(db).id, kind="training", attacker_id=me.user_id, defender_id=o.user_id,
-                      result=sim["result"], delta_att=d, delta_def=-round(d * 0.5), seed=seed,
-                      attacker_snapshot=me.defense, defender_snapshot=o.defense))
-    log(db, persona, "arena_ai", won=won, delta=d)
+    if not target.is_ai:
+        if won:
+            target.def_losses += 1
+        else:
+            target.def_wins += 1
+    db.add(ArenaMatch(season_id=season.id, kind="ranked" if rated and not target.is_ai else "training",
+                      attacker_id=me.user_id, defender_id=target.user_id, result=sim["result"], delta_att=d_att,
+                      delta_def=d_def, seed=seed, attacker_snapshot=me.defense, defender_snapshot=target.defense))
+    log(db, persona, "arena", vs_real=not target.is_ai, won=won)
 
 
 def act_guild(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
+    from . import control
+    from ..guilds import G, join, levels, member_count
     m = db.scalar(select(GuildMember).where(GuildMember.user_id == persona.user_id))
     if m is None:
-        g = db.scalar(select(Guild).where(Guild.is_ai.is_(True)).order_by(func.random()).limit(1))
-        if g is not None and "guild" in (persona.interests or []):
-            from ..guilds import member_count, G
-            if member_count(db, g.id) < G()["max_members"] - 3:  # leave room for real players
-                db.add(GuildMember(guild_id=g.id, user_id=persona.user_id, role="novice", last_active_at=utcnow()))
+        if "guild" not in (persona.interests or []) and _rng.random() < 0.6:
+            return
+        # real guilds that welcome AI recruits first (never more than a third of the roster), then AI guilds
+        for g in db.scalars(select(Guild).where(Guild.join_mode == "open").order_by(func.random()).limit(10)):
+            if g.is_ai or not control.allowed(db, "guild_help", g, "recruit"):
+                continue
+            n = member_count(db, g.id)
+            ai_n = db.scalar(select(func.count()).select_from(GuildMember).join(PlayerProfile, PlayerProfile.user_id == GuildMember.user_id)
+                             .where(GuildMember.guild_id == g.id, PlayerProfile.is_ai.is_(True))) or 0
+            if n <= G()["max_members"] - 3 and (ai_n + 1) * 3 <= n + 1 and prof.level >= (g.min_level or 1):
+                join(db, g, persona.user_id, None, "open")
                 log(db, persona, "guild_join", guild=g.name)
+                return
+        g = db.scalar(select(Guild).where(Guild.is_ai.is_(True)).order_by(func.random()).limit(1))
+        if g is not None and member_count(db, g.id) < G()["max_members"] - 3:
+            db.add(GuildMember(guild_id=g.id, user_id=persona.user_id, role="novice", last_active_at=utcnow()))
+            log(db, persona, "guild_join", guild=g.name)
         return
     m.last_active_at = utcnow()
     g = db.get(Guild, m.guild_id)
-    if not g.is_ai:
-        return  # in real guilds personas never spend or vote; they only chat and stay active
-    g.treasury = (g.treasury or 0) + _rng.randint(20, 80)  # virtual guild economy, separate from real players
+    policy = control.guild_policy(g)
+    if not g.is_ai and not control.allowed(db, "guild_help"):
+        return
+    # daily activity: virtual donation (no real currency is created for players) + contribution points
+    g.treasury = (g.treasury or 0) + _rng.randint(20, 80)
     m.contribution_week = (m.contribution_week or 0) + 5
     g.week_points = (g.week_points or 0) + 5
-    if m.role in ("leader", "deputy", "officer"):
+    manage = m.role in ("leader", "deputy", "officer") and (g.is_ai or policy.get("management"))
+    if manage:
         for a in db.scalars(select(GuildApplication).where(GuildApplication.guild_id == g.id, GuildApplication.status == "pending",
                                                            GuildApplication.kind == "application")):
-            from ..guilds import join
             if ai_guild_review(db, g, a.user_id):
                 a.status = "accepted"
                 join(db, g, a.user_id, persona.user_id, "approval")
-        from ..guilds import G, levels
         lv = levels(db, g.id)
-        for code, b in G()["buildings"].items():
+        for code, b in sorted(G()["buildings"].items(), key=lambda kv: kv[1]["cost"][min(len(kv[1]["cost"]) - 1, lv.get(kv[0], 1 if kv[0] == "hall" else 0))]):
             cur = lv.get(code, 1 if code == "hall" else 0)
             if cur < b["max"] and b["cost"][cur] <= (g.treasury or 0) and all(
                     lv.get(r, 1 if r == "hall" else 0) >= n for r, n in (b.get("requires") or {}).items()):
@@ -463,9 +512,38 @@ def act_guild(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
                     row = GuildUpgrade(guild_id=g.id, code=code, kind="building", level=cur)
                     db.add(row)
                 row.level = cur + 1
-                log(db, persona, "guild_build", code=code, level=cur + 1)
+                from ..guilds import log as glog
+                glog(db, g.id, persona.user_id, "building", None, code=code, level=cur + 1, ai=True)
                 break
+    act_war(db, persona, prof)
     log(db, persona, "guild_activity", guild=g.name)
+
+
+def act_war(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
+    """AI members fight in guild wars (AI guilds always; real guilds only if the leader allows it)."""
+    from . import control
+    from ...models import GuildWar
+    from sqlalchemy import or_
+    m = db.scalar(select(GuildMember).where(GuildMember.user_id == persona.user_id))
+    if m is None:
+        return
+    g = db.get(Guild, m.guild_id)
+    if not control.allowed(db, "guild_wars", g, "wars"):
+        return
+    w = db.scalar(select(GuildWar).where(GuildWar.status == "active", or_(GuildWar.guild_a == g.id, GuildWar.guild_b == g.id)))
+    if w is None:
+        return
+    other = w.guild_b if w.guild_a == g.id else w.guild_a
+    targets = [x.user_id for x in db.scalars(select(GuildMember).where(GuildMember.guild_id == other))]
+    if not targets:
+        return
+    from ..guilds import do_war_attack
+    from ...core.errors import GameError
+    try:
+        r = do_war_attack(db, persona.user_id, _rng.choice(targets))
+        log(db, persona, "war_attack", points=r["points"])
+    except GameError:
+        pass
 
 
 def act_friend(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
@@ -486,22 +564,36 @@ def act_friend(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
 
 
 def act_raid(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
-    """Personas only fight their own virtual guild's boss — never shared real raids."""
+    """AI help with bosses: own guild boss (AI guild, or real guild that allows it) and shared world/seasonal bosses.
+    Fair-play limits: AI get no rewards, never land the final blow and stop below 10% HP, so players finish the boss."""
+    from . import control
+    if not control.allowed(db, "raids"):
+        return
+    from ...models import RaidAttack
+    from ..raids import boss_conf, current_instance, fight
     m = db.scalar(select(GuildMember).where(GuildMember.user_id == persona.user_id))
-    if m is None or not db.get(Guild, m.guild_id).is_ai:
+    options = [("world", None), ("seasonal", None)]
+    if m:
+        g = db.get(Guild, m.guild_id)
+        if g.is_ai or control.guild_policy(g).get("raids"):
+            options.insert(0, ("guild", m.guild_id))
+    kind, scope = _rng.choice(options)
+    inst = current_instance(db, kind, scope)
+    if inst.status != "active" or inst.hp_left <= inst.hp_max * 0.10:
         return
-    from ..raids import current_instance, fight, boss_conf
-    inst = current_instance(db, "guild", m.guild_id)
-    if inst.status != "active" or inst.hp_left <= 0:
-        return
+    if db.scalar(select(func.count()).select_from(RaidAttack).where(RaidAttack.raid_id == inst.id,
+                                                                    RaidAttack.user_id == persona.user_id)) >= 3:
+        return  # same attempt budget as a player
     b = boss_conf(inst.boss_code)
     sim, dmg, pidx, _ = fight(db, persona.user_id, b, inst.boss_code, inst.hp_left, inst.hp_max, inst.stage, secrets.randbits(40))
+    real_guild = scope and not db.get(Guild, scope).is_ai
+    if kind != "guild" or real_guild:
+        dmg = max(0, min(dmg, inst.hp_left - int(inst.hp_max * 0.10)))
     inst.hp_left = max(0, inst.hp_left - dmg)
-    from ...models import RaidAttack
     db.add(RaidAttack(raid_id=inst.id, user_id=persona.user_id, damage=dmg, phase=pidx, seed=0, team_snapshot=[]))
-    if inst.hp_left <= 0:
-        inst.status, inst.loot_done = "defeated", True  # virtual guild: no rewards are issued
-    log(db, persona, "raid_ai_guild", damage=dmg)
+    if inst.hp_left <= 0:  # only possible for a purely virtual guild boss
+        inst.status, inst.loot_done = "defeated", True
+    log(db, persona, "raid", kind=kind, damage=dmg)
 
 
 def act_event(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
@@ -511,7 +603,7 @@ def act_event(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
 
 
 ACTIONS = {"level": act_level, "chat": act_chat, "arena": act_arena, "guild": act_guild, "friend": act_friend,
-           "raid": act_raid, "event": act_event}
+           "raid": act_raid, "event": act_event, "war": act_war}
 
 
 def _trim(db: Session) -> None:

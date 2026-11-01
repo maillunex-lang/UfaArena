@@ -101,7 +101,7 @@ func _run() -> void:
 		scr._entry.text = "Привет! Ты бот? Подскажи совет по арене"
 		await scr._send()
 		_log("waiting for AI reply")
-		await wait(80.0)
+		await wait(40.0)
 		await scr._poll()
 		await wait(1.0)
 		await shot("c02_dm_ai_reply")

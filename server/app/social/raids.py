@@ -291,7 +291,8 @@ def finish(db: Session, inst: RaidInstance, expired: bool = False) -> None:
     if inst.loot_done:
         return
     b = boss_conf(inst.boss_code)
-    users = list(db.scalars(select(func.distinct(RaidAttack.user_id)).where(RaidAttack.raid_id == inst.id)))
+    users = [u for u in db.scalars(select(func.distinct(RaidAttack.user_id)).where(RaidAttack.raid_id == inst.id))
+             if not (db.get(PlayerProfile, u) and db.get(PlayerProfile, u).is_ai)]  # AI helpers get no rewards
     inst.status = "expired" if expired else "defeated"
     inst.defeated_at = None if expired else utcnow()
     inst.loot_done = True

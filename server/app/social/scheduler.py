@@ -84,6 +84,11 @@ def _arena_season(db):
     return {"season": current_season(db).id}
 
 
+def _chat_prune(db):
+    from .chat import prune
+    return {"removed": prune(db)}
+
+
 def _raids(db):
     from .raids import finish
     n = 0
@@ -106,6 +111,7 @@ JOBS: dict[str, tuple[int, callable]] = {
     "economy": (3600, _economy),
     "arena_season": (1800, _arena_season),
     "raids": (600, _raids),
+    "chat_prune": (300, _chat_prune),
 }
 
 

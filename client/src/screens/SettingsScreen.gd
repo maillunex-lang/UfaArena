@@ -138,6 +138,10 @@ func setup(m: Node, _p: Dictionary) -> void:
 			main.open("settings"))
 	crow.add_child(rb)
 	v.add_child(crow)
+	v.add_child(UI.label("ИИ-жители", 32, UI.ACCENT, true))
+	var ai_box := VBoxContainer.new()
+	v.add_child(ai_box)
+	_ai_prefs(ai_box)
 	var upd := UI.button("Проверить обновление приложения", "glass", 0, 90)
 	upd.pressed.connect(func(): load("res://src/ui/UpdateDialog.gd").check(main.ui, true))
 	v.add_child(upd)
@@ -212,3 +216,26 @@ func _logout(btn: Button) -> void:
 	Api.clear_session()
 	Game.loaded = false
 	Router.goto(Router.BOOT)
+
+
+func _ai_prefs(box: VBoxContainer) -> void:
+	var r := await Api.get_json("/social/ai-prefs")
+	if not r.ok or not is_instance_valid(box):
+		return
+	for k in r.data.names:
+		var cb := CheckButton.new()
+		cb.text = String(r.data.names[k])
+		cb.button_pressed = bool(r.data.prefs.get(k, true))
+		cb.add_theme_font_size_override("font_size", 26)
+		cb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		var key: String = k
+		cb.toggled.connect(func(on: bool): Api.post_json("/social/ai-prefs", {key: on}))
+		box.add_child(cb)
+	var off: Array = []
+	for k in r.data.global:
+		if k != "arena_rated" and not r.data.global[k]:
+			off.append(String(r.data.global_names.get(k, k)))
+	if off.size() > 0:
+		var l := UI.label("Отключено владельцем сервера: " + ", ".join(off), 22, UI.MUTED)
+		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(l)

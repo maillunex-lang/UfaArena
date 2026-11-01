@@ -223,7 +223,13 @@ def mine(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
         "expedition_types": G()["expeditions"], "war": war_view(db, war, g.id) if war else None,
         "donate": G()["donate"]["gold"], "donated_today": _donated_today(db, user.id),
         "invites": invites, "week_rewards": G()["week_rewards"],
+        "ai_policy": _ai_policy_view(g),
     }
+
+
+def _ai_policy_view(g: Guild) -> dict:
+    from .ai.control import GUILD_NAMES, guild_policy
+    return {"values": guild_policy(g), "names": GUILD_NAMES}
 
 
 @router.get("/list")
@@ -736,39 +742,42 @@ def defense_spec(db: Session, user_id: str) -> list[dict]:
     return freeze_squad(db, user_id)
 
 
+def do_war_attack(db: Session, attacker_id: str, target_id: str) -> dict:
+    """One war attack (players via API, AI members via the AI engine). Raises GameError when not allowed."""
+    g, m = my_guild(db, attacker_id)
+    w = db.scalar(select(GuildWar).where(GuildWar.status == "active", or_(GuildWar.guild_a == g.id, GuildWar.guild_b == g.id))
+                  .with_for_update())
+    if w is None or as_utc(w.ends_at) <= utcnow():
+        raise GameError("no_war", "Активной войны нет", 404)
+    other = w.guild_b if w.guild_a == g.id else w.guild_a
+    if db.get(GuildMember, (other, target_id)) is None:
+        raise GameError("bad_target", "Цель не состоит в гильдии противника", 400)
+    used = db.scalar(select(func.count()).select_from(GuildWarAttack).where(
+        GuildWarAttack.war_id == w.id, GuildWarAttack.user_id == attacker_id)) or 0
+    if used >= G()["war"]["attacks_per_member"]:
+        raise GameError("limit", "Вы использовали все атаки этой войны", 409)
+    mine = guild_bonuses(db, attacker_id)
+    their = guild_bonuses(db, target_id)
+    att = freeze_squad(db, attacker_id, extra={"atk_pct": mine.get("war_atk_pct", 0)})
+    dfn = [dict(u, stats={**u["stats"], "hp": int(u["stats"]["hp"] * (1 + their.get("war_def_pct", 0)))})
+           for u in defense_spec(db, target_id)]
+    seed = secrets.randbits(48)
+    sim = pvp(db, att, dfn, seed)
+    pts = G()["war"]["win_points"] if sim["result"] == "victory" else G()["war"]["loss_points"]
+    if w.guild_a == g.id:
+        w.score_a += pts
+    else:
+        w.score_b += pts
+    db.add(GuildWarAttack(war_id=w.id, user_id=attacker_id, guild_id=g.id, target_user_id=target_id,
+                          result=sim["result"], points=pts, seed=seed))
+    add_points(db, g, m, 5, "war", 5)
+    return {"simulation": sim, "points": pts, "summary": summary(sim)}
+
+
 @router.post("/war/attack")
 def war_attack(body: TargetIn, user: CurrentUser = Depends(player), key: str = Depends(require_key),
                db: Session = Depends(get_db)):
-    def do():
-        g, m = my_guild(db, user.id)
-        w = db.scalar(select(GuildWar).where(GuildWar.status == "active", or_(GuildWar.guild_a == g.id, GuildWar.guild_b == g.id))
-                      .with_for_update())
-        if w is None or as_utc(w.ends_at) <= utcnow():
-            raise GameError("no_war", "Активной войны нет", 404)
-        other = w.guild_b if w.guild_a == g.id else w.guild_a
-        if db.get(GuildMember, (other, body.user_id)) is None:
-            raise GameError("bad_target", "Цель не состоит в гильдии противника", 400)
-        used = db.scalar(select(func.count()).select_from(GuildWarAttack).where(
-            GuildWarAttack.war_id == w.id, GuildWarAttack.user_id == user.id)) or 0
-        if used >= G()["war"]["attacks_per_member"]:
-            raise GameError("limit", "Вы использовали все атаки этой войны", 409)
-        mine = guild_bonuses(db, user.id)
-        their = guild_bonuses(db, body.user_id)
-        att = freeze_squad(db, user.id, extra={"atk_pct": mine.get("war_atk_pct", 0)})
-        dfn = [dict(u, stats={**u["stats"], "hp": int(u["stats"]["hp"] * (1 + their.get("war_def_pct", 0)))})
-               for u in defense_spec(db, body.user_id)]
-        seed = secrets.randbits(48)
-        sim = pvp(db, att, dfn, seed)
-        pts = G()["war"]["win_points"] if sim["result"] == "victory" else G()["war"]["loss_points"]
-        if w.guild_a == g.id:
-            w.score_a += pts
-        else:
-            w.score_b += pts
-        db.add(GuildWarAttack(war_id=w.id, user_id=user.id, guild_id=g.id, target_user_id=body.user_id,
-                              result=sim["result"], points=pts, seed=seed))
-        add_points(db, g, m, 5, "war", 5)
-        return {"simulation": sim, "points": pts, "summary": summary(sim)}
-    return run_idempotent(db, user.id, key, f"war_attack:{body.user_id}", {}, do)
+    return run_idempotent(db, user.id, key, f"war_attack:{body.user_id}", {}, lambda: do_war_attack(db, user.id, body.user_id))
 
 
 def finish_wars(db: Session) -> int:

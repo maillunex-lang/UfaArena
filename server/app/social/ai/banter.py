@@ -271,6 +271,10 @@ def minutes_since_last(db: Session, channel: str = "global") -> float:
 def keep_alive(db: Session, cfg: dict) -> dict:
     """Keeps the global chat (and AI-guild chats with real members) alive within the hourly cap."""
     global _last_start
+    from .control import global_switches
+    if not global_switches(db).get("chat", True):
+        _queue.clear()
+        return {"posted": 0, "started": 0, "disabled": True}
     stats = {"posted": flush(db), "started": 0}
     pending = len(_queue)
     if pending == 0 and ai_messages_last_hour(db) < cfg.get("chat_ai_per_hour", 45):

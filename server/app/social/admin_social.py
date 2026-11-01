@@ -203,3 +203,17 @@ def world_restore(body: RestoreIn, who: str = Depends(admin), db: Session = Depe
     _log(db, who, "world_restore", version=body.version, new_version=ws.version)
     db.commit()
     return {"version": ws.version}
+
+
+@router.get("/ai-switches")
+def ai_switches(who: str = Depends(admin), db: Session = Depends(get_db)):
+    from .ai.control import GLOBAL_NAMES, global_switches
+    return {"switches": global_switches(db), "names": GLOBAL_NAMES}
+
+
+@router.post("/ai-switches")
+def ai_switches_set(body: dict, who: str = Depends(admin), db: Session = Depends(get_db)):
+    from .ai.control import set_global
+    out = set_global(db, body, who)
+    db.commit()
+    return {"switches": out}

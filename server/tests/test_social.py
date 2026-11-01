@@ -563,3 +563,68 @@ def test_ai_conversations_keep_chat_alive():
         assert any("@" in m.text for m in msgs)  # personas address each other
         stats = B.keep_alive(db, AIP.AI())
         assert "posted" in stats
+
+
+def test_chat_retention_and_ai_chat_toggle(newplayer):
+    from app.models import ChatMessage, PlayerProfile
+    from app.social import chat as CH
+    p = newplayer()
+    ch = "dm:test:" + uuid.uuid4().hex[:8]
+    with session() as db:
+        for i in range(130):
+            db.add(ChatMessage(channel=ch, user_id=uid(p), text=f"msg {i}", reactions={}))
+    with session() as db:
+        CH.prune(db)
+    with session() as db:
+        left = db.scalars(select(ChatMessage).where(ChatMessage.channel == ch).order_by(ChatMessage.id)).all()
+        assert len(left) == 100 and left[0].text == "msg 30"
+    # hide AI messages in the global chat for this player only
+    with session() as db:
+        ai = db.scalar(select(PlayerProfile).where(PlayerProfile.is_ai.is_(True)))
+        db.add(ChatMessage(channel="global", user_id=ai.user_id, text="Я ИИ и болтаю", is_ai=True, reactions={}))
+    assert any(m["is_ai"] for m in p.get("/chat/messages?channel=global").json()["messages"])
+    assert p.post("/social/ai-prefs", {"show_ai_chat": False}, key=False).json()["prefs"]["show_ai_chat"] is False
+    assert not any(m["is_ai"] for m in p.get("/chat/messages?channel=global").json()["messages"])
+    msg = p.get("/chat/messages?channel=global").json()["messages"]
+    assert all("avatar_hero" in m["author"] for m in msg if m["author"])
+
+
+def test_ai_participation_switches_and_fair_play(client, newplayer):
+    from app.models import AiPersona, ArenaMatch, Guild, GuildMember, PlayerProfile, RaidInstance
+    from app.social.ai import population as AIP
+    from app.social.ai.control import global_switches
+    with session() as db:
+        AIP.ensure_population(db, max_new=6)
+    # guild leader policy
+    lead = newplayer()
+    gid = make_guild(lead)
+    r = lead.post("/guilds/ai-policy", {"management": True, "wars": False}, key=False).json()["policy"]
+    assert r["management"] and not r["wars"] and lead.get("/guilds/mine").json()["ai_policy"]["values"]["management"]
+    # AI raids never take a shared boss below 10% and never get loot
+    with session() as db:
+        persona = db.scalars(select(AiPersona)).first()
+        prof = db.get(PlayerProfile, persona.user_id)
+        from app.social.raids import current_instance
+        inst = current_instance(db, "world", None)
+        inst.hp_left = int(inst.hp_max * 0.12)
+        for _ in range(3):
+            AIP.act_raid(db, persona, prof)
+        inst = db.get(RaidInstance, inst.id)
+        assert inst.hp_left >= int(inst.hp_max * 0.10) - 1
+    # AI arena attacks respect the player's personal switch
+    a = newplayer()
+    a.get("/arena")
+    a.post("/social/ai-prefs", {"arena_defense": False}, key=False)
+    with session() as db:
+        for persona in db.scalars(select(AiPersona)).all()[:6]:
+            AIP.act_arena(db, persona, db.get(PlayerProfile, persona.user_id))
+        assert db.scalar(select(func.count()).select_from(ArenaMatch).where(ArenaMatch.defender_id == uid(a))) == 0
+    # owner switch turns AI arena off entirely (only the AI ladder remains)
+    assert client.post("/admin/api/social/ai-switches", json={"arena": False, "chat": False}, headers=AH()).status_code == 200
+    with session() as db:
+        assert global_switches(db)["arena"] is False
+    from app.social.ai import banter
+    with session() as db:
+        assert banter.keep_alive(db, AIP.AI()).get("disabled")
+    client.post("/admin/api/social/ai-switches", json={"arena": True, "chat": True}, headers=AH())
+    _ = (Guild, GuildMember, gid)

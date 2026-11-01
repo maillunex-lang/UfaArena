@@ -190,6 +190,21 @@ func _overview() -> void:
 			btn(row, m[1], "primary" if gd.join_mode == mm else "glass", func():
 				if not (await act("/guilds/edit", {"join_mode": mm}, "Сохранено")).is_empty(): render())
 		add(row)
+	if g.has("ai_policy"):
+		h1("ИИ-жители в гильдии")
+		var pol: Dictionary = g.ai_policy
+		for k in pol.names:
+			var cb := CheckButton.new()
+			cb.text = String(pol.names[k])
+			cb.button_pressed = bool(pol.values.get(k, false))
+			cb.disabled = not perm("edit")
+			cb.add_theme_font_size_override("font_size", 26)
+			cb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			var key: String = k
+			cb.toggled.connect(func(on: bool): await act("/guilds/ai-policy", {key: on}, "Сохранено"))
+			add(cb)
+		if not perm("edit"):
+			txt("Меняет глава или заместитель.", 22, UI.MUTED)
 	var leave := btn(_body, "Покинуть гильдию", "danger", func():
 		if not (await act("/guilds/leave", {}, "Вы покинули гильдию")).is_empty():
 			render())

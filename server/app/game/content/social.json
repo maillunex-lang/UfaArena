@@ -931,7 +931,7 @@
     "burst": 5,
     "burst_window_s": 30,
     "duplicate_window_s": 120,
-    "page": 50,
+    "page": 60,
     "reactions": [
       "👍",
       "❤️",
@@ -965,7 +965,8 @@
       "shit",
       "bitch"
     ],
-    "dm_ai_per_day": 2
+    "dm_ai_per_day": 2,
+    "keep_per_channel": 100
   },
   "events": {
     "templates": {
