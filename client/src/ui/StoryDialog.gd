@@ -17,7 +17,7 @@ var _choice_box: VBoxContainer
 var _skip: Button
 ## Story characters of season 1 «Пробуждение» (docs/lore/URALIA_FACTIONS_AND_CHARACTERS.md).
 const NPC := {"ancient": "Голос", "ilsur": "Ильсур", "aisylu": "Айсылу", "timer": "Тимер", "bayras": "Байрас",
-	"kahym": "Хранитель Кахым"}
+	"kahym": "Хранитель Кахым", "gauhar": "Гаухар-апа"}
 
 
 func _init() -> void:

@@ -9,7 +9,8 @@ const SCREENS := {
 	"campaign": preload("res://src/screens/CampaignScreen.gd"),
 	"heroes": preload("res://src/screens/HeroesScreen.gd"),
 	"summon": preload("res://src/screens/SummonScreen.gd"),
-	"fortress": preload("res://src/screens/FortressScreen.gd"),
+	"fortress": preload("res://src/screens/CaravanScreen.gd"),  # old key kept: links and saved params still work
+	"caravan": preload("res://src/screens/CaravanScreen.gd"),
 	"quests": preload("res://src/screens/QuestsScreen.gd"),
 	"mail": preload("res://src/screens/MailScreen.gd"),
 	"settings": preload("res://src/screens/SettingsScreen.gd"),
@@ -36,7 +37,7 @@ const NAV := [["home", "Главная"], ["heroes", "Герои"], ["campaign",
 	["more", "Ещё"]]
 ## Which section stays highlighted for a secondary screen.
 const NAV_OF := {"formation": "heroes", "summon": "more", "quests": "more", "mail": "more", "shop": "more", "friends": "more",
-	"chat": "more", "settings": "more", "profile": "more", "inventory": "more", "rankings": "more", "fortress": "home",
+	"chat": "more", "settings": "more", "profile": "more", "inventory": "more", "rankings": "more", "fortress": "home", "caravan": "home",
 	"raids": "world", "arena": "world", "tournaments": "world", "events": "world"}
 
 var world: Node3D

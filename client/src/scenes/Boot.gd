@@ -130,7 +130,7 @@ func _run() -> void:
 			return
 	if Content.missing(false).is_empty() and not Content.up_to_date():
 		Content.pending = Content._set_from_manifest()
-	_status.text = "Вход в Крепость хранителей…"
+	_status.text = "Караван ждёт хранителя…"
 	var r := await Api.login()
 	if not r.ok and r.code == "need_login":
 		if _auto_guest():

@@ -10,6 +10,8 @@ var _root: VBoxContainer
 var _afk_sub: Label
 var _event_sub: Label
 var _event_end := ""
+var _caravan_sub: Label
+var _caravan_arrive := ""
 
 
 func setup(m: Node, _p: Dictionary) -> void:
@@ -165,7 +167,10 @@ func _left_column() -> Control:
 	col.add_child(_side("mail", "Почта", "", int(_s.mail_unclaimed), func(): main.open("mail")))
 	col.add_child(_side("friends", "Друзья", "", int(soc.friend_requests) + int(soc.gifts), func(): main.open("friends")))
 	col.add_child(_side("chat", "Чат", "", int(soc.chat_unread), func(): main.open_mini_chat()))
-	col.add_child(_side("ranks", "Рейтинг", "", 0, func(): main.open("rankings")))
+	var cv := _side("caravan", "Караван", "", 0, func(): main.open("caravan"))
+	_caravan_sub = cv.find_child("Sub", true, false)
+	col.add_child(cv)
+	_load_caravan()
 	return col
 
 
@@ -204,10 +209,27 @@ func _tick() -> void:
 		_afk_sub.visible = true
 		_afk_sub.text = "Полон!" if el >= cap else _dur(cap - el)
 		_afk_sub.add_theme_color_override("font_color", UI.bad_color() if el >= cap else UI.WARNING)
+	if is_instance_valid(_caravan_sub) and _caravan_arrive != "":
+		var ct := Time.get_unix_time_from_datetime_string(_caravan_arrive.substr(0, 19)) - Time.get_unix_time_from_system()
+		_caravan_sub.text = ("в пути " + _dur(ct)) if ct > 0 else "прибыл"
 	if is_instance_valid(_event_sub) and _event_end != "":
 		var t := Time.get_unix_time_from_datetime_string(_event_end.substr(0, 19)) - Time.get_unix_time_from_system()
 		_event_sub.visible = true
 		_event_sub.text = _dur(t) if t > 0 else "итоги"
+
+
+## Caravan status under its icon: travel countdown or the current land.
+func _load_caravan() -> void:
+	var r := await Api.get_json("/caravan")
+	if not r.ok or not is_instance_valid(_caravan_sub):
+		return
+	_caravan_sub.visible = true
+	if r.data.traveling:
+		_caravan_arrive = String(r.data.arrive_at)
+	else:
+		_caravan_arrive = ""
+		_caravan_sub.text = String(r.data.location_name)
+		_caravan_sub.add_theme_color_override("font_color", UI.TEAL)
 
 
 func _dur(t: float) -> String:

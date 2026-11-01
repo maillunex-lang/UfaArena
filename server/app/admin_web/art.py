@@ -317,6 +317,8 @@ def catalog() -> list[dict]:
                    "coat, kind but heavy eyes of a former warrior"),
         "kahym": ("Хранитель Заставы Кахым", "a stern elderly guardian of an ancient outpost, long white hair, grey cloak with turquoise rune "
                   "embroidery, a staff topped with a carved stone ring"),
+        "gauhar": ("Гаухар-апа — снабжение каравана", "a shrewd warm-hearted woman around 55, former head of fair stalls, embroidered "
+                   "headscarf, coral and silver jewellery, a ledger and an abacus, a knowing smile"),
         "ancient": ("Голос Древнего", "an abstract presence in darkness: a vast shape of stone and violet light under the mountains, one calm "
                     "glowing eye-like crack, no human face"),
     }

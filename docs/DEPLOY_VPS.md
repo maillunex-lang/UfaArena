@@ -237,3 +237,8 @@ docker compose logs --tail=40 api        # должно быть: Running upgrad
 ## 18. Обновление 0.7.4: решения в сюжете
 Миграция 0009 только добавляет таблицы `story_choices` и `player_story_flags`. Порядок как обычно: бэкап, `git pull`,
 `docker compose up -d --build`; в логах должно быть `Running upgrade 0008 -> 0009`.
+
+## 19. Обновление 0.7.5: караван
+Миграция 0010 только добавляет таблицу `player_caravans`. Порядок как обычно: бэкап, `git pull`,
+`docker compose up -d --build`; в логах — `Running upgrade 0009 -> 0010`. Уровни зданий игроков сохраняются: модули
+каравана используют прежнюю таблицу `fortress_buildings`.

@@ -110,7 +110,7 @@ func _build_offline(root: Control) -> void:
 	_offline.custom_minimum_size = Vector2(940, 0)
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 24)
-	var l := UI.label("Нет связи с Крепостью. Прогресс хранится на сервере — ничего не потеряно.", 30)
+	var l := UI.label("Нет связи с сервером. Прогресс хранится на сервере — ничего не потеряно.", 30)
 	_offline_lbl = l
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -125,7 +125,7 @@ func _build_offline(root: Control) -> void:
 
 var _offline_lbl: Label
 var _reconnecting := false
-const BASE_TEXT := "Нет связи с Крепостью. Прогресс хранится на сервере — ничего не потеряно."
+const BASE_TEXT := "Нет связи с сервером. Прогресс хранится на сервере — ничего не потеряно."
 
 
 func _retry() -> void:

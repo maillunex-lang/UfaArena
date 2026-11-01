@@ -815,7 +815,7 @@ func _render_wardrobe() -> void:
 		_body.add_child(UI.label("Косметики пока нет. Её можно получить в разделе «Косметика», за VIP, подписки и боевой пропуск.", 26, UI.MUTED))
 	var raw: Dictionary = r.data.raw
 	var types := {"frame": "Рамки", "title": "Титулы", "profile_effect": "Эффекты профиля", "hero_skin": "Облики героев",
-		"ability_effect": "Эффекты способностей", "emote": "Эмоции", "fortress": "Оформление крепости"}
+		"ability_effect": "Эффекты способностей", "emote": "Эмоции", "fortress": "Оформление каравана"}
 	for t in types:
 		var items := owned.filter(func(c): return c.type == t)
 		if items.is_empty():

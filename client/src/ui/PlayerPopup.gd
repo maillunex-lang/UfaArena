@@ -116,7 +116,7 @@ func _load() -> void:
 		var parts: Array = []
 		for k in d.fortress:
 			parts.append("%s %d" % [Game.building_name(String(k)), int(d.fortress[k])])
-		_box.add_child(UI.label("Крепость: " + ", ".join(parts), 24, UI.MUTED))
+		_box.add_child(UI.label("Караван: " + ", ".join(parts), 24, UI.MUTED))
 	if d.activity.size() > 0:
 		_box.add_child(UI.label("Активность", 30, UI.ACCENT, true))
 		for a in d.activity.slice(0, 8):

@@ -23,7 +23,7 @@ func setup(m: Node, _p: Dictionary) -> void:
 			["ranks", "Достижения", "quests:ach", false, 0]]],
 		["Социальное и сервисы", [["mail", "Почта", "mail", false, int(b.get("mail", 0))], ["shop", "Магазин", "shop", false, 0],
 			["ranks", "Рейтинг", "rankings", false, 0], ["friends", "Друзья", "friends", false, int(b.get("friends", 0))],
-			["chat", "Чат", "chat", false, int(b.get("chat", 0))], ["fortress", "Крепость", "fortress", false, 0]]],
+			["chat", "Чат", "chat", false, int(b.get("chat", 0))], ["caravan", "Караван", "caravan", false, 0]]],
 		["Управление", [["profile", "Профиль", "profile", false, 0], ["settings", "Настройки", "settings", false, 0]]],
 	]
 	for g in groups:

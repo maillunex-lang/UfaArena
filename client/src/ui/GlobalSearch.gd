@@ -13,7 +13,7 @@ const SECTIONS := [["home", "Главная", "home"], ["heroes", "Герои", 
 	["summon", "Призыв", "summon"], ["shop", "Магазин", "shop"], ["quests", "Задания и достижения", "quests"],
 	["events", "Центр событий", "events"], ["mail", "Почта", "mail"], ["friends", "Друзья", "friends"], ["chat", "Чат", "chat"],
 	["rankings", "Рейтинг", "ranks"], ["arena", "Арена", "arena"], ["raids", "Рейды и боссы", "shulgan"],
-	["tournaments", "Турниры", "crown"], ["fortress", "Крепость", "fortress"], ["inventory", "Инвентарь", "afk"],
+	["tournaments", "Турниры", "crown"], ["caravan", "Караван (модули, совет, маршрут)", "caravan"], ["inventory", "Инвентарь", "afk"],
 	["profile", "Профиль", "profile"], ["settings", "Настройки", "settings"]]
 
 

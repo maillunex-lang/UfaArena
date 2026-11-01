@@ -54,6 +54,7 @@ func _draw() -> void:
 		"profile": _people(c, r)
 		"lock": _lock(c, r)
 		"search": _search(c, r)
+		"caravan": _wagon(c, r)
 		"stone_sky": _em_stone_sky(c, r)
 		"living_kurai": _em_living_kurai(c, r)
 		"ashen_reach": _em_ashen_reach(c, r)
@@ -399,3 +400,15 @@ func _search(c: Vector2, r: float) -> void:
 	draw_arc(c + Vector2(-r * 0.15, -r * 0.15), r * 0.5, 0, TAU, 40, g, r * 0.16, true)
 	draw_circle(c + Vector2(-r * 0.15, -r * 0.15), r * 0.36, Color(0.25, 0.82, 0.76, 0.35))
 	draw_line(c + Vector2(r * 0.22, r * 0.22), c + Vector2(r * 0.72, r * 0.72), g, r * 0.2, true)
+
+
+func _wagon(c: Vector2, r: float) -> void:
+	var g := Color("#efcf86")
+	var t := Color("#3fd0c3")
+	draw_rect(Rect2(c + Vector2(-r * 0.8, -r * 0.1), Vector2(r * 1.6, r * 0.45)), g.darkened(0.25))
+	draw_arc(c + Vector2(0, -r * 0.1), r * 0.72, PI, TAU, 24, g, r * 0.14, true)
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.66, -r * 0.1), c + Vector2(r * 0.66, -r * 0.1),
+		c + Vector2(r * 0.5, -r * 0.62), c + Vector2(-r * 0.5, -r * 0.62)]), Color(g, 0.55))
+	for x in [-0.45, 0.45]:
+		draw_circle(c + Vector2(r * x, r * 0.5), r * 0.24, t)
+		draw_circle(c + Vector2(r * x, r * 0.5), r * 0.09, g)
