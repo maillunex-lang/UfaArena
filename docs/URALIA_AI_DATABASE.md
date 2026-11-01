@@ -1,6 +1,6 @@
 # URALIA Living World AI — СТРУКТУРА БД
 
-> PostgreSQL 16 (прод), SQLite (тесты). Миграции Alembic, сейчас голова — `0012`. Принцип ТЗ §6: использовать
+> PostgreSQL 16 (прод), SQLite (тесты). Миграции Alembic, сейчас голова — `0013`. Принцип ТЗ §6: использовать
 > существующие таблицы, если они уже выполняют функцию; новые — только для того, чего нет.
 
 ## Существующие таблицы, связанные с ИИ
@@ -37,6 +37,16 @@
 | `ai_biographies` | Биография: главы `{at, kind, text}` |
 | `server_settings`: `ai_speech`, `ai_memory_settings`, `ai_tiers` (+ `_history`) | Настройки речи, памяти, слоёв с историей для отката |
 
+## Добавлено в фазе 4 (миграция 0013)
+| Таблица | Назначение |
+|---|---|
+| `ai_relationships` | Отношение ИИ (subject) к ИИ или игроку (object): симпатия −1…1, доверие, соперничество, неприязнь 0…1, встречи, история (последние 20), уникально по паре |
+| `ai_social_groups`, `ai_social_group_members` | Неформальные группы (название, вид, тема, основатель, активна) и участники (ИИ и игроки) |
+| `ai_guild_state` | ИИ-сторона гильдии: репутация, традиции, отношения с другими гильдиями, история (выборы, союзы, войны), дата выборов |
+| `ai_player_watch` | Что ИИ заметили об игроке: уровень, когда видели, когда писали, счётчики в день/неделю, разовые флаги |
+| `guild_alliances`, `guild_alliance_members`, `guild_alliance_proposals` | Союзы гильдий (до 3), участники, предложения |
+| `server_settings`: `ai_channels`, `ai_guilds`, `ai_outreach`, `ai_outreach_exceptions`, `ai_chat_pause` | Настройки каналов, гильдий ИИ, общения; исключения; паузы чата |
+
 ## Сопоставление сущностей ТЗ §6 (план)
 | Сущность ТЗ | Решение |
 |---|---|
@@ -44,8 +54,8 @@
 | ai_personalities, ai_traits | ✅ поля `ai_personas` (0012) |
 | ai_archetypes | ✅ `ai_archetypes` (0012) |
 | ai_progress, ai_heroes, ai_inventory | **есть**: игровые таблицы (тот же прогресс, что у игроков; дублирование запрещено) |
-| ai_relationships | **новая**: `(subject_id, object_id)` → симпатия, доверие, соперничество, неприязнь, история; ИИ↔ИИ и ИИ↔игрок |
-| ai_social_groups | **новая** `ai_social_groups` + участники |
+| ai_relationships | ✅ `ai_relationships` (0013) |
+| ai_social_groups | ✅ `ai_social_groups` + участники (0013) |
 | ai_memories | ✅ `ai_memory` + `kind`, `importance`, `created_at` (0012); версии — через контрольные точки |
 | ai_memories_archive, ai_biographies | ✅ `ai_memory_archive`, `ai_biographies` (0012) |
 | ai_guild_memberships | **есть** `guild_members` |

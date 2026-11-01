@@ -34,8 +34,8 @@ DEFAULTS = {
     # sleep when no real player is online: AI rest and cost nothing; the first real player wakes them up
     "sleep_when_empty": 1,
     "wake_grace_min": 10,
-    # phase 4: social life (outreach to players, guild AI, groups); off until phase 4 is finished and checked
-    "social_life": 0,
+    # phase 4: social life (outreach to players, guild AI, groups)
+    "social_life": 1,
     "outreach_every_s": 60,
     "guilds_every_s": 600,
     "groups_every_s": 900,

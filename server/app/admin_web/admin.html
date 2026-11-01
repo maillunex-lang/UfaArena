@@ -170,7 +170,7 @@ async art(){const d=await api('/web/art');
  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{await api('/web/art/remove?path='+encodeURIComponent(sec.slots[+b.dataset.rm].path),'POST',{});VIEWS.art()})},
 
 async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a></div>`},
-async ai(){const SECS=[['director','Director'],['switches','Переключатели'],['people','Персонажи'],['archetypes','Характеры и слои силы'],['speech','Речь'],['memory','Память'],['schedules','Расписания'],['tasks','Очередь задач'],['activity','Журнал действий']];
+async ai(){const SECS=[['director','Director'],['switches','Переключатели'],['people','Персонажи'],['archetypes','Характеры и слои силы'],['speech','Речь'],['memory','Память'],['social','Отношения и группы'],['guilds','Гильдии ИИ'],['outreach','Общение с игроками'],['channels','Каналы'],['schedules','Расписания'],['tasks','Очередь задач'],['activity','Журнал действий']];
  main.innerHTML=`<nav style="border:0;padding:0 0 12px;background:none;flex-wrap:wrap">${SECS.map(([k,t])=>`<button class="${k===aiSec?'on':''}" data-ais="${k}">${t}</button>`).join('')}</nav><div id="aibox"><p class="muted">Загрузка…</p></div>`;
  document.querySelectorAll('[data-ais]').forEach(b=>b.onclick=()=>{aiSec=b.dataset.ais;VIEWS.ai()});
  await AI[aiSec]($('#aibox'))}
@@ -182,6 +182,7 @@ const AI_SET={tick_seconds:['Такт, секунд','Как часто Director
  compact_after_hours:['Хранить выполненные задачи в очереди, часов','Потом переносятся в историю'],events_per_tick:['Событий за такт','Сообщения и упоминания игроков, на которые ИИ отвечают'],
  host_load_soft:['Нагрузка сервера: мягкий порог, % ядра','Выше — активность ИИ ×0,5'],host_load_hard:['Нагрузка сервера: жёсткий порог, % ядра','Выше — активность ИИ ×0,2'],
  host_mem_soft_mb:['Свободная память: мягкий порог, МБ','Меньше — активность ИИ ×0,5'],host_mem_hard_mb:['Свободная память: жёсткий порог, МБ','Меньше — активность ИИ ×0,2'],
+ social_life:['Социальная жизнь ИИ (1 — да, 0 — нет)','Общение с игроками, жизнь ИИ-гильдий, неформальные группы'],outreach_every_s:['Общение с игроками: проверка каждые, секунд',''],guilds_every_s:['Жизнь ИИ-гильдий: каждые, секунд',''],groups_every_s:['Неформальные группы: каждые, секунд',''],
  sleep_when_empty:['Спать, когда нет живых игроков (1 — да, 0 — нет)','ИИ не тратят ресурсы, пока никого нет; первый вошедший игрок их будит'],wake_grace_min:['Не засыпать ещё, минут','Сколько ИИ остаются активными после ухода последнего игрока']};
 const AI_TIER={newbie:'Новичок',regular:'Обычный',experienced:'Опытный',veteran:'Ветеран',elite:'Элита'};
 const AI_STRAT={balanced:'сбалансированная',aggressive:'атакующая',defensive:'оборонительная'};
@@ -256,8 +257,10 @@ async card(box,id){const d=await api('/ai/characters/'+id);const P=d.personality
  <label class="small" style="display:block;margin-top:8px">Предыстория<textarea id="cback2">${esc(d.backstory)}</textarea></label>
  <p class="small muted">Несколько амбиций или привычек — с зажатой клавишей Ctrl (на телефоне — касанием).</p>
  <p class="small muted">Манера речи: ${P.voice.catchphrase?'присказка «'+esc(P.voice.catchphrase)+'», ':''}эмодзи ${Math.round((P.voice.emoji||0)*100)}%${P.voice.lowercase?', пишет с маленькой буквы':''}${P.voice.ellipsis?', любит многоточия':''}.</p>
- <div class="row"><button class="primary" id="csave">Сохранить характер</button><button id="cchk">Создать контрольную точку</button><button id="cexp">Экспорт (перенос профиля)</button><label class="btn" style="text-align:center">Импорт…<input type="file" id="cimp" accept=".json" style="display:none"></label></div>
+ <div class="row"><button class="primary" id="csave">Сохранить характер</button><button id="cchk">Создать контрольную точку</button><button id="cexp">Экспорт (перенос профиля)</button><button id="cexc">Не писать игрокам первым</button><label class="btn" style="text-align:center">Импорт…<input type="file" id="cimp" accept=".json" style="display:none"></label></div>
  <p class="small muted">Перед каждой правкой, восстановлением и импортом автоматически создаётся контрольная точка. Игровой прогресс (герои, уровень, ресурсы) не меняется.</p></div>
+ <div class="card"><h2>Отношения</h2><p class="small muted">Репутация среди ИИ-жителей: <b>${d.reputation}</b>${d.group?` · круг «${esc(d.group.name)}»`:''}</p>
+ <table>${(d.relationships||[]).map(r=>`<tr><td><b>${esc(r.nickname)}</b> ${r.is_ai?'<span class="tag">ИИ</span>':'<span class="tag g">игрок</span>'}</td><td class="small">${esc(r.label)}</td><td class="small muted">симпатия ${r.sympathy} · доверие ${r.trust} · соперничество ${r.rivalry} · неприязнь ${r.dislike}</td><td class="small muted">${r.interactions} встреч</td></tr>`).join('')||'<tr><td class="muted">Пока ни с кем не знаком близко</td></tr>'}</table></div>
  <div class="card"><h2>Биография</h2>${d.biography.slice().reverse().map(e=>`<div class="msg"><span class="a">${esc(D.bio[e.kind]||e.kind)}</span> <span class="muted small">${time(e.at)}</span><div>${esc(e.text)}</div></div>`).join('')||'<p class="muted">Пока пусто</p>'}</div>
  <div class="card"><h2>Память (последние 40)</h2><table>${d.memories.map(m=>`<tr><td class="small">${esc(m.kind_name)}</td><td>${esc(m.text)}${m.subject?`<div class="small muted">о ком: ${esc(m.subject)}</div>`:''}</td><td class="small">важность ${m.importance}</td><td class="small muted">${ago(m.at)}</td></tr>`).join('')||'<tr><td class="muted">Пусто</td></tr>'}</table></div>
  <div class="card"><h2>Контрольные точки</h2><table>${d.snapshots.map(x=>`<tr><td class="small">v${x.version}</td><td>${esc(x.reason)}</td><td class="small muted">${esc(x.by)} · ${time(x.at)}</td><td><button class="small" data-rs="${x.id}">Восстановить</button></td></tr>`).join('')}</table></div>
@@ -266,6 +269,7 @@ async card(box,id){const d=await api('/ai/characters/'+id);const P=d.personality
  $('#csave').onclick=async()=>{const tr={};box.querySelectorAll('[data-tr]').forEach(i=>tr[i.dataset.tr]=Math.max(0,Math.min(100,+i.value))/100);
   const sel=id=>[...$(id).selectedOptions].map(o=>o.value);
   await api('/ai/characters/'+id,'PATCH',{traits:tr,ambitions:sel('#camb'),habits:sel('#chab'),tier:$('#ctier').value,mood:Math.max(-100,Math.min(100,+$('#cmood').value))/100,backstory:$('#cback2').value});toast('Характер сохранён');AI.card(box,id)};
+ $('#cexc').onclick=async()=>{await api('/ai/outreach/exceptions','POST',{persona_id:id,add:true});toast('Этот ИИ больше не пишет игрокам первым')};
  $('#cchk').onclick=async()=>{await api('/ai/characters/'+id+'/checkpoint','POST',{reason:'Ручная контрольная точка'});toast('Контрольная точка создана');AI.card(box,id)};
  $('#cexp').onclick=async()=>{const x=await api('/ai/characters/'+id+'/export');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(x,null,1)],{type:'application/json'}));a.download='ai_'+d.uralia_id+'.json';a.click()};
  $('#cimp').onchange=async()=>{const f=$('#cimp').files[0];if(!f)return;if(!confirm('Перенести характер, биографию и память из файла в этого персонажа?'))return;
@@ -306,6 +310,47 @@ async speech(box){await AI.section(box,'speech','Речь и интеллект 
   const r=await api('/ai/llm/models?provider='+k);if(r.error||!r.models.length){box2.innerHTML=`<span class="bad">Список не получен:</span> ${esc(r.error||'пусто')}`;return}
   box2.innerHTML=`<div class="row"><select data-msel="${k}" style="flex:1 1 220px">${r.models.map(m=>`<option ${m===(r.current)?'selected':''}>${esc(m)}</option>`).join('')}</select><button class="small primary" data-mset="${k}">Использовать</button></div><div class="muted">Доступно моделей: ${r.models.length}. Рекомендую: ${esc(r.suggested||'—')}</div>`;
   box2.querySelector('[data-mset]').onclick=async()=>{await api('/ai/llm/model','POST',{provider:k,model:box2.querySelector('[data-msel]').value});toast('Модель выбрана');AI.speech(box)}})},
+
+async social(box){const d=await api('/ai/social/overview');
+ const pr=x=>`<tr><td><b>${esc(x.a)}</b> → <b>${esc(x.b)}</b> ${x.b_is_ai?'':'<span class="tag g">игрок</span>'}</td><td class="small">${esc(x.label)}</td><td class="small muted">симпатия ${x.sympathy} · доверие ${x.trust} · соперничество ${x.rivalry}</td></tr>`;
+ box.innerHTML=`<div class="card"><h2>Отношения</h2><div class="grid">${[['Связей',d.relationships],['Из них с игроками',d.with_players],['Неформальных групп',d.groups],['Игроков в группах',d.group_members_real],['Союзов гильдий',d.alliances]].map(([a,b])=>`<div class="stat">${a}<b>${fmt(b)}</b></div>`).join('')}</div>
+ <p class="small muted">Отношения растут от общения, дружбы, подарков, совместных рейдов и гильдии; соперничество — от арены и войн; неприязнь — от конфликтов. Всё сохраняется между сессиями. Подробно по одному ИИ — в его карточке («Персонажи»), по игроку — в разделе «Общение с игроками».</p></div>
+ <div class="card"><h2>Самые тёплые связи</h2><table>${d.strongest.map(pr).join('')||'<tr><td class="muted">Пока нет</td></tr>'}</table></div>
+ <div class="card"><h2>Соперничество</h2><table>${d.rivalries.map(pr).join('')||'<tr><td class="muted">Пока нет</td></tr>'}</table></div>
+ <div class="card"><h2>Неформальные группы</h2><p class="small muted">ИИ, которые симпатизируют друг другу, собираются в круги по 3–6 человек. Реальный игрок, дружащий с двумя участниками, становится частью круга (у группы появляется свой чат).</p>
+ <table>${d.group_list.map(g=>`<tr><td><b>${esc(g.name)}</b><div class="small muted">${esc(g.topic)} · ${g.kind}</div></td><td class="small">${g.members.map(m=>esc(m.nickname)+(m.is_ai?'':' (игрок)')).join(', ')}</td><td>${g.active?'<span class="tag">активна</span>':'<span class="tag r">распущена</span>'}</td><td><button class="small" data-gact="${g.id}" data-on="${g.active?0:1}">${g.active?'Распустить':'Вернуть'}</button></td></tr>`).join('')||'<tr><td class="muted">Групп пока нет — они появятся, когда ИИ подружатся</td></tr>'}</table></div>`;
+ box.querySelectorAll('[data-gact]').forEach(b=>b.onclick=async()=>{await api('/ai/groups/'+b.dataset.gact+'/active','POST',{active:b.dataset.on==='1'});toast('Сохранено');AI.social(box)})},
+
+async guilds(box){const d=await api('/ai/guilds');
+ box.innerHTML=`<div id="gset"></div><div class="card"><h2>Гильдии</h2><div class="row"><button id="gfound">Основать ИИ-гильдию сейчас</button></div>
+ <p class="small muted">Выборы, назначения и объявление войн — только в ИИ-гильдиях; в гильдиях игроков ИИ ничего не решают. Войны ИИ объявляют только ИИ-гильдиям.</p>
+ <table>${d.items.map(g=>`<tr><td><b>[${esc(g.tag)}] ${esc(g.name)}</b> ${g.is_ai?'<span class="tag">ИИ-гильдия</span>':'<span class="tag g">гильдия игроков</span>'}<div class="small muted">участников ${g.members} (игроков ${g.real_members}) · лидер ${esc(g.leader||'—')}${g.alliance?' · союз «'+esc(g.alliance)+'»':''}</div>
+ <div class="small">Репутация ${g.reputation}${g.next_election_at?' · выборы '+time(g.next_election_at):''}</div>
+ ${g.relations.length?`<div class="small muted">Отношения: ${g.relations.map(r=>esc(r.guild)+' '+(r.value>0?'+':'')+r.value).join(', ')}</div>`:''}
+ ${g.history.length?`<div class="small muted">${g.history.slice().reverse().slice(0,4).map(h=>esc(h.text)).join('<br>')}</div>`:''}</td>
+ <td class="small">${g.is_ai?`<div>Традиции:</div>${Object.entries(d.traditions).map(([k,n])=>`<label class="chk"><input type="checkbox" data-tr-g="${g.id}" value="${k}" ${g.traditions.some(t=>t.code===k)?'checked':''}> ${esc(n)}</label>`).join('')}<div class="row"><button class="small" data-trs="${g.id}">Сохранить традиции</button><button class="small" data-elect="${g.id}">Выборы сейчас</button></div>`:g.traditions.map(t=>esc(t.name)).join('<br>')}</td></tr>`).join('')}</table></div>`;
+ $('#gfound').onclick=async()=>{const r=await api('/ai/guilds/found-now','POST',{});toast(r.guild?'Основана гильдия «'+r.guild+'»':r.note,!r.guild);AI.guilds(box)};
+ box.querySelectorAll('[data-trs]').forEach(b=>b.onclick=async()=>{const t=[...box.querySelectorAll(`[data-tr-g="${b.dataset.trs}"]:checked`)].map(i=>i.value);await api('/ai/guilds/'+b.dataset.trs+'/traditions','PUT',{traditions:t});toast('Традиции сохранены')});
+ box.querySelectorAll('[data-elect]').forEach(b=>b.onclick=async()=>{if(!confirm('Провести выборы лидера в этой ИИ-гильдии сейчас?'))return;const r=await api('/ai/guilds/'+b.dataset.elect+'/election','POST',{});toast(r.result?'Выборы проведены':'Слишком мало ИИ-участников');AI.guilds(box)});
+ await AI.section($('#gset'),'guilds','Настройки гильдий ИИ','Основание гильдий, выборы, дипломатия, войны между ИИ-гильдиями, традиции.')},
+
+async outreach(box){await AI.section(box,'outreach','Общение ИИ с реальными игроками','ИИ первыми пишут только тем, кто сейчас в игре, не чаще лимитов, никогда — если игрок отключил это в настройках, заблокировал ИИ или внесён в исключения. Все сообщения ИИ помечены «ИИ».');
+ const sx=$('#sx');const ex=await api('/ai/outreach/exceptions');
+ sx.innerHTML=`<div class="card"><h2>Исключения и блокировки</h2><p class="small muted">Игроки в списке никогда не получат первых сообщений и приглашений от ИИ. ИИ из списка никогда не пишут первыми.</p>
+ <div class="row"><input id="exp" placeholder="UR-номер игрока"><button id="expadd">Не писать этому игроку</button></div>
+ <div class="small">${ex.players.map(p=>`${esc(p.nickname)} <span class="muted">${p.uralia_id}</span> <button class="small" data-exdel="${p.uralia_id}">убрать</button>`).join(' · ')||'<span class="muted">Нет</span>'}</div>
+ <div class="small" style="margin-top:6px">ИИ без права писать первыми: ${ex.personas.map(p=>`${esc(p.nickname)} <button class="small" data-expd="${p.id}">убрать</button>`).join(' · ')||'<span class="muted">нет (добавляются из списка «Персонажи» → карточка)</span>'}</div></div>
+ <div class="card"><h2>История общения с игроком</h2><div class="row"><input id="hp" placeholder="UR-номер игрока"><button class="primary" id="hgo">Показать</button></div><div id="hres"></div></div>`;
+ $('#expadd').onclick=async()=>{await api('/ai/outreach/exceptions','POST',{uralia_id:$('#exp').value.trim(),add:true});toast('Игрок внесён в исключения');AI.outreach(box)};
+ sx.querySelectorAll('[data-exdel]').forEach(b=>b.onclick=async()=>{await api('/ai/outreach/exceptions','POST',{uralia_id:b.dataset.exdel,add:false});AI.outreach(box)});
+ sx.querySelectorAll('[data-expd]').forEach(b=>b.onclick=async()=>{await api('/ai/outreach/exceptions','POST',{persona_id:b.dataset.expd,add:false});AI.outreach(box)});
+ $('#hgo').onclick=async()=>{const r=await api('/ai/players/'+encodeURIComponent($('#hp').value.trim()));
+  $('#hres').innerHTML=`<h3>${esc(r.nickname)} <span class="muted small">${r.uralia_id} · ур. ${r.level}</span></h3>
+  <p class="small">Разрешил ИИ писать первым: <b>${r.prefs.ai_contact?'да':'нет'}</b>${r.excluded?' · <span class="bad">в исключениях</span>':''} · репутация среди ИИ ${r.reputation}${r.group?' · круг «'+esc(r.group)+'»':''}${r.watch?` · сегодня сообщений от ИИ: ${r.watch.contacts_today}, приглашений за неделю: ${r.watch.invites_week}`:''}</p>
+  <h3>Как к нему относятся ИИ</h3><table>${r.relationships.map(x=>`<tr><td>${esc(x.ai)}</td><td class="small">${esc(x.label)}</td><td class="small muted">симпатия ${x.sympathy} · доверие ${x.trust} · соперничество ${x.rivalry}</td></tr>`).join('')||'<tr><td class="muted">Никто пока</td></tr>'}</table>
+  <h3>Личные сообщения с ИИ</h3>${r.messages.map(m=>`<div class="msg"><span class="a">${m.from_ai?esc(m.ai)+' (ИИ)':'игрок → '+esc(m.ai)}</span> <span class="muted small">${time(m.at)}</span><div>${esc(m.text)}</div></div>`).join('')||'<p class="muted small">Нет</p>'}`}},
+
+async channels(box){await AI.section(box,'channels','Каналы чата','Региональный канал — земля, где стоит караван игрока; канал события — пока идёт мировое событие; чат союза — для гильдий в союзе; чат группы — для неформального круга; «Объявления» — пишет только администрация (вкладка «Чат»). ИИ пишут только там, где сейчас есть кому читать, и с теми же паузами, что в общем чате. Новые каналы появятся в приложении в следующей сборке APK.')},
 
 async archetypes(box){const [a,t]=await Promise.all([api('/ai/archetypes'),api('/ai/settings/tiers')]);
  const bias=b=>Object.entries(b||{}).map(([k,v])=>`${k}:${v}`).join(', ');

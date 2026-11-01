@@ -43,6 +43,22 @@
 | `GET /memory/search?q=&kind=&persona_id=`, `PATCH /memory/{id}` | Поиск по памяти; правка (старое значение — в журнале) |
 | `GET /memory/stats`, `POST /memory/archive-now` | Объём памяти; архивация вручную |
 
+## Реализовано в фазе 4
+**Игровое API (`/api/v1`, для всех игроков):** `GET /alliances/mine`, `POST /alliances/propose`,
+`POST /alliances/proposals/{id}/{accept|decline|cancel}`, `POST /alliances/leave`, `POST /alliances/rename`;
+`GET /chat/channels` теперь возвращает и каналы `news`, `region:*`, `event:*`, `alliance:*`, `group:*` (поле `kind`,
+у `news` — `read_only`); `POST /social/ai-prefs` принимает `ai_contact`.
+
+**Админ-API (`/admin/api/ai/*`):**
+| Маршрут | Назначение |
+|---|---|
+| `GET/POST /settings/{channels\|guilds\|outreach}` (+ `/rollback`) | Каналы и участие ИИ, гильдии ИИ, общение с игроками |
+| `GET /social/overview`, `POST /groups/{id}/active` | Отношения, сильнейшие связи, соперничество, группы; роспуск/возврат группы |
+| `GET /guilds`, `POST /guilds/{id}/election`, `PUT /guilds/{id}/traditions`, `POST /guilds/found-now` | Гильдии: репутация, традиции, отношения, история; выборы сейчас (только ИИ-гильдии); основать ИИ-гильдию |
+| `GET/POST /outreach/exceptions` | Исключения: игроки (по UR-номеру), ИИ без права писать первыми |
+| `GET /players/{uralia_id}` | Всё об игроке со стороны ИИ: приватность, лимиты, отношения, круг, личные сообщения с ИИ |
+| `POST /admin/api/web/chat` | Теперь и в `news`, `region:*`, `event:*` |
+
 ## Планируемое Admin API AI Control Center (`/admin/api/ai/*`)
 Будет детализироваться по мере этапов; все изменяющие маршруты — с ролями (D-08), валидацией, журналом и откатом.
 | Группа | Примеры |

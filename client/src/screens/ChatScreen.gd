@@ -18,7 +18,7 @@ const TEAL := Color("#3fd6c8")
 const GOLD_C := Color("#e6b452")
 
 var main: Node
-var mode := "global"  # global | guild | dm_list | dm
+var mode := "global"  # global | guild | dm_list | dm | channels | chan (region / event / alliance / group / news)
 var channel := "global"
 var _guild_channel := ""
 var _dm_user := ""
@@ -47,6 +47,9 @@ func setup(m: Node, p: Dictionary) -> void:
 		_open_dm_target(String(p.to_user), String(p.get("name", "Игрок")))
 	elif String(p.get("channel", "")).begins_with("guild:"):
 		mode = "guild"
+		channel = String(p.channel)
+	elif String(p.get("channel", "")) != "" and String(p.channel) != "global":
+		mode = "chan"
 		channel = String(p.channel)
 	_build()
 	_load_channels()
@@ -103,7 +106,7 @@ func _build() -> void:
 	v.add_child(_title_plaque())
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 10)
-	for t in [["global", "chat", "Общий чат"], ["guild", "guild", "Чат гильдии"], ["dm_list", "mail", "Личный чат"]]:
+	for t in [["global", "chat", "Общий"], ["guild", "guild", "Гильдия"], ["dm_list", "mail", "Личные"], ["channels", "world", "Каналы"]]:
 		var b := _tab_button(t[1], t[2])
 		var key: String = t[0]
 		b.pressed.connect(func(): _switch(key))
@@ -234,7 +237,7 @@ func _tab_button(icon: String, caption: String) -> Button:
 func _style_tabs() -> void:
 	for key in _tabs:
 		var b: Button = _tabs[key]
-		var active: bool = key == mode or (key == "dm_list" and mode == "dm")
+		var active: bool = key == mode or (key == "dm_list" and mode == "dm") or (key == "channels" and mode == "chan")
 		var sb: StyleBox = _tex_style("tab_active.png" if active else "tab.png", 30)
 		if sb == null:
 			var flat := UI._flat(Color("#5a3b10") if active else Color(0.03, 0.1, 0.12, 0.95), GOLD_C if active else Color(GOLD_C, 0.5), 14, 3 if active else 2)
@@ -314,6 +317,11 @@ func _load_channels() -> void:
 		if String(c.channel).begins_with("dm:"):
 			dm_unread += int(c.get("unread", 0))
 	_set_badge("dm_list", dm_unread)
+	var ch_unread := 0
+	for c in _channels:
+		if c.has("kind"):
+			ch_unread += int(c.get("unread", 0))
+	_set_badge("channels", ch_unread)
 	_set_badge("guild", int(_find_channel(_guild_channel).get("unread", 0)) if _guild_channel != "" else 0)
 	if r.data.get("muted_until"):
 		_status.text = "Чат ограничен до %s" % (UI.local_time(String(r.data.muted_until)) if String(r.data.muted_until) != "forever" else "решения модератора")
@@ -350,6 +358,16 @@ func _switch(key: String, initial := false) -> void:
 		_style_tabs()
 		_render_dm_list()
 		return
+	if key == "channels":
+		mode = "channels"
+		_style_tabs()
+		_render_chan_list()
+		return
+	if key == "chan" or (initial and mode == "chan"):
+		mode = "chan"
+		_style_tabs()
+		_open_channel(channel)
+		return
 	if key == "dm" or (initial and mode == "dm"):
 		mode = "dm"
 	else:
@@ -366,6 +384,50 @@ func _open_dm_target(uid: String, name: String) -> void:
 	ids.sort()
 	channel = "dm:%s:%s" % [ids[0], ids[1]]
 	mode = "dm"
+
+
+func _render_chan_list() -> void:
+	_clear()
+	_input_row.visible = false
+	_status.text = "Каналы: объявления, ваш регион (где стоит караван), текущее событие, союз гильдий и круг друзей."
+	var any := false
+	for c in _channels:
+		if not c.has("kind"):
+			continue
+		any = true
+		var row := Button.new()
+		row.custom_minimum_size = Vector2(0, 100)
+		row.focus_mode = Control.FOCUS_NONE
+		var sb := UI._flat(Color(0.03, 0.1, 0.12, 0.9), Color(TEAL, 0.5), 18, 2)
+		for st in ["normal", "hover", "pressed"]:
+			row.add_theme_stylebox_override(st, sb)
+		var h := HBoxContainer.new()
+		h.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		h.offset_left = 20
+		h.offset_right = -20
+		h.add_theme_constant_override("separation", 14)
+		h.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		var ic := GameIcon.new()
+		ic.kind = {"news": "bell", "region": "world", "event": "chat", "alliance": "guild", "group": "chat"}.get(String(c.kind), "chat")
+		ic.custom_minimum_size = Vector2(60, 60)
+		ic.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		h.add_child(ic)
+		var nm := UI.label(String(c.name), 30, NAME_C, true)
+		nm.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		nm.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		nm.clip_text = true
+		h.add_child(nm)
+		if int(c.get("unread", 0)) > 0:
+			h.add_child(UI.label("%d новых" % int(c.unread), 24, Color("#ff8a7a"), true))
+		row.add_child(h)
+		var ch: String = c.channel
+		row.pressed.connect(func():
+			channel = ch
+			_switch("chan"))
+		_list.add_child(row)
+	if not any:
+		_list.add_child(UI.label("Дополнительных каналов пока нет.", 28, Color("#9fb7b4")))
 
 
 func _render_dm_list() -> void:
@@ -427,18 +489,22 @@ func _clear() -> void:
 func _open_channel(ch: String) -> void:
 	channel = ch
 	_clear()
+	_input_row.visible = ch != "news"
 	if ch == "global":
 		_status.text = ""
 	elif ch.begins_with("guild:"):
 		_status.text = "Чат вашей гильдии"
-	else:
+	elif ch.begins_with("dm:"):
 		_status.text = "Личная переписка: " + _dm_name
+	else:
+		var info := _find_channel(ch)
+		_status.text = String(info.get("name", "Канал")) + (" · пишет только администрация" if ch == "news" else "")
 	await _poll()
 	_to_bottom()
 
 
 func _poll() -> void:
-	if not is_inside_tree() or mode == "dm_list" or (mode == "guild" and _guild_channel == ""):
+	if not is_inside_tree() or mode == "dm_list" or mode == "channels" or (mode == "guild" and _guild_channel == ""):
 		return
 	_busy = true
 	var path := "/chat/messages?channel=%s" % channel.uri_encode()
@@ -715,7 +781,7 @@ func _report(mid: int) -> void:
 
 func _send() -> void:
 	var text := _entry.text.strip_edges()
-	if text == "" or mode == "dm_list":
+	if text == "" or mode == "dm_list" or mode == "channels" or channel == "news":
 		return
 	var body := {"text": text}
 	if mode == "dm" and _dm_user != "":

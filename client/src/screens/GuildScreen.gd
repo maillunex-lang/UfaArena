@@ -980,6 +980,85 @@ func _wars_part() -> void:
 				if not (await act("/guilds/war/start", {}, "Война объявлена!")).is_empty(): render())
 		else:
 			txt("Войну объявляет глава или заместитель.", 24, UI.MUTED)
+	_alliance_part()
+
+
+# ------------------------------------------------------------------ alliances (up to 3 guilds, shared chat, never at war)
+func _alliance_part() -> void:
+	var gen := _gen
+	var d := await get_data("/alliances/mine")
+	if not is_inside_tree() or gen != _gen or d.is_empty():
+		return
+	h1("Союз гильдий")
+	var manage: bool = d.get("can_manage", false)
+	var a = d.get("alliance")
+	if a:
+		txt("«%s»" % a.name, 28, UI.GOLD)
+		for x in a.guilds:
+			txt("[%s] %s%s — ур. %d, участников %d" % [x.tag, x.name, " (ИИ)" if x.is_ai else "", int(x.level), int(x.members)], 24, UI.TEXT)
+		txt("Союзники не воюют друг с другом. До %d гильдий в союзе." % int(d.max_guilds), 22, UI.MUTED)
+		var ch: String = a.channel
+		btn(_body, "Чат союза", "glass", func(): main.open("chat", {"channel": ch}))
+		if manage:
+			btn(_body, "Выйти из союза", "danger", func():
+				if not (await act("/alliances/leave", {}, "Гильдия вышла из союза")).is_empty(): render())
+	else:
+		txt("Гильдия пока не в союзе. Союз — до %d гильдий: общий чат и мир между союзниками." % int(d.max_guilds), 24, UI.MUTED)
+	for p in d.get("incoming", []):
+		if p.guild == null:
+			continue
+		var c := card()
+		line_to(c.info, "Предложение союза от [%s] %s%s" % [p.guild.tag, p.guild.name, " (ИИ)" if p.guild.is_ai else ""], 26, UI.GOLD)
+		var pid: String = p.id
+		if manage:
+			btn(c.row, "Принять", "primary", func():
+				if not (await act("/alliances/proposals/%s/accept" % pid, {}, "Союз заключён!")).is_empty(): render())
+			btn(c.row, "Отклонить", "glass", func():
+				if not (await act("/alliances/proposals/%s/decline" % pid, {}, "Отклонено")).is_empty(): render())
+	for p in d.get("outgoing", []):
+		if p.guild != null:
+			txt("Ждём ответа: [%s] %s" % [p.guild.tag, p.guild.name], 22, UI.MUTED)
+	if not manage:
+		txt("Союзы заключает глава или заместитель.", 22, UI.MUTED)
+		return
+	if a and a.guilds.size() >= int(d.max_guilds):
+		return
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var q := LineEdit.new()
+	q.placeholder_text = "Название гильдии"
+	q.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	q.add_theme_font_size_override("font_size", 26)
+	row.add_child(q)
+	var found := VBoxContainer.new()
+	found.add_theme_constant_override("separation", 8)
+	btn(row, "Найти", "glass", func(): _alliance_search(found, q.text))
+	add(row)
+	add(found)
+
+
+func _alliance_search(list: VBoxContainer, query: String) -> void:
+	var d := await get_data("/guilds/list?q=" + query.uri_encode())
+	if not is_instance_valid(list):
+		return
+	for c in list.get_children():
+		c.queue_free()
+	var mine := String(g.guild.id) if g.get("guild") else ""
+	for x in d.get("items", []):
+		if String(x.id) == mine:
+			continue
+		var c := card()
+		line_to(c.info, "[%s] %s%s · ур. %d" % [x.tag, x.name, " (ИИ)" if x.is_ai else "", int(x.level)], 26, UI.TEXT)
+		var gid: String = x.id
+		btn(c.row, "Предложить союз", "primary", func():
+			var r := await act("/alliances/propose", {"guild_id": gid})
+			if not r.is_empty():
+				Router.toast({"accepted": "Союз заключён!", "declined": "Гильдия отказалась от союза"}.get(String(r.get("status", "")), "Предложение отправлено"))
+				render())
+		_body.remove_child(c.card)  # card() appends to the body; the results live in their own list
+		list.add_child(c.card)
+	if d.get("items", []).is_empty():
+		list.add_child(UI.label("Гильдии не найдены", 26, UI.MUTED))
 
 
 # ------------------------------------------------------------------ log

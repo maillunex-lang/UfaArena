@@ -43,11 +43,11 @@ PRIORITY = {"dm": 90, "mention": 70, "act": 50, "chat_keepalive": 30}
 class Director:
     def __init__(self) -> None:
         self.budget: int | None = None
-        self.last_population = 0.0
-        self.last_compact = 0.0
-        self.last_archive = 0.0
+        self.last_population = -1e9  # monotonic clock may be small on a freshly booted machine: run first steps now
+        self.last_compact = -1e9
+        self.last_archive = -1e9
         self.sleeping = False
-        self.last_social = {"outreach": 0.0, "guilds": 0.0, "groups": 0.0}
+        self.last_social = {"outreach": -1e9, "guilds": -1e9, "groups": -1e9}
         self.slow_ticks = 0
 
     # ------------------------------------------------------------------ one tick
