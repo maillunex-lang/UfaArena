@@ -38,11 +38,19 @@ static func theme() -> Theme:
 	if _theme:
 		return _theme
 	var t := Theme.new()
-	var sys := SystemFont.new()  # emoji / symbols missing in Philosopher come from the device fonts
+	# Symbols (⚔ ★ ✓ ▸ …) and chat emoji: bundled Noto subsets first (the Web build has no system fonts),
+	# then the device fonts for anything else (full colour emoji on Android).
+	var sys := SystemFont.new()
 	sys.font_names = PackedStringArray(["Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Noto Sans Symbols", "Roboto"])
+	var fb: Array[Font] = []
+	for path in ["res://assets/third_party/fonts/NotoSansSymbols2-subset.woff", "res://assets/third_party/fonts/NotoSansSymbols-subset.woff",
+			"res://assets/third_party/fonts/NotoSansMath-subset.woff", "res://assets/third_party/fonts/NotoEmoji-subset.woff"]:
+		if ResourceLoader.exists(path):
+			fb.append(load(path))
+	fb.append(sys)
 	for f in [FONT_REG, FONT_BOLD, FONT_TITLE]:
 		if f.fallbacks.is_empty():
-			f.fallbacks = [sys]
+			f.fallbacks = fb
 	t.default_font = FONT_REG
 	t.default_font_size = 30
 	t.set_color("font_color", "Label", TEXT)
@@ -115,6 +123,43 @@ static func ok_color() -> Color:
 
 static func bad_color() -> Color:
 	return Color("#ff9d2e") if colorblind() else DANGER
+
+
+## Labelled on/off switch row (large touch target, readable state): [text ........ (o  )]
+static func toggle_row(text: String, on: bool, cb: Callable) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", SP.m)
+	row.custom_minimum_size.y = 76
+	var l := label(text, FS.body, TEXT)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	row.add_child(l)
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(118, 62)
+	b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	b.toggle_mode = true
+	b.button_pressed = on
+	b.tooltip_text = text
+	var knob := Panel.new()
+	knob.add_theme_stylebox_override("panel", _flat(Color("#f4f1e8"), Color(0, 0, 0, 0.25), 25, 1))
+	knob.size = Vector2(50, 50)
+	knob.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	b.add_child(knob)
+	var paint := func(state: bool):
+		var sb := _flat(TEAL_DEEP if state else Color(0.16, 0.19, 0.21), Color(GOLD, 0.7) if state else Color(1, 1, 1, 0.25), 31, 2)
+		for st in ["normal", "hover", "pressed", "hover_pressed", "focus"]:
+			b.add_theme_stylebox_override(st, sb)
+		knob.position = Vector2(62 if state else 6, 6)
+	paint.call(on)
+	b.toggled.connect(func(state: bool): paint.call(state); Sfx.play("click"); vibrate(); cb.call(state))
+	row.add_child(b)
+	# tapping the caption toggles too
+	l.mouse_filter = Control.MOUSE_FILTER_STOP
+	l.gui_input.connect(func(e: InputEvent):
+		if (e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT) or (e is InputEventScreenTouch and e.pressed):
+			b.button_pressed = not b.button_pressed)
+	return row
 
 
 ## Short haptic tick on taps (Android/iOS only; respects the setting).

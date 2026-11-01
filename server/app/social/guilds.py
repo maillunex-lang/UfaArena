@@ -18,11 +18,11 @@ from ..core.errors import GameError
 from ..core.idempotency import require_key
 from ..models import (
     ArenaProfile, Guild, GuildApplication, GuildContribution, GuildExpedition, GuildLog, GuildMember, GuildTask,
-    GuildUpgrade, GuildWar, GuildWarAttack, PlayerProfile,
+    GuildUpgrade, GuildWar, GuildWarAttack, PlayerProfile, WalletTransaction,
 )
 from ..services import spend, wallet_dict
 from . import progression as P
-from .common import card, cfg, day, freeze_squad, give, notify, profile, pvp, squad_power, summary
+from .common import card, cfg, day, week_key, freeze_squad, give, notify, profile, pvp, squad_power, summary
 
 router = APIRouter(prefix="/guilds", tags=["guilds"])
 
@@ -655,6 +655,39 @@ def task_claim(code: str, user: CurrentUser = Depends(player), key: str = Depend
         P.on(db, user.id, "guild_task", ref=code)
         return {"reward": t["reward"], "wallet": wallet_dict(db, user.id)}
     return run_idempotent(db, user.id, key, f"guild_task:{code}", {}, do)
+
+
+# ------------------------------------------------------------------ guild shop (spends guild marks)
+def _shop_bought(db: Session, user_id: str, code: str) -> int:
+    """Purchases this ISO week, counted from the immutable wallet ledger (ref = code:week)."""
+    return db.scalar(select(func.count()).select_from(WalletTransaction).where(
+        WalletTransaction.user_id == user_id, WalletTransaction.reason == "guild_shop",
+        WalletTransaction.currency == "guild_marks", WalletTransaction.ref == f"{code}:{week_key()}")) or 0
+
+
+@router.get("/shop")
+def shop(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
+    my_guild(db, user.id)
+    items = [{**it, "bought": _shop_bought(db, user.id, it["code"])} for it in G().get("shop", [])]
+    return {"items": items, "marks": wallet_dict(db, user.id).get("guild_marks", 0),
+            "note": "Гильдейские знаки дают задания гильдии, недельные награды и войны. Лимиты обновляются в понедельник."}
+
+
+@router.post("/shop/{code}/buy")
+def shop_buy(code: str, user: CurrentUser = Depends(player), key: str = Depends(require_key),
+             db: Session = Depends(get_db)):
+    it = next((x for x in G().get("shop", []) if x["code"] == code), None)
+    if it is None:
+        raise GameError("not_found", "Нет такого товара", 404)
+
+    def do():
+        my_guild(db, user.id)
+        if _shop_bought(db, user.id, code) >= it["weekly_limit"]:
+            raise GameError("limit_reached", "Недельный лимит покупки исчерпан", 409)
+        spend(db, user.id, {"guild_marks": it["cost"]}, "guild_shop", f"{code}:{week_key()}")
+        reward = give(db, user.id, it["reward"], "guild_shop_reward", code)
+        return {"reward": reward, "wallet": wallet_dict(db, user.id), "bought": _shop_bought(db, user.id, code)}
+    return run_idempotent(db, user.id, key, f"guild_shop:{code}", {}, do)
 
 
 # ------------------------------------------------------------------ expeditions

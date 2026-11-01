@@ -36,6 +36,11 @@ var settings := {
 func _ready() -> void:
 	if OS.has_feature("editor"):
 		server_url = "http://127.0.0.1:8000"  # running from the Godot editor -> local server
+	if OS.has_feature("web"):
+		# the Web version is served by the game server itself (/play): talk to the same origin
+		var origin = JavaScriptBridge.eval("window.location.origin", true)
+		if origin is String and String(origin).begins_with("http"):
+			server_url = String(origin)
 	var env_url := OS.get_environment("URALIA_SERVER_URL")
 	if env_url != "":
 		server_url = env_url
@@ -46,7 +51,8 @@ func _load() -> void:
 	var cfg := ConfigFile.new()
 	if cfg.load(SETTINGS_PATH) != OK:
 		return
-	server_url = cfg.get_value("net", "server_url", server_url)
+	if not OS.has_feature("web"):  # web always uses its own origin
+		server_url = cfg.get_value("net", "server_url", server_url)
 	for k in settings.keys():
 		settings[k] = cfg.get_value("settings", k, settings[k])
 

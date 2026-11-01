@@ -412,11 +412,12 @@ func _on_content_activated(v: int) -> void:
 # ------------------------------------------------------------------ onboarding guide
 func _build_guide() -> void:
 	_guide = UI.glass_panel(Color("#ffe1a0"))
-	_guide.set_anchors_preset(Control.PRESET_CENTER_TOP)
-	_guide.offset_left = -330
-	_guide.offset_right = 330
-	_guide.offset_top = 236
-	_guide.offset_bottom = 330
+	# sits just above the bottom navigation so it never covers dashboard content
+	_guide.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	_guide.offset_left = -360
+	_guide.offset_right = 360
+	_guide.offset_top = -346
+	_guide.offset_bottom = -246
 	_guide.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_guide_label = UI.label("", 28, UI.TEXT, true)
 	_guide_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART

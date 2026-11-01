@@ -54,21 +54,11 @@ func _note(box: Container, text: String) -> void:
 	box.add_child(l)
 
 
-func _toggle(box: Container, text: String, key: String, after := Callable()) -> CheckButton:
-	var cb := CheckButton.new()
-	cb.text = text
-	cb.button_pressed = bool(Config.settings.get(key, false))
-	cb.add_theme_font_size_override("font_size", UI.FS.body)
-	cb.add_theme_color_override("font_color", UI.TEXT)
-	cb.add_theme_color_override("font_pressed_color", UI.TEXT)
-	cb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	cb.custom_minimum_size.y = 72
-	cb.toggled.connect(func(on: bool):
+func _toggle(box: Container, text: String, key: String, after := Callable()) -> void:
+	box.add_child(UI.toggle_row(text, bool(Config.settings.get(key, false)), func(on: bool):
 		_save(key, on)
 		if after.is_valid():
-			after.call())
-	box.add_child(cb)
-	return cb
+			after.call()))
 
 
 ## Segmented choice: [[value, caption], ...]
@@ -296,14 +286,9 @@ func _ai() -> void:
 			_note(box, "Настройки ИИ недоступны без соединения.")
 		return
 	for k in r.data.names:
-		var cb := CheckButton.new()
-		cb.text = String(r.data.names[k])
-		cb.button_pressed = bool(r.data.prefs.get(k, true))
-		cb.add_theme_font_size_override("font_size", UI.FS.body)
-		cb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		var key: String = k
-		cb.toggled.connect(func(on: bool): Api.post_json("/social/ai-prefs", {key: on}))
-		box.add_child(cb)
+		box.add_child(UI.toggle_row(String(r.data.names[k]), bool(r.data.prefs.get(k, true)),
+			func(on: bool): Api.post_json("/social/ai-prefs", {key: on})))
 	var off: Array = []
 	for k in r.data.global:
 		if k != "arena_rated" and not r.data.global[k]:
@@ -332,13 +317,8 @@ func _data() -> void:
 				main.open("settings")))
 	crow.add_child(rb)
 	box.add_child(crow)
-	var bg := CheckButton.new()
-	bg.text = "Загружать обновления контента в фоне"
-	bg.button_pressed = Content.background_enabled
-	bg.add_theme_font_size_override("font_size", UI.FS.body)
-	bg.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	bg.toggled.connect(func(on: bool): Content.set_background(on))
-	box.add_child(bg)
+	box.add_child(UI.toggle_row("Загружать обновления контента в фоне", Content.background_enabled,
+		func(on: bool): Content.set_background(on)))
 	var cache := UI.button("Очистить кэш изображений", "glass", 0, 84)
 	cache.pressed.connect(func():
 		var n := Models.clear_cache() + Content.clear_texture_cache()

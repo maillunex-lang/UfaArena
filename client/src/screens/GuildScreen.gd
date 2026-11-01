@@ -10,9 +10,11 @@ const LOG_NAMES := {"create": "создал гильдию", "join": "вступ
 	"expedition_done": "экспедиция вернулась", "war_start": "объявил войну", "war_declared": "гильдии объявлена война",
 	"war_end": "война завершена", "warn": "предупредил", "auto_warn": "автопредупреждение за неактивность",
 	"ai_policy": "изменил правила ИИ"}
-const SECTIONS := [["overview", "fortress", "Обзор"], ["members", "friends", "Участники"], ["manage", "crown", "Управление"],
-	["apps", "quests", "Заявки"], ["ranks", "ranks", "Ранги"], ["tech", "settings", "Технологии"], ["events", "events", "События"],
-	["wars", "arena", "Войны"], ["treasury", "afk", "Казна"], ["settings", "settings", "Настройки"]]
+## Guild Center: Обзор · Участники · Босс · Магазин · Задания · Рейтинг · Война, then development and management.
+const SECTIONS := [["overview", "fortress", "Обзор"], ["members", "friends", "Участники"], ["boss", "shulgan", "Босс"],
+	["shop", "shop", "Магазин"], ["events", "quests", "Задания"], ["rating", "ranks", "Рейтинг"], ["wars", "arena", "Война"],
+	["tech", "settings", "Технологии"], ["treasury", "afk", "Казна"], ["apps", "friends", "Заявки"],
+	["manage", "crown", "Управление"], ["settings", "settings", "Настройки"]]
 const NO_GUILD := [["find", "guild", "Найти"], ["create", "crown", "Создать"]]
 const SUBTABS := [["form", "Управление"], ["ranks", "Ранги"], ["rights", "Права"], ["log", "Журнал"]]
 const OrnateFrame := preload("res://src/ui/OrnateFrame.gd")
@@ -123,7 +125,8 @@ func render() -> void:
 	if not secs.any(func(x): return x[0] == tab):
 		tab = secs[0][0]
 	_plaque_label.text = {"manage": "Управление гильдией", "members": "Участники", "apps": "Заявки", "ranks": "Ранги",
-		"tech": "Технологии", "events": "События гильдии", "wars": "Войны гильдий", "treasury": "Казна",
+		"tech": "Технологии", "events": "Задания гильдии", "wars": "Войны гильдий", "boss": "Босс гильдии",
+		"shop": "Магазин гильдии", "rating": "Рейтинг гильдий", "treasury": "Казна",
 		"settings": "Настройки", "find": "Найти гильдию", "create": "Создать гильдию"}.get(tab, "Гильдия")
 	_render_rail(secs)
 	_render_header(in_guild)
@@ -172,10 +175,6 @@ func _render_rail(secs: Array) -> void:
 			b.add_child(dot)
 		b.pressed.connect(func(): Sfx.play("click"); tab = key; sub = "form"; render())
 		_rail.add_child(b)
-	var raid := UI.button("Рейды", "glass", 164, 84)
-	raid.add_theme_font_size_override("font_size", 26)
-	raid.pressed.connect(func(): main.open("raids"))
-	_rail.add_child(raid)
 
 
 func _render_header(in_guild: bool) -> void:
@@ -284,12 +283,92 @@ func _render_tab(t: String) -> void:
 				"rights": _rights()
 				"log": _log()
 		"apps": _apps()
+		"boss": _boss()
+		"shop": _shop()
+		"rating": _rating()
 		"ranks": _ranks()
 		"tech": _fortress()
 		"events": _activities(true, false)
 		"wars": _activities(false, true)
 		"treasury": _treasury()
 		"settings": _guild_settings()
+
+
+# ------------------------------------------------------------------ boss / shop / rating
+func _boss() -> void:
+	var gen := _gen
+	var d := await get_data("/raids")
+	if not alive(gen) or d.is_empty():
+		return
+	var r = null
+	for x in d.raids:
+		if String(x.kind) == "guild":
+			r = x
+	if r == null or r.has("locked"):
+		add(UI.state("locked", String(r.locked) if r else "Босс гильдии недоступен."))
+		return
+	var c := card(GOLD_C)
+	line_to(c.info, "%s · ур. %d · этап %d/%d" % [r.name, int(r.level), int(r.stage), int(r.stages)], 30, UI.GOLD, true)
+	line_to(c.info, String(r.desc), 24, UI.MUTED)
+	c.info.add_child(UI.progress(int(r.hp_left), int(r.hp_max), "Здоровье %s / %s" % [Game.fmt(int(r.hp_left)), Game.fmt(int(r.hp_max))], UI.bad_color(), 26))
+	line_to(c.info, "Фаза: %s — %s" % [r.phase_name, r.phase_note], 24, UI.TEXT)
+	line_to(c.info, "Ваш урон: %s · участников: %d · попытки %d/%d · до конца: %s" % [Game.exact(int(r.my_damage)),
+		int(r.participants), int(r.attempts), int(r.max_attempts), countdown(String(r.ends_at))], 24, UI.MUTED)
+	var go := btn(c.info, "К бою с боссом", "primary", func(): main.open("raids", {"tab": "bosses"}))
+	go.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	h1("Лучший урон")
+	if r.top.is_empty():
+		txt("Пока никто не атаковал — станьте первым.", 26, UI.MUTED)
+	var i := 0
+	for t in r.top:
+		i += 1
+		var row := card()
+		var nm := "%d. %s" % [i, t.nickname]
+		line_to(row.info, nm, 27, UI.GOLD if i <= 3 else UI.TEXT, true)
+		if t.is_ai:
+			row.row.add_child(UI.ai_badge())
+		row.row.add_child(UI.label(Game.exact(int(t.damage)), 27, UI.TEXT, true))
+
+
+func _shop() -> void:
+	var gen := _gen
+	var d := await get_data("/guilds/shop")
+	if not alive(gen) or d.is_empty():
+		return
+	var head := card(GOLD_C)
+	line_to(head.info, "Гильдейские знаки: %s" % Game.exact(int(d.marks)), 30, UI.GOLD, true)
+	line_to(head.info, String(d.note), 24, UI.MUTED)
+	for it in d.items:
+		var c := card()
+		line_to(c.info, String(it.name), 28, UI.TEXT, true)
+		c.info.add_child(UI.rewards_row(it.reward, 26))
+		var left: int = int(it.weekly_limit) - int(it.bought)
+		line_to(c.info, "Осталось на неделе: %d из %d" % [left, int(it.weekly_limit)], 23, UI.MUTED)
+		var code: String = it.code
+		var price := "%d знаков" % int(it.cost)
+		var b := btn(c.row, price if left > 0 else "Лимит", "primary" if left > 0 and int(d.marks) >= int(it.cost) else "dim",
+			func(): if not (await act("/guilds/shop/%s/buy" % code, {}, "Покупка совершена")).is_empty(): render())
+		b.disabled = left <= 0 or int(d.marks) < int(it.cost)
+
+
+func _rating() -> void:
+	var gen := _gen
+	var d := await get_data("/rankings/guilds")
+	if not alive(gen) or d.is_empty():
+		return
+	if d.get("me"):
+		var me := card(GOLD_C)
+		line_to(me.info, "Ваша гильдия: %s" % d.me.name, 28, UI.GOLD, true)
+		line_to(me.info, "Уровень %d · %s" % [int(d.me.value), d.me.extra], 24, UI.TEXT)
+	txt("Рейтинг по уровню и опыту гильдии. Виртуальные ИИ-гильдии отмечены и показаны после реальных.", 23, UI.MUTED)
+	var i := 0
+	for r in d.items:
+		i += 1
+		var c := card(GOLD_C if g.guild and r.get("guild_id") == g.guild.id else Color(1, 1, 1, 0.12))
+		line_to(c.info, "%d. %s" % [i, r.name], 27, UI.GOLD if i <= 3 else UI.TEXT, true)
+		line_to(c.info, "Уровень %d · %s" % [int(r.value), r.extra], 23, UI.MUTED)
+		if r.get("is_ai", false):
+			c.row.add_child(UI.ai_badge())
 
 
 # ------------------------------------------------------------------ no guild

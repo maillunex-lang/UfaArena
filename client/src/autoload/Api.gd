@@ -68,7 +68,7 @@ func login() -> Dictionary:
 
 
 func login_guest() -> Dictionary:
-	var device := OS.get_unique_id()
+	var device := "" if OS.has_feature("web") else OS.get_unique_id()  # not available in browsers
 	if device.length() < 8:
 		device = "dev-" + new_key()
 	var g := await _raw("POST", "/api/v1/auth/guest", {"device_id": device.sha256_text().substr(0, 40),

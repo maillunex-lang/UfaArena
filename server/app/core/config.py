@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     content_store_path: Path = SERVER_ROOT / "var" / "content_store"
     # APK distribution: release.json + APK files (mounted from the host, editable without rebuilding)
     downloads_path: Path = SERVER_ROOT / "var" / "downloads"
+    web_client_path: Path = SERVER_ROOT / "var" / "web"  # Godot Web export, served at /play
     # Optional CDN prefix for package files, e.g. "https://cdn.example.com/uralia/" (files keyed by sha256)
     content_base_url: str | None = None
 

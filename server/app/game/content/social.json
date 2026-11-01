@@ -458,7 +458,54 @@
         "guild_marks": 120
       },
       "min_members": 3
-    }
+    },
+    "shop": [
+      {
+        "code": "gs_gold",
+        "name": "Сундук золота",
+        "cost": 40,
+        "reward": {
+          "gold": 5000
+        },
+        "weekly_limit": 5
+      },
+      {
+        "code": "gs_nature",
+        "name": "Эссенция природы",
+        "cost": 50,
+        "reward": {
+          "nature_essence": 300
+        },
+        "weekly_limit": 5
+      },
+      {
+        "code": "gs_crystals",
+        "name": "Горсть кристаллов",
+        "cost": 100,
+        "reward": {
+          "crystals": 50
+        },
+        "weekly_limit": 2
+      },
+      {
+        "code": "gs_summon",
+        "name": "Эссенция призыва",
+        "cost": 120,
+        "reward": {
+          "summon_essence": 1
+        },
+        "weekly_limit": 3
+      },
+      {
+        "code": "gs_seal",
+        "name": "Древняя печать",
+        "cost": 250,
+        "reward": {
+          "ancient_seals": 1
+        },
+        "weekly_limit": 1
+      }
+    ]
   },
   "raids": {
     "attempts": {

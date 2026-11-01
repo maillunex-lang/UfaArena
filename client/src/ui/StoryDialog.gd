@@ -57,11 +57,11 @@ func _init() -> void:
 	# Onboarding must be skippable: one tap ends the whole story.
 	var skip := UI.button("Пропустить", "dim", 0, 72)
 	skip.add_theme_font_size_override("font_size", 26)
-	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	skip.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)  # right above the dialogue panel
 	skip.offset_left = -300
 	skip.offset_right = -30
-	skip.offset_top = 30
-	skip.offset_bottom = 102
+	skip.offset_top = -650
+	skip.offset_bottom = -578
 	skip.pressed.connect(skip_all)
 	add_child(skip)
 

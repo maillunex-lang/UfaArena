@@ -644,3 +644,20 @@ def test_guild_settings_power_autoaccept_rename(newplayer):
     lead.post("/guilds/edit", {"min_power": 1}, key=False)
     assert ok.post(f"/guilds/{g['id']}/join", key=False).json()["status"] == "joined"  # auto-accept
     assert lead.post("/guilds/edit", {"emblem": "dragon"}, key=False).status_code == 400
+
+
+def test_guild_shop_spends_marks_with_weekly_limits(newplayer):
+    p = newplayer()
+    assert p.get("/guilds/shop").status_code == 404  # members only
+    make_guild(p)
+    shop = p.get("/guilds/shop").json()
+    seal = next(i for i in shop["items"] if i["code"] == "gs_seal")
+    start = shop["marks"]  # creating a guild may already grant some marks
+    assert start < 250 and seal["bought"] == 0
+    assert p.post("/guilds/shop/gs_seal/buy").status_code == 409  # not enough marks
+    give(p, guild_marks=600)
+    r = p.post("/guilds/shop/gs_seal/buy")
+    assert r.status_code == 200, r.text
+    assert r.json()["wallet"]["guild_marks"] == start + 350 and r.json()["wallet"]["ancient_seals"] >= 1
+    assert p.post("/guilds/shop/gs_seal/buy").json()["detail"]["code"] == "limit_reached"
+    assert p.post("/guilds/shop/nope/buy").status_code == 404

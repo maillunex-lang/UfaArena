@@ -51,6 +51,11 @@ def create_app() -> FastAPI:
     app.include_router(release.page)
     app.include_router(admin_web.router)
     app.include_router(admin_web.page)
+    # Web version of the game (Godot Web export, same API on the same origin). Optional: only if exported.
+    web = get_settings().web_client_path
+    if (web / "index.html").exists():
+        from fastapi.staticfiles import StaticFiles
+        app.mount("/play", StaticFiles(directory=str(web), html=True), name="play")
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError):
@@ -61,6 +66,8 @@ def create_app() -> FastAPI:
     async def _security_headers(request: Request, call_next):
         resp = await call_next(request)
         resp.headers["X-Content-Type-Options"] = "nosniff"
+        if request.url.path.startswith("/play/"):
+            resp.headers.setdefault("Cache-Control", "public, max-age=600")  # large wasm/pck: short browser cache
         resp.headers.setdefault("Cache-Control", "no-store")
         resp.headers["X-Server-Version"] = VERSION
         return resp

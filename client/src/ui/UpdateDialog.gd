@@ -7,6 +7,10 @@ var info := {}
 
 ## Asks the server; shows the window when a newer APK exists (once per version unless required).
 static func check(parent: Node, manual := false) -> bool:
+	if OS.has_feature("web"):  # the Web version is always the one the server serves
+		if manual:
+			Router.toast("Веб-версия обновляется автоматически при перезагрузке страницы")
+		return false
 	var r := await Api.get_json("/client/release?version=" + Config.CLIENT_VERSION)
 	if not r.ok or not is_instance_valid(parent):
 		if manual:
