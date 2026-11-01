@@ -181,7 +181,8 @@ const AI_SET={tick_seconds:['Такт, секунд','Как часто Director
  spawn_per_run:['Новых ИИ за раз','Сколько ИИ добавляется за один запуск роста'],population_every_s:['Рост реестра каждые, секунд',''],
  compact_after_hours:['Хранить выполненные задачи в очереди, часов','Потом переносятся в историю'],events_per_tick:['Событий за такт','Сообщения и упоминания игроков, на которые ИИ отвечают'],
  host_load_soft:['Нагрузка сервера: мягкий порог, % ядра','Выше — активность ИИ ×0,5'],host_load_hard:['Нагрузка сервера: жёсткий порог, % ядра','Выше — активность ИИ ×0,2'],
- host_mem_soft_mb:['Свободная память: мягкий порог, МБ','Меньше — активность ИИ ×0,5'],host_mem_hard_mb:['Свободная память: жёсткий порог, МБ','Меньше — активность ИИ ×0,2']};
+ host_mem_soft_mb:['Свободная память: мягкий порог, МБ','Меньше — активность ИИ ×0,5'],host_mem_hard_mb:['Свободная память: жёсткий порог, МБ','Меньше — активность ИИ ×0,2'],
+ sleep_when_empty:['Спать, когда нет живых игроков (1 — да, 0 — нет)','ИИ не тратят ресурсы, пока никого нет; первый вошедший игрок их будит'],wake_grace_min:['Не засыпать ещё, минут','Сколько ИИ остаются активными после ухода последнего игрока']};
 const AI_TIER={newbie:'Новичок',regular:'Обычный',experienced:'Опытный',veteran:'Ветеран',elite:'Элита'};
 const AI_STRAT={balanced:'сбалансированная',aggressive:'атакующая',defensive:'оборонительная'};
 const AI_CHOICE={short:'Короткие',medium:'Обычные',long:'Развёрнутые'};
@@ -196,7 +197,7 @@ const AI={
 async director(box){const d=await api('/ai/director');const st=d.status||{},h=st.host||{},s=d.settings;
  const alive=st.heartbeat&&(Date.now()-new Date(st.heartbeat))<120000;
  box.innerHTML=`<div class="card"><h2>Состояние</h2><div class="grid">
- ${[['Процесс Director',alive?'<span class="ok">работает</span>':'<span class="bad">не отвечает</span>'],['Режим',esc(d.modes[s.mode]||s.mode)],['Кто ведёт ИИ',d.owns_world?'Director':'прежний движок (v1)'],
+ ${[['Процесс Director',alive?(st.sleeping?'<span class="muted">спит — живых игроков нет</span>':'<span class="ok">работает</span>'):'<span class="bad">не отвечает</span>'],['Режим',esc(d.modes[s.mode]||s.mode)],['Кто ведёт ИИ',d.owns_world?'Director':'прежний движок (v1)'],
   ['Последний такт',ago(st.heartbeat)],['Длительность такта',st.tick_ms!=null?st.tick_ms+' мс':'—'],['Бюджет действий',(st.budget??'—')+' / '+(st.budget_cap??'—')],
   ['Зарегистрировано ИИ',fmt(d.registered)],['Активны сейчас',fmt(d.active_now)+' (цель '+(st.active_target??'—')+')'],['Реальных онлайн',fmt(st.real_online)],
   ['Нагрузка сервера',h.load1!=null?h.load1+' на '+h.cpus+' ядро':'—'],['Свободная память',h.mem_avail_mb!=null?fmt(h.mem_avail_mb)+' МБ':'—'],['Снижение из-за нагрузки',h.factor!=null?(h.factor<1?'<span class="bad">×'+h.factor+'</span>':'нет'):'—']]

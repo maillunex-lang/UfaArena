@@ -228,3 +228,56 @@ def test_admin_panel_ai_tab_characters_pause_activity(client):
     assert "items" in client.get("/admin/api/ai/activity", headers=H()).json()
     page = client.get("/admin").text
     assert "['ai','ИИ-жители']" in page and "async ai()" in page
+
+
+def test_ai_sleep_when_no_real_players_and_wake_up(client):
+    from datetime import timedelta as _td
+    from app.ai import settings as ST
+    from app.ai.director import Director
+    from app.core.db import utcnow as _now
+    from app.models import AiTask, PlayerProfile, ServerSetting
+    gen, db = _session()
+    try:
+        _personas(db, 10)
+        real = db.query(PlayerProfile).filter(PlayerProfile.is_ai.is_(False)).all()
+        saved = {p.user_id: p.last_seen_at for p in real}
+        for p in real:
+            p.last_seen_at = _now() - _td(hours=5)  # everybody left long ago
+        _set(db, mode="normal")
+        assert ST.world_awake(db) is False
+        d = Director()
+        before = db.query(AiTask).count()
+        out = d.tick(db)
+        assert out["sleeping"] is True and out["sessions_started"] == 0 and out["planned"] == 0
+        assert db.query(AiTask).count() == before
+        assert ST.status(db)["sleeping"] is True
+        # a real player comes online -> next tick wakes the residents, the chat pause is lifted
+        db.add(ServerSetting(key="ai_chat_pause", value={"global": (_now() + _td(minutes=10)).isoformat()})) \
+            if db.get(ServerSetting, "ai_chat_pause") is None else None
+        db.commit()
+        if real:
+            real[0].last_seen_at = _now()
+        else:
+            from app.models import User
+            u = User(kind="player")
+            db.add(u)
+            db.flush()
+            db.add(PlayerProfile(user_id=u.id, uralia_id="UR-WAKE0001", nickname="waker", level=3, is_ai=False,
+                                 last_seen_at=_now()))
+        db.commit()
+        out = d.tick(db)
+        from app.ai import schedules as SCH
+        assert out["sleeping"] is False
+        assert out["sessions_started"] > 0 or SCH.active_count(db) >= out["active_target"]
+        assert not (db.get(ServerSetting, "ai_chat_pause").value or {})
+        # sleeping can be switched off in the settings
+        for p in db.query(PlayerProfile).filter(PlayerProfile.is_ai.is_(False)):
+            p.last_seen_at = _now() - _td(hours=5)
+        _set(db, sleep_when_empty=0)
+        assert ST.world_awake(db) is True
+        _set(db, sleep_when_empty=1, mode="test")
+        for uid, ls in saved.items():
+            db.get(PlayerProfile, uid).last_seen_at = ls
+        db.commit()
+    finally:
+        gen.close()

@@ -46,6 +46,7 @@ class Director:
         self.last_population = 0.0
         self.last_compact = 0.0
         self.last_archive = 0.0
+        self.sleeping = False
         self.slow_ticks = 0
 
     # ------------------------------------------------------------------ one tick
@@ -58,6 +59,10 @@ class Director:
             db.commit()
             return {"mode": "off"}
         acting = mode in ("normal", "high", "low")
+        awake = ST.world_awake(db, s)
+        if acting and awake and self.sleeping:
+            self._wake_up(db)
+        self.sleeping = not awake
         cap = max(1, int(s["max_tasks_per_tick"] * ST.MODE_FACTOR.get(mode, 1.0)))
         if self.budget is None:
             self.budget = max(2, cap // 2)
@@ -79,12 +84,14 @@ class Director:
                 out["personalities"] = PERS.ensure(db, 50)
         target = POP.active_target(db, s, load_factor)
         out["active_target"] = target
-        out["sessions_started"] = SCH.start_sessions(db, target, _rng) if acting else 0
+        live = acting and awake  # nobody real online -> the AI residents sleep and cost nothing
+        out["sleeping"] = not awake
+        out["sessions_started"] = SCH.start_sessions(db, target, _rng) if live else 0
         out["events"] = self._events_to_tasks(db, s) if acting else 0
-        out["planned"] = self._plan(db, acting)
+        out["planned"] = self._plan(db, acting) if (live or not acting) else 0
         db.commit()
         out["executed"], out["failed"] = self._execute(db, self.budget) if acting else (0, 0)
-        if acting:  # queued chat lines are posted on time (pacing: minimum gap, quiet after a discussion)
+        if live:  # queued chat lines are posted on time (pacing: minimum gap, quiet after a discussion)
             from ..social.ai import banter
             from ..social.ai.control import global_switches
             if global_switches(db).get("chat", True):
@@ -107,12 +114,23 @@ class Director:
             "mode": mode, "heartbeat": utcnow().isoformat(), "tick_ms": out["tick_ms"], "db_ms": out["db_ms"],
             "budget": self.budget, "budget_cap": cap, "host": out["host"], "active_target": target, "active_now": SCH.active_count(db),
             "registered": POP.registered(db), "real_online": POP.real_online(db), "queue": TQ.counts(db),
+            "sleeping": out.get("sleeping", False),
             "events_pending": EV.pending(db), "last": {k: v for k, v in out.items() if k not in ("mode",)},
         })
         db.commit()
         return out
 
     # ------------------------------------------------------------------ steps
+    def _wake_up(self, db: Session) -> None:
+        """The first real player came online: the chat may talk again right away and a few residents act soon."""
+        from ..models import ServerSetting
+        from ..social.ai import banter
+        row = db.get(ServerSetting, banter.PAUSE_KEY)
+        if row is not None:
+            row.value = {}
+        banter._queue.clear()  # lines planned before the night are stale
+        log.info("AI residents wake up: a real player is online")
+
     def _db_latency(self, db: Session) -> float:
         t = time.perf_counter()
         db.execute(text("SELECT 1"))

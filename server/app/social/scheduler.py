@@ -25,6 +25,9 @@ def _ai_tick(db):
     from ..ai.settings import director_owns_world
     if director_owns_world(db):
         return {"skipped": "AI Director"}
+    from ..ai.settings import world_awake
+    if not world_awake(db):
+        return {"skipped": "no real players online — AI residents sleep"}
     from .ai.population import tick
     return tick(db)
 
