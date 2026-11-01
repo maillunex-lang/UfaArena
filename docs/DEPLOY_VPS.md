@@ -233,3 +233,7 @@ docker compose logs --tail=40 api        # должно быть: Running upgrad
 **Web-версия (по желанию).** Скопируйте папку экспорта Web (`index.html`, `index.js`, `index.wasm`, `index.pck` и др.)
 в `/opt/uralia/web/` и выполните `docker compose up -d`. Игра откроется по адресу `http://144.31.254.99:8000/play/`.
 Без файлов маршрут `/play` просто не подключается. Подробности сборки — `docs/ui/build.md`, откат — `docs/ui/rollback.md`.
+
+## 18. Обновление 0.7.4: решения в сюжете
+Миграция 0009 только добавляет таблицы `story_choices` и `player_story_flags`. Порядок как обычно: бэкап, `git pull`,
+`docker compose up -d --build`; в логах должно быть `Running upgrade 0008 -> 0009`.

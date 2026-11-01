@@ -1112,3 +1112,23 @@ class JobRun(Base):
     last_run_at: Mapped[datetime | None] = mapped_column(TS)
     last_status: Mapped[str] = mapped_column(String(200), default="")
     runs: Mapped[int] = mapped_column(Integer, default=0)
+
+
+# ---------------------------------------------------------------- story (lore stage S2)
+class StoryChoice(Base):
+    """A decision the player made in a story scene. One row per choice; never changed afterwards."""
+    __tablename__ = "story_choices"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    choice_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    option: Mapped[str] = mapped_column(String(32))
+    made_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class PlayerStoryFlag(Base):
+    """Story facts derived from choices and events («timer_path=followed»). Read by later chapters and seasons."""
+    __tablename__ = "player_story_flags"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    flag: Mapped[str] = mapped_column(String(64), primary_key=True)
+    value: Mapped[str] = mapped_column(String(64))
+    source: Mapped[str] = mapped_column(String(64), default="")
+    set_at: Mapped[datetime] = mapped_column(TS, default=utcnow)

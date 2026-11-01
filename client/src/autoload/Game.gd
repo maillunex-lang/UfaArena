@@ -64,6 +64,32 @@ var test_mode := true
 var loaded := false
 
 
+## Story state (lore stage S2): flags and decisions made; choices registry by id.
+var story_flags := {}
+var story_made := {}
+var story_choices := {}
+
+
+func refresh_story() -> void:
+	var r := await Api.get_json("/story/state")
+	if not r.ok:
+		return
+	story_flags = r.data.flags
+	story_made = {}
+	story_choices = {}
+	for c in r.data.choices:
+		story_choices[String(c.id)] = c
+		if c.made != null:
+			story_made[String(c.id)] = String(c.made)
+
+
+func apply_story(d: Dictionary) -> void:
+	story_flags = d.get("flags", story_flags)
+	story_made[String(d.choice_id)] = String(d.option)
+	if story_choices.has(String(d.choice_id)):
+		story_choices[String(d.choice_id)]["made"] = String(d.option)
+
+
 func bootstrap() -> Dictionary:
 	var r := await Api.get_json("/player/bootstrap")
 	if not r.ok:
@@ -84,6 +110,7 @@ func bootstrap() -> Dictionary:
 		var c := await Api.get_json("/heroes")
 		if c.ok:
 			catalog = c.data
+	await refresh_story()
 	loaded = true
 	wallet_changed.emit()
 	heroes_changed.emit()

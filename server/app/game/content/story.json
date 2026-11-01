@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "_doc": "Story choices registry (lore stage S2, docs/lore/URALIA_MAIN_STORY.md). Each option sets story flags. 'requires_cleared' gates a choice behind campaign progress. 'layers' lists which of the five hidden consequence layers (C18) the choice touches; their hidden values arrive in stage S3.",
+  "choices": {
+    "prologue_timer": {
+      "scene": "1-2",
+      "title": "Ночь Раскола: дорога через бор",
+      "prompt": "Тимер уводит людей через бор. Застава гибнет, хранитель Кахым поднимается к печати.",
+      "requires_cleared": "1-1",
+      "layers": ["companions"],
+      "options": {
+        "followed": {"text": "Бежать за Тимером и людьми", "flags": {"timer_path": "followed"}},
+        "stayed": {"text": "Остаться и идти к Заставе", "flags": {"timer_path": "stayed"}}
+      }
+    },
+    "prologue_voice": {
+      "scene": "1-4",
+      "title": "Ночь Раскола: голос в осколке",
+      "prompt": "В голове звучит чужой голос.",
+      "requires_cleared": "1-3",
+      "layers": ["ancient"],
+      "options": {
+        "answer": {"text": "«Кто ты?»", "flags": {"voice_tone": "answer"}},
+        "silent": {"text": "Промолчать и слушать", "flags": {"voice_tone": "silent"}},
+        "reject": {"text": "«Замолчи. Убирайся из моей головы»", "flags": {"voice_tone": "reject"}}
+      }
+    },
+    "prologue_camp": {
+      "scene": "1-7",
+      "title": "Исход: ночлег каравана",
+      "prompt": "Рыцари Ордена и Последователи Древнего просятся к огню каравана. Обе силы хотят быть рядом с носителем осколка.",
+      "requires_cleared": "1-6",
+      "layers": ["factions"],
+      "options": {
+        "order": {"text": "Позвать рыцарей Ордена Печатей", "flags": {"camp_guest": "order"}},
+        "followers": {"text": "Пустить Последователей Древнего", "flags": {"camp_guest": "followers"}},
+        "nobody": {"text": "Никого — караван сам по себе", "flags": {"camp_guest": "nobody"}}
+      }
+    }
+  }
+}

@@ -88,7 +88,7 @@ func _portrait(tr: TextureRect, code: String) -> void:
 func _render() -> void:
 	for c in _tabs_row.get_children():
 		c.queue_free()
-	_tabs_row.add_child(UI.tabs([["overview", "Обзор"], ["heroes", "Герои"], ["achievements", "Достижения"], ["history", "История"]], tab,
+	_tabs_row.add_child(UI.tabs([["overview", "Обзор"], ["heroes", "Герои"], ["achievements", "Достижения"], ["choices", "Решения"], ["history", "История"]], tab,
 		func(k: String): tab = k; _render()))
 	for c in _body.get_children():
 		c.queue_free()
@@ -97,6 +97,51 @@ func _render() -> void:
 		"heroes": _heroes()
 		"achievements": _achievements()
 		"history": _history()
+		"choices": _choices()
+
+
+## Story decisions (lore stage S2): what the player chose, and decisions reached but not made yet (e.g. stages
+## cleared before the update) — they can be made here; the server validates them like in the scene.
+func _choices() -> void:
+	await Game.refresh_story()
+	if not is_inside_tree() or tab != "choices":
+		return
+	var any := false
+	var info := UI.label("Решения меняют судьбы людей и мира. Их нельзя переиграть — последствия проявятся позже.", UI.FS.caption, UI.MUTED)
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_body.add_child(info)
+	for c in Game.story_choices.values():
+		var made = Game.story_made.get(String(c.id))
+		if made == null and not bool(c.get("available", false)):
+			continue
+		any = true
+		var card := UI.card(UI.GOLD_DARK if made == null else Color(0, 0, 0, 0))
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", UI.SP.xs)
+		v.add_child(UI.label(String(c.title), UI.FS.body_l, UI.GOLD, true))
+		var pr := UI.label(String(c.prompt), UI.FS.caption, UI.MUTED)
+		pr.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		v.add_child(pr)
+		if made != null:
+			var txt := String(made)
+			for o in c.options:
+				if String(o.key) == String(made):
+					txt = String(o.text)
+			v.add_child(UI.label("Ваш выбор: " + txt, UI.FS.body, UI.TEXT, true))
+		else:
+			var b := UI.button("Принять решение", "primary", 0, 84)
+			var cid := String(c.id)
+			b.pressed.connect(func():
+				var dlg: Control = preload("res://src/ui/StoryDialog.gd").new()
+				main.ui.add_child(dlg)
+				await dlg.play([{"choice": cid}])
+				if is_inside_tree():
+					_render())
+			v.add_child(b)
+		card.add_child(v)
+		_body.add_child(card)
+	if not any:
+		_body.add_child(UI.state("empty", "Первые решения ждут вас в походе по Таулару."))
 
 
 func _stat(grid: GridContainer, name: String, value: String) -> void:

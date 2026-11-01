@@ -64,6 +64,14 @@ func advance_dialogs() -> void:
 		var dlg := _find_dialog()
 		if dlg == null:
 			return
+		if dlg.get("_in_choice"):  # story decision: take the first option like a player would tap it
+			var opts: Array = dlg.get("_choice_box").get_children()
+			if opts.size() > 0 and not (opts[0] as Button).disabled:
+				await shot("story_choice_%s" % str(Time.get_ticks_msec()))
+				_log("choice '%s'" % (opts[0] as Button).text)
+				(opts[0] as Button).pressed.emit()
+			await wait(1.0)
+			continue
 		dlg.set("_typing", false)
 		dlg.emit_signal("_advance")
 		await wait(0.35)
