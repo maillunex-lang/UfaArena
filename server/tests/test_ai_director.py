@@ -206,3 +206,25 @@ def test_host_load_guard_scales_activity():
     assert HL.factor({"cpus": 1, "load1": None, "mem_avail_mb": None}, s) == 1.0
     snap = HL.snapshot()
     assert snap["cpus"] >= 1
+
+
+def test_admin_panel_ai_tab_characters_pause_activity(client):
+    gen, db = _session()
+    try:
+        _personas(db, 6)
+    finally:
+        gen.close()
+    assert client.get("/admin/api/ai/characters").status_code in (401, 403)
+    lst = client.get("/admin/api/ai/characters", headers=H()).json()["items"]
+    assert len(lst) >= 6 and all("nickname" in c and "archetype" in c for c in lst)
+    one = lst[0]
+    found = client.get(f"/admin/api/ai/characters?query={one['uralia_id']}", headers=H()).json()["items"]
+    assert [c["id"] for c in found] == [one["id"]]
+    r = client.post(f"/admin/api/ai/characters/{one['id']}/active", json={"active": False}, headers=H())
+    assert r.status_code == 200 and r.json()["active"] is False
+    paused = client.get("/admin/api/ai/characters?only=disabled", headers=H()).json()["items"]
+    assert one["id"] in [c["id"] for c in paused]
+    assert client.post(f"/admin/api/ai/characters/{one['id']}/active", json={"active": True}, headers=H()).json()["active"]
+    assert "items" in client.get("/admin/api/ai/activity", headers=H()).json()
+    page = client.get("/admin").text
+    assert "['ai','ИИ-жители']" in page and "async ai()" in page

@@ -47,8 +47,8 @@ display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv
 <div id="toast"></div>
 <script>
 const $=s=>document.querySelector(s);const main=$('#main');
-const TABS=[['overview','Обзор'],['server','Сервер и APK'],['events','События'],['chat','Чат'],['players','Игроки и модерация'],['art','Графика'],['shop','Магазин']];
-let tab='overview',artSec='heroes';
+const TABS=[['overview','Обзор'],['server','Сервер и APK'],['events','События'],['chat','Чат'],['players','Игроки и модерация'],['ai','ИИ-жители'],['art','Графика'],['shop','Магазин']];
+let tab='overview',artSec='heroes',aiSec='director';
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function toast(t,bad){const e=$('#toast');e.textContent=t;e.style.borderColor=bad?'#a8433a':'';e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',3500)}
 function hdr(extra){return Object.assign({'X-Admin-Token':sessionStorage.getItem('tok')||'','X-Admin-Name':encodeURIComponent(sessionStorage.getItem('who')||'owner')},extra||{})}
@@ -81,9 +81,8 @@ async overview(){const d=await api('/web/overview');
  ${d.jobs.map(j=>`<tr><td>${j.name}</td><td class="small">${time(j.last_run_at)}</td><td class="small muted">${esc(j.last_status)}</td><td><button data-job="${j.name}">Запустить</button></td></tr>`).join('')}</table></div>`;
  document.querySelectorAll('[data-job]').forEach(b=>b.onclick=async()=>{const r=await api('/social/jobs/'+b.dataset.job+'/run','POST',{});toast(b.dataset.job+': '+JSON.stringify(r.result))})},
 
-async server(){const [ai,rel,mode]=await Promise.all([api('/social/ai-switches'),api('/web/release'),api('/status').catch(()=>({}))]);const r=rel.release;
- main.innerHTML=`<div class="card"><h2>ИИ-жители (для всего сервера)</h2><div id="aisw"></div><p class="muted small">Глава гильдии и каждый игрок могут дополнительно ограничить ИИ у себя.</p></div>
- <div class="card"><h2>Выпуск APK и окно «Вышло обновление»</h2>
+async server(){const [rel,mode]=await Promise.all([api('/web/release'),api('/status').catch(()=>({}))]);const r=rel.release;
+ main.innerHTML=`<div class="card"><h2>Выпуск APK и окно «Вышло обновление»</h2>
  <div class="row"><label>Версия<input id="rv" value="${esc(r.version)}"></label><label>Мин. версия (ниже — обязательное обновление)<input id="rm" value="${esc(r.min_version)}"></label></div>
  <div class="row" style="margin-top:8px"><label>Заголовок<input id="rt" value="${esc(r.title||'')}"></label><label>Файл APK на сервере<select id="rf">${rel.apks.map(a=>`<option ${a.name===r.file?'selected':''}>${esc(a.name)}</option>`).join('')}<option value="">— внешняя ссылка —</option></select></label></div>
  <label style="display:block;margin-top:8px">Что нового (по строке на пункт)<textarea id="rn">${esc((r.notes||[]).join('\n'))}</textarea></label>
@@ -91,9 +90,8 @@ async server(){const [ai,rel,mode]=await Promise.all([api('/social/ai-switches')
  <div class="row" style="margin-top:10px"><button class="primary" id="rsave">Сохранить выпуск</button><a class="btn" href="/download" target="_blank">Страница загрузки</a></div>
  <h3>Загрузить APK на сервер</h3><div class="row"><input type="file" id="apk" accept=".apk"><button id="apkup">Загрузить</button></div><p id="apkst" class="muted small"></p>
  <p class="muted small">Файлы на сервере: ${rel.apks.map(a=>esc(a.name)+' ('+(a.size/1048576).toFixed(0)+' МБ)').join(', ')||'нет'}</p></div>
+ <div class="card"><h2>ИИ-жители</h2><p class="muted small">Переключатели ИИ, AI Director, население и расписания — во вкладке «ИИ-жители».</p></div>
  <div class="card"><h2>Платежи</h2><p>Режим: <b>${esc(mode.mode||'?')}</b>. Реальные платежи выключены, пока не подключён провайдер. Каталог, заказы и промокоды — во вкладке «Магазин».</p></div>`;
- const box=$('#aisw');box.innerHTML=Object.entries(ai.names).map(([k,n])=>`<label class="chk"><input type="checkbox" data-k="${k}" ${ai.switches[k]?'checked':''}> ${esc(n)}</label>`).join('');
- box.querySelectorAll('input').forEach(c=>c.onchange=async()=>{await api('/social/ai-switches','POST',{[c.dataset.k]:c.checked});toast('Сохранено')});
  $('#rsave').onclick=async()=>{await api('/web/release','POST',{version:$('#rv').value.trim(),min_version:$('#rm').value.trim(),title:$('#rt').value,
   notes:$('#rn').value.split('\n').map(s=>s.trim()).filter(Boolean),url:$('#ru').value.trim()||null,file:$('#rf').value||null});toast('Выпуск сохранён — игроки увидят окно обновления')};
  $('#apkup').onclick=async()=>{const f=$('#apk').files[0];if(!f)return toast('Выберите файл',true);$('#apkst').textContent='Загрузка '+(f.size/1048576).toFixed(0)+' МБ…';
@@ -171,7 +169,96 @@ async art(){const d=await api('/web/art');
   toast(`Загружено ${r.width}×${r.height}`+((w&&(r.width/r.height).toFixed(2)!==(w/h).toFixed(2))?' — пропорции отличаются от рекомендованных':''));VIEWS.art()});
  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{await api('/web/art/remove?path='+encodeURIComponent(sec.slots[+b.dataset.rm].path),'POST',{});VIEWS.art()})},
 
-async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a></div>`}
+async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a></div>`},
+async ai(){const SECS=[['director','Director'],['switches','Переключатели'],['people','Персонажи'],['schedules','Расписания'],['tasks','Очередь задач'],['activity','Журнал действий']];
+ main.innerHTML=`<nav style="border:0;padding:0 0 12px;background:none">${SECS.map(([k,t])=>`<button class="${k===aiSec?'on':''}" data-ais="${k}">${t}</button>`).join('')}</nav><div id="aibox"><p class="muted">Загрузка…</p></div>`;
+ document.querySelectorAll('[data-ais]').forEach(b=>b.onclick=()=>{aiSec=b.dataset.ais;VIEWS.ai()});
+ await AI[aiSec]($('#aibox'))}
+};
+const AI_SET={tick_seconds:['Такт, секунд','Как часто Director просыпается'],max_tasks_per_tick:['Действий за такт, максимум','Верхняя граница; фактический бюджет подстраивается под нагрузку'],
+ tick_budget_ms:['Бюджет такта, мс','Если такт дольше — Director сам снижает активность'],registered_target:['Цель реестра ИИ','Сколько ИИ зарегистрировано (растёт порциями, ИИ не удаляются)'],
+ active_min:['Активных минимум','Сколько ИИ в игре одновременно, когда реальных игроков нет'],active_max:['Активных максимум','Потолок одновременной активности'],
+ spawn_per_run:['Новых ИИ за раз','Сколько ИИ добавляется за один запуск роста'],population_every_s:['Рост реестра каждые, секунд',''],
+ compact_after_hours:['Хранить выполненные задачи в очереди, часов','Потом переносятся в историю'],events_per_tick:['Событий за такт','Сообщения и упоминания игроков, на которые ИИ отвечают'],
+ host_load_soft:['Нагрузка сервера: мягкий порог, % ядра','Выше — активность ИИ ×0,5'],host_load_hard:['Нагрузка сервера: жёсткий порог, % ядра','Выше — активность ИИ ×0,2'],
+ host_mem_soft_mb:['Свободная память: мягкий порог, МБ','Меньше — активность ИИ ×0,5'],host_mem_hard_mb:['Свободная память: жёсткий порог, МБ','Меньше — активность ИИ ×0,2']};
+const AI_TASK={pending:'ожидает',running:'выполняется',done:'выполнена',failed:'ошибка',simulated:'тест (не выполнялась)',cancelled:'отменена'};
+const AI_ARCH={competitor:'Соперник',collector:'Коллекционер',socializer:'Душа компании',strategist:'Стратег',explorer:'Исследователь',newbie:'Новичок',veteran:'Ветеран'};
+const AI_STYLE={friendly:'дружелюбный',joker:'шутник',grumpy:'ворчун',flirty:'кокетливый',bro:'свойский',shy:'стеснительный',wise:'мудрый',laconic:'немногословный',competitive:'азартный',humorous:'с юмором'};
+const AI_ACT={level:'Прокачка',chat:'Чат',arena:'Арена',guild:'Гильдия',friend:'Дружба',raid:'Рейд',event:'Событие',war:'Война гильдий'};
+const AI_KIND=k=>k.startsWith('act:')?'Действие: '+(AI_ACT[k.slice(4)]||k.slice(4)).toLowerCase():({chat_keepalive:'Поддержать беседу в чате',dm:'Ответ на личное сообщение',mention:'Ответ на упоминание в чате'}[k]||k);
+const ago=s=>{if(!s)return'—';const d=(Date.now()-new Date(s))/1000;return d<90?Math.round(d)+' с назад':d<5400?Math.round(d/60)+' мин назад':time(s)};
+const AI={
+async director(box){const d=await api('/ai/director');const st=d.status||{},h=st.host||{},s=d.settings;
+ const alive=st.heartbeat&&(Date.now()-new Date(st.heartbeat))<120000;
+ box.innerHTML=`<div class="card"><h2>Состояние</h2><div class="grid">
+ ${[['Процесс Director',alive?'<span class="ok">работает</span>':'<span class="bad">не отвечает</span>'],['Режим',esc(d.modes[s.mode]||s.mode)],['Кто ведёт ИИ',d.owns_world?'Director':'прежний движок (v1)'],
+  ['Последний такт',ago(st.heartbeat)],['Длительность такта',st.tick_ms!=null?st.tick_ms+' мс':'—'],['Бюджет действий',(st.budget??'—')+' / '+(st.budget_cap??'—')],
+  ['Зарегистрировано ИИ',fmt(d.registered)],['Активны сейчас',fmt(d.active_now)+' (цель '+(st.active_target??'—')+')'],['Реальных онлайн',fmt(st.real_online)],
+  ['Нагрузка сервера',h.load1!=null?h.load1+' на '+h.cpus+' ядро':'—'],['Свободная память',h.mem_avail_mb!=null?fmt(h.mem_avail_mb)+' МБ':'—'],['Снижение из-за нагрузки',h.factor!=null?(h.factor<1?'<span class="bad">×'+h.factor+'</span>':'нет'):'—']]
+  .map(([a,b])=>`<div class="stat">${a}<b style="font-size:17px">${b}</b></div>`).join('')}</div>
+ <p class="small muted">Очередь: ${Object.entries(d.queue||{}).map(([k,v])=>(AI_TASK[k]||k)+' '+v).join(' · ')||'пусто'}. Если процесс Director остановлен или не отвечает 2 минуты — ИИ автоматически продолжают жить на прежнем движке.</p></div>
+ <div class="card"><h2>Режим</h2><div class="row">${Object.entries(d.modes).map(([k,t])=>`<button class="${k===s.mode?'on':''}" data-mode="${k}" title="${esc(t)}">${esc(t.split(' —')[0])}</button>`).join('')}</div>
+ <p class="small muted">${esc(d.modes[s.mode])}. «Тестовый» — Director только планирует и пишет журнал, мир не меняется. «Выключен» — работает прежний движок ИИ.</p></div>
+ <div class="card"><h2>Настройки</h2><div class="grid">${Object.keys(AI_SET).filter(k=>k in s).map(k=>`<label class="small">${AI_SET[k][0]}<input type="number" data-set="${k}" value="${s[k]}" min="${d.limits[k]?.[0]??''}" max="${d.limits[k]?.[1]??''}">
+  <span class="muted">${esc(AI_SET[k][1])}${s[k]!==d.defaults[k]?` · по умолчанию ${d.defaults[k]}`:''}</span></label>`).join('')}</div>
+ <div class="row" style="margin-top:10px"><button class="primary" id="aisave">Сохранить</button><button id="airb">Откатить к предыдущим</button><button id="aidef">Вернуть значения по умолчанию</button></div>
+ <p class="small muted">Каждое изменение проверяется, записывается в журнал администраторов, предыдущая версия сохраняется для отката.</p></div>`;
+ box.querySelectorAll('[data-mode]').forEach(b=>b.onclick=async()=>{if(b.dataset.mode===s.mode)return;if(!confirm('Переключить Director в режим «'+b.textContent+'»?'))return;
+  await api('/ai/director','POST',{mode:b.dataset.mode});toast('Режим изменён');AI.director(box)});
+ $('#aisave').onclick=async()=>{const ch={};box.querySelectorAll('[data-set]').forEach(i=>{if(+i.value!==s[i.dataset.set])ch[i.dataset.set]=+i.value});
+  if(!Object.keys(ch).length)return toast('Изменений нет');await api('/ai/director','POST',ch);toast('Сохранено');AI.director(box)};
+ $('#airb').onclick=async()=>{if(!confirm('Вернуть предыдущую версию настроек?'))return;await api('/ai/director/rollback','POST',{});toast('Откат выполнен');AI.director(box)};
+ $('#aidef').onclick=async()=>{const ch={};Object.keys(AI_SET).forEach(k=>{if(k in s&&s[k]!==d.defaults[k])ch[k]=d.defaults[k]});if(!Object.keys(ch).length)return toast('Уже по умолчанию');
+  if(!confirm('Вернуть значения по умолчанию? Режим не меняется.'))return;await api('/ai/director','POST',ch);toast('Сохранено');AI.director(box)}},
+
+async switches(box){const ai=await api('/social/ai-switches');
+ box.innerHTML=`<div class="card"><h2>ИИ-жители: переключатели для всего сервера</h2><div id="aisw"></div><p class="muted small">Глава гильдии и каждый игрок могут дополнительно ограничить ИИ у себя. ИИ всегда помечены как ИИ.</p></div>`;
+ const b=$('#aisw');b.innerHTML=Object.entries(ai.names).map(([k,n])=>`<label class="chk"><input type="checkbox" data-k="${k}" ${ai.switches[k]?'checked':''}> ${esc(n)}</label>`).join('');
+ b.querySelectorAll('input').forEach(c=>c.onchange=async()=>{await api('/social/ai-switches','POST',{[c.dataset.k]:c.checked});toast('Сохранено')})},
+
+async people(box,q,only){q=q??(sessionStorage.getItem('aiq')||'');only=only??(sessionStorage.getItem('aionly')||'');
+ const [pop,list]=await Promise.all([api('/ai/population'),api('/ai/characters?limit=100&query='+encodeURIComponent(q)+'&only='+only)]);
+ box.innerHTML=`<div class="card"><h2>Население</h2><div class="grid">${[['Зарегистрировано ИИ',pop.registered],['Активны сейчас',pop.active_now],['На паузе',pop.disabled],['Реальных игроков',pop.real_players],['Реальных онлайн',pop.real_online]]
+  .map(([a,b])=>`<div class="stat">${a}<b>${fmt(b)}</b></div>`).join('')}</div>
+ <p class="small muted">Характеры: ${Object.entries(pop.by_archetype).map(([k,v])=>esc(AI_ARCH[k]||k)+' '+v).join(' · ')}</p></div>
+ <div class="card"><h2>Персонажи</h2><div class="row"><input id="aiq" placeholder="Ник или UR-номер" value="${esc(q)}"><select id="aionly"><option value="">Все</option><option value="session" ${only==='session'?'selected':''}>Сейчас в игре</option><option value="disabled" ${only==='disabled'?'selected':''}>На паузе</option></select><button class="primary" id="aifind">Показать</button></div>
+ <table style="margin-top:8px"><tr><th>ИИ</th><th>Характер</th><th>Уровень / сила</th><th>Сейчас</th><th>Действие вручную</th></tr>
+ ${list.items.map(c=>`<tr><td><b>${esc(c.nickname)}</b> <span class="tag">ИИ</span><div class="small muted">${c.uralia_id} · расписание: ${esc(c.schedule||'—')}</div></td>
+  <td class="small">${esc(AI_ARCH[c.archetype]||c.archetype)}<div class="muted">${esc(c.archetype_desc)} · ${esc(AI_STYLE[c.style]||c.style)}</div></td><td>${c.level} / ${fmt(c.power)}</td>
+  <td class="small">${!c.active?'<span class="tag r">пауза</span>':c.in_session?'<span class="tag">в игре</span>':'не в сети'}<div class="muted">действий сегодня ${c.actions_today} · ${ago(c.last_action_at)}</div></td>
+  <td><div class="row" style="flex-wrap:nowrap"><select data-act="${c.id}">${Object.entries(AI_ACT).map(([k,t])=>`<option value="${k}">${t}</option>`).join('')}</select><button class="small" data-run="${c.id}">Запустить</button>
+  <button class="small ${c.active?'danger':''}" data-pause="${c.id}" data-on="${c.active?0:1}">${c.active?'Пауза':'Вернуть'}</button></div></td></tr>`).join('')||'<tr><td class="muted">Никого не найдено</td></tr>'}</table>
+ <p class="small muted">Показаны до 100, сильнейшие сверху. «Пауза» не удаляет ИИ — прогресс и история сохраняются.</p></div>`;
+ const go=()=>{sessionStorage.setItem('aiq',$('#aiq').value.trim());sessionStorage.setItem('aionly',$('#aionly').value);AI.people(box,$('#aiq').value.trim(),$('#aionly').value)};
+ $('#aifind').onclick=go;$('#aiq').onkeydown=e=>{if(e.key==='Enter')go()};$('#aionly').onchange=go;
+ box.querySelectorAll('[data-run]').forEach(b=>b.onclick=async()=>{const a=box.querySelector(`[data-act="${b.dataset.run}"]`).value;const r=await api('/ai/characters/'+b.dataset.run+'/run?action='+a,'POST',{});toast('Поставлено в очередь. '+r.note)});
+ box.querySelectorAll('[data-pause]').forEach(b=>b.onclick=async()=>{await api('/ai/characters/'+b.dataset.pause+'/active','POST',{active:b.dataset.on==='1'});toast(b.dataset.on==='1'?'ИИ возвращён':'ИИ на паузе');AI.people(box)})},
+
+async schedules(box){const d=await api('/ai/schedules');const DAYS=['пн','вт','ср','чт','пт','сб','вс'];
+ box.innerHTML=`<div class="card"><h2>Расписания ИИ</h2><p class="small muted">Время — московское (с учётом сдвига пояса каждого ИИ). Часы и дни через запятую: часы 0–23, дни 0=пн … 6=вс. «Вес» — какая доля новых ИИ получит профиль.</p>
+ <table><tr><th>Профиль</th><th>Часы игры</th><th>Пиковые часы</th><th>Сдвиг пояса</th><th>Сессия, мин</th><th>Дни отдыха</th><th>Вес</th><th>ИИ</th><th></th></tr>
+ ${d.items.map(p=>`<tr data-sc="${esc(p.code)}"><td><input data-f="name" value="${esc(p.name)}"><div class="small muted">${esc(p.code)}</div></td><td><input data-f="hours" value="${p.hours.join(',')}"></td><td><input data-f="peak_hours" value="${p.peak_hours.join(',')}"></td>
+  <td><input data-f="tz_shift" type="number" value="${p.tz_shift}" style="width:70px"></td><td><input data-f="session_minutes" type="number" value="${p.session_minutes}" style="width:80px"></td>
+  <td><input data-f="rest_weekdays" value="${p.rest_weekdays.join(',')}" title="${p.rest_weekdays.map(x=>DAYS[x]).join(', ')}"></td><td><input data-f="weight" type="number" value="${p.weight}" style="width:70px"></td><td>${p.personas}</td><td><button class="small primary" data-scs="${esc(p.code)}">Сохранить</button></td></tr>`).join('')}</table></div>`;
+ const nums=v=>v.split(',').map(x=>x.trim()).filter(x=>x!=='').map(Number);
+ box.querySelectorAll('[data-scs]').forEach(b=>b.onclick=async()=>{const tr=box.querySelector(`tr[data-sc="${b.dataset.scs}"]`);const f=n=>tr.querySelector(`[data-f="${n}"]`).value;
+  await api('/ai/schedules/'+b.dataset.scs,'PUT',{name:f('name'),hours:nums(f('hours')),peak_hours:nums(f('peak_hours')),tz_shift:+f('tz_shift'),session_minutes:+f('session_minutes'),rest_weekdays:nums(f('rest_weekdays')),weight:+f('weight')});toast('Расписание сохранено');AI.schedules(box)})},
+
+async tasks(box,stf){stf=stf??'';const d=await api('/ai/tasks?limit=100'+(stf?'&status='+stf:''));
+ box.innerHTML=`<div class="card"><h2>Очередь задач Director</h2><div class="row"><select id="aitst"><option value="">Все</option>${Object.entries(AI_TASK).map(([k,t])=>`<option value="${k}" ${k===stf?'selected':''}>${t} (${d.counts[k]||0})</option>`).join('')}</select><button id="aitref">Обновить</button></div>
+ <table style="margin-top:8px"><tr><th>#</th><th>Задача</th><th>Статус</th><th>Попытки</th><th>Создана</th><th>Итог</th><th></th></tr>
+ ${d.items.map(t=>`<tr><td class="small">${t.id}</td><td class="small">${esc(AI_KIND(t.kind))}<div class="muted">приоритет ${t.priority}</div></td><td class="small">${t.status==='failed'?'<span class="bad">ошибка</span>':esc(AI_TASK[t.status]||t.status)}</td>
+  <td class="small">${t.attempts} / ${t.max_attempts}</td><td class="small">${ago(t.created_at)}</td><td class="small muted" style="max-width:320px;overflow:hidden">${esc(t.error||(t.result?JSON.stringify(t.result):''))}</td>
+  <td>${['failed','cancelled'].includes(t.status)?`<button class="small" data-retry="${t.id}">Повторить</button>`:''}</td></tr>`).join('')||'<tr><td class="muted">Пусто</td></tr>'}</table>
+ <p class="small muted">Выполненные задачи через ${'сутки'} переносятся в историю. Повтор задачи никогда не дублирует награды и действия.</p></div>`;
+ $('#aitst').onchange=()=>AI.tasks(box,$('#aitst').value);$('#aitref').onclick=()=>AI.tasks(box,$('#aitst').value);
+ box.querySelectorAll('[data-retry]').forEach(b=>b.onclick=async()=>{await api('/ai/tasks/'+b.dataset.retry+'/retry','POST',{});toast('Задача снова в очереди');AI.tasks(box,$('#aitst').value)})},
+
+async activity(box){const d=await api('/ai/activity?limit=100');
+ box.innerHTML=`<div class="card"><h2>Что делали ИИ</h2><div class="row"><button id="aiaref">Обновить</button></div><table style="margin-top:8px"><tr><th>Когда</th><th>ИИ</th><th>Действие</th><th>Подробности</th></tr>
+ ${d.items.map(a=>`<tr><td class="small">${ago(a.at)}</td><td><b>${esc(a.nickname)}</b> <span class="tag">ИИ</span></td><td class="small">${esc(a.activity)}</td><td class="small muted" style="max-width:420px;overflow:hidden">${esc(JSON.stringify(a.payload||{}))}</td></tr>`).join('')||'<tr><td class="muted">Пока пусто</td></tr>'}</table></div>`;
+ $('#aiaref').onclick=()=>AI.activity(box)}
 };
 async function findPlayer(id){if(!id)return;const d=await api('/social/players/'+encodeURIComponent(id));const c=d.card;
  $('#pres').innerHTML=`<h3>${esc(c.nickname)} ${c.is_ai?'<span class="tag">ИИ</span>':''}</h3><div class="small">${c.uralia_id} · ур. ${c.level} · сила ${fmt(c.power)} · ${esc(c.presence)} ${c.guild?'· гильдия '+esc(c.guild.name):''}</div>

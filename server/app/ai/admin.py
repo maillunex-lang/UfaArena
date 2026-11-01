@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from ..core.db import as_utc, get_db, utcnow
 from ..core.errors import GameError
-from ..models import AdminAction, AiPersona, AiScheduleProfile, AiTask, PlayerProfile
+from ..models import AdminAction, AiActivityLog, AiPersona, AiScheduleProfile, AiTask, PlayerProfile
 from ..modules.admin import admin
 from . import population as POP
 from . import schedules as SCH
@@ -139,3 +139,54 @@ def population(who: str = Depends(admin), db: Session = Depends(get_db)):
     real = db.scalar(select(func.count()).select_from(PlayerProfile).where(PlayerProfile.is_ai.is_(False))) or 0
     return {"registered": POP.registered(db), "disabled": disabled, "active_now": SCH.active_count(db),
             "real_players": real, "real_online": POP.real_online(db), "by_schedule": by_profile, "by_archetype": by_arch}
+
+
+@router.get("/characters")
+def characters(query: str = Query("", max_length=32), only: str = Query("", max_length=16),
+               limit: int = Query(50, ge=1, le=200), who: str = Depends(admin), db: Session = Depends(get_db)):
+    """AI characters list for the admin panel: search by nickname / UR-id, filter "session" (playing now)."""
+    from ..social.ai.personas import ARCHETYPES
+    now = utcnow()
+    q = select(AiPersona, PlayerProfile).join(PlayerProfile, PlayerProfile.user_id == AiPersona.user_id)
+    if query:
+        like = f"%{query.strip()}%"
+        q = q.where(PlayerProfile.nickname.ilike(like) | PlayerProfile.uralia_id.ilike(like))
+    if only == "session":
+        q = q.where(AiPersona.session_until > now)
+    elif only == "disabled":
+        q = q.where(AiPersona.active.is_(False))
+    rows = db.execute(q.order_by(PlayerProfile.power.desc()).limit(limit)).all()
+    out = []
+    for p, pr in rows:
+        su = as_utc(p.session_until) if p.session_until else None
+        out.append({"id": p.id, "nickname": pr.nickname, "uralia_id": pr.uralia_id, "level": pr.level, "power": pr.power,
+                    "archetype": p.archetype, "archetype_desc": ARCHETYPES.get(p.archetype, {}).get("desc", ""),
+                    "style": p.style, "schedule": p.schedule_profile, "active": p.active,
+                    "in_session": bool(su and su > now), "actions_today": p.actions_today if p.day == now.date().isoformat() else 0,
+                    "last_action_at": as_utc(p.last_action_at).isoformat() if p.last_action_at else None})
+    return {"items": out}
+
+
+@router.post("/characters/{persona_id}/active")
+def set_active(persona_id: str, body: dict, who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Pause or resume one AI character (it is never deleted: progress and history stay)."""
+    p = db.get(AiPersona, persona_id)
+    if p is None:
+        raise GameError("not_found", "ИИ-персонаж не найден", 404)
+    p.active = bool(body.get("active"))
+    if not p.active:
+        p.session_until = None
+    db.add(AdminAction(admin=who, action="ai_character_active", details={"persona": persona_id, "active": p.active}))
+    db.commit()
+    return {"ok": True, "active": p.active}
+
+
+@router.get("/activity")
+def activity(limit: int = Query(40, ge=1, le=200), who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Recent AI actions (what the living world did), newest first."""
+    rows = db.execute(select(AiActivityLog, PlayerProfile.nickname)
+                      .join(AiPersona, AiPersona.id == AiActivityLog.persona_id)
+                      .join(PlayerProfile, PlayerProfile.user_id == AiPersona.user_id)
+                      .order_by(AiActivityLog.id.desc()).limit(limit)).all()
+    return {"items": [{"at": as_utc(a.created_at).isoformat(), "nickname": nick, "activity": a.activity,
+                       "payload": a.payload} for a, nick in rows]}
