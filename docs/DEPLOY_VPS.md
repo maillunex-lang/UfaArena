@@ -245,7 +245,7 @@ docker compose logs --tail=40 api        # должно быть: Running upgrad
 
 ## 20. Living World AI: AI Director (фаза 2)
 Миграция 0011 только добавляет таблицы `ai_tasks`, `ai_task_history`, `ai_events`, `ai_schedule_profiles` и два поля в
-`ai_personas`. В `docker-compose.yml` появился сервис `ai-director` (тот же образ, лимит 300 МБ и 0,5 CPU).
+`ai_personas`. В `docker-compose.yml` появился сервис `ai-director` (тот же образ, лимит 200 МБ и 0,3 CPU; при занятом сервере сам снижает активность ИИ).
 ```bash
 cd /opt/uralia
 docker compose exec db pg_dump -U uralia uralia > backup_$(date +%Y%m%d_%H%M).sql

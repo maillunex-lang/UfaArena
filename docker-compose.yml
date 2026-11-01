@@ -52,8 +52,8 @@ services:
       URALIA_SCHEDULER: "off"             # the Director never runs the API's job loop
     volumes:
       - contentstore:/srv/var/content_store
-    mem_limit: 300m                       # light configuration for the current VPS
-    cpus: 0.5
+    mem_limit: 200m                       # VPS audit: 1 vCPU, 2 GB RAM shared with other projects
+    cpus: 0.3
 volumes:
   pgdata:
   apikeys:

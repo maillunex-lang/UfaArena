@@ -21,11 +21,16 @@ MODES = {
 DEFAULTS = {
     "mode": "test",               # decision D-10: deploy in test mode
     "tick_seconds": 5,
-    "max_tasks_per_tick": 12,     # upper bound; the adaptive budget moves below it
+    "max_tasks_per_tick": 8,      # upper bound; the adaptive budget moves below it (tuned to the 1-vCPU VPS audit)
     "tick_budget_ms": 1500,       # if a tick takes longer, the budget shrinks
     "registered_target": 500,     # decision D-07
     "active_min": 30,
-    "active_max": 150,
+    "active_max": 100,            # VPS audit: 1 vCPU / 2 GB shared with other projects
+    # host load guard: load average per CPU in percent, available memory in MB
+    "host_load_soft": 70,
+    "host_load_hard": 150,
+    "host_mem_soft_mb": 400,
+    "host_mem_hard_mb": 200,
     "spawn_per_run": 20,          # new personas per population run (gradual growth)
     "population_every_s": 600,
     "compact_after_hours": 24,
@@ -33,7 +38,9 @@ DEFAULTS = {
 }
 LIMITS = {"tick_seconds": (2, 120), "max_tasks_per_tick": (1, 200), "tick_budget_ms": (200, 20000),
           "registered_target": (0, 5000), "active_min": (0, 2000), "active_max": (0, 5000), "spawn_per_run": (0, 200),
-          "population_every_s": (60, 86400), "compact_after_hours": (1, 24 * 30), "events_per_tick": (1, 200)}
+          "population_every_s": (60, 86400), "compact_after_hours": (1, 24 * 30), "events_per_tick": (1, 200),
+          "host_load_soft": (10, 1000), "host_load_hard": (10, 2000), "host_mem_soft_mb": (0, 65536),
+          "host_mem_hard_mb": (0, 65536)}
 # mode multipliers for activity (stage 19 modes)
 MODE_FACTOR = {"normal": 1.0, "high": 1.6, "low": 0.4, "test": 1.0, "off": 0.0}
 

@@ -193,3 +193,16 @@ def test_director_admin_api_validation_rollback_and_manual_run(client):
     r = client.post(f"/admin/api/ai/characters/{pid}/run?action=chat", headers=H())
     assert r.status_code == 200 and r.json()["task_id"]
     assert client.get("/admin/api/ai/tasks?status=pending", headers=H()).json()["items"]
+
+
+def test_host_load_guard_scales_activity():
+    from app.ai import hostload as HL
+    from app.ai import settings as ST
+    s = dict(ST.DEFAULTS)
+    assert HL.factor({"cpus": 1, "load1": 0.2, "mem_avail_mb": 1000}, s) == 1.0
+    assert HL.factor({"cpus": 1, "load1": 0.9, "mem_avail_mb": 1000}, s) == 0.5
+    assert HL.factor({"cpus": 1, "load1": 2.0, "mem_avail_mb": 1000}, s) == 0.2
+    assert HL.factor({"cpus": 1, "load1": 0.2, "mem_avail_mb": 150}, s) == 0.2
+    assert HL.factor({"cpus": 1, "load1": None, "mem_avail_mb": None}, s) == 1.0
+    snap = HL.snapshot()
+    assert snap["cpus"] >= 1

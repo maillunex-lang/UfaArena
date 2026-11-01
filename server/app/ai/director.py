@@ -27,6 +27,7 @@ from ..core.db import as_utc, get_engine, init_engine, utcnow
 from ..models import AiPersona, AiScheduleProfile, AiTask
 from . import events as EV
 from . import handlers as H
+from . import hostload as HL
 from . import population as POP
 from . import schedules as SCH
 from . import settings as ST
@@ -59,8 +60,12 @@ class Director:
             self.budget = max(2, cap // 2)
         self.budget = min(self.budget, cap)
         db_ms = self._db_latency(db)
-        load_factor = max(0.1, min(1.0, self.budget / cap)) * (0.5 if db_ms > 200 else 1.0)
-        out = {"mode": mode, "budget": self.budget, "db_ms": round(db_ms, 1)}
+        host = HL.snapshot()
+        host_f = HL.factor(host, s)
+        if host_f < 1.0:            # busy host: act less this tick, the adaptive budget recovers later
+            self.budget = max(1, int(self.budget * host_f) or 1)
+        load_factor = max(0.1, min(1.0, self.budget / cap)) * (0.5 if db_ms > 200 else 1.0) * host_f
+        out = {"mode": mode, "budget": self.budget, "db_ms": round(db_ms, 1), "host": {**host, "factor": host_f}}
 
         out["recovered"] = TQ.recover_stale(db)
         now_mono = time.monotonic()
@@ -84,7 +89,7 @@ class Director:
         out["tick_ms"] = round(ms, 1)
         ST.write_status(db, {
             "mode": mode, "heartbeat": utcnow().isoformat(), "tick_ms": out["tick_ms"], "db_ms": out["db_ms"],
-            "budget": self.budget, "budget_cap": cap, "active_target": target, "active_now": SCH.active_count(db),
+            "budget": self.budget, "budget_cap": cap, "host": out["host"], "active_target": target, "active_now": SCH.active_count(db),
             "registered": POP.registered(db), "real_online": POP.real_online(db), "queue": TQ.counts(db),
             "events_pending": EV.pending(db), "last": {k: v for k, v in out.items() if k not in ("mode",)},
         })
