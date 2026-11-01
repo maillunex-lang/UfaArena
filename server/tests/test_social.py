@@ -628,3 +628,18 @@ def test_ai_participation_switches_and_fair_play(client, newplayer):
         assert banter.keep_alive(db, AIP.AI()).get("disabled")
     client.post("/admin/api/social/ai-switches", json={"arena": True, "chat": True}, headers=AH())
     _ = (Guild, GuildMember, gid)
+
+
+def test_guild_settings_power_autoaccept_rename(newplayer):
+    lead, weak, ok = newplayer(), newplayer(), newplayer()
+    make_guild(lead, mode="approval")
+    r = lead.post("/guilds/edit", {"name": "Бурзяне " + uuid.uuid4().hex[:4], "emblem": "wolf", "min_power": 999999,
+                                   "auto_accept": True, "notify_chat": False}, key=False)
+    assert r.status_code == 200, r.text
+    g = lead.get("/guilds/mine").json()["guild"]
+    assert g["emblem"] == "wolf" and g["settings"]["min_power"] == 999999 and g["public_id"].startswith("G-")
+    assert g["power"] > 0 and g["rank"] >= 1
+    assert weak.post(f"/guilds/{g['id']}/join", key=False).status_code == 403  # power requirement
+    lead.post("/guilds/edit", {"min_power": 1}, key=False)
+    assert ok.post(f"/guilds/{g['id']}/join", key=False).json()["status"] == "joined"  # auto-accept
+    assert lead.post("/guilds/edit", {"emblem": "dragon"}, key=False).status_code == 400

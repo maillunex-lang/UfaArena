@@ -85,6 +85,7 @@ def catalog() -> list[dict]:
                 {"id": "bosses", "title": "Враги и рейд-боссы", "hint": "Портреты врагов и боссов для карточек этапов и рейдов. Квадрат 512×512.", "slots": []},
                 {"id": "icons", "title": "Иконки", "hint": "Иконки валют, разделов и кнопок. Квадрат 256×256, прозрачный фон, крупный читаемый силуэт.", "slots": []},
                 {"id": "chat", "title": "Оформление чата", "hint": "Элементы экрана чата. Рамки и кнопки растягиваются (9-slice), поэтому края и углы должны быть цельными.", "slots": []},
+                {"id": "guild", "title": "Гильдия", "hint": "Знамёна гильдий (выбираются в «Управление гильдией» → «Флаг»). Вертикальное знамя на перекладине, прозрачный фон.", "slots": []},
                 {"id": "screens", "title": "Экраны и фоны", "hint": "Стартовый экран и логотип.", "slots": []}]
     by = {s["id"]: s for s in sections}
     for h in D.HEROES:
@@ -122,6 +123,15 @@ def catalog() -> list[dict]:
         prompt = build_prompt(_cap(p.split(", transparent background")[0]), size, comp,
                               "dark, no transparency" if opaque else TRANSPARENT)
         by["chat"]["slots"].append({"path": f"ui/chat/{f}", "title": title, "size": size, "advice": f"{title}, {size}.", "prompt": prompt})
+    banners = {"wolf": ("Волк", "teal cloth, a howling wolf head emblem"), "bear": ("Медведь", "crimson cloth, a roaring bear emblem"),
+               "eagle": ("Орёл", "royal blue cloth, a golden eagle with spread wings"), "tree": ("Древо", "purple cloth, a sacred tree of life"),
+               "horse": ("Конь", "green cloth, a proud horse head (tulpar)"), "stone": ("Гора", "graphite cloth, mountain peaks of the Urals")}
+    for code, (name, look) in banners.items():
+        prompt = build_prompt(f"Vertical guild war banner on a golden crossbar with finials, {look}, gold trim and Bashkir ornament, "
+                              f"swallowtail bottom edge with a small turquoise gem", "512×768",
+                              "banner centered, crossbar at the very top, the whole banner visible with even padding", TRANSPARENT)
+        by["guild"]["slots"].append({"path": f"guild/banner_{code}.png", "title": f"Знамя «{name}»", "size": "512×768",
+                                     "advice": f"Знамя гильдии «{name}».", "prompt": prompt})
     for f, title, size, p in SCREENS:
         comp = ("vertical poster, main subject in the lower two thirds, top area calmer for the game logo"
                 if f == "boot_bg.png" else "wide plate centered with empty middle space for the title text")

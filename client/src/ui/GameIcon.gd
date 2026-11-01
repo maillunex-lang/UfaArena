@@ -42,6 +42,8 @@ func _draw() -> void:
 		"events": _star(c, r, Color("#ffb38a"), Color("#ff6a6a"))
 		"friends": _people(c, r)
 		"chat": _chat_bubble(c, r)
+		"crown": _crown(c, r)
+		"ranks": _rank_badge(c, r)
 		"guild": _shield(c, r, Color("#a8c8ff"), Color("#2b4f8f"))
 		"shop": _bag(c, r)
 		"arena": _swords(c, r)
@@ -322,3 +324,28 @@ func _chat_bubble(c: Vector2, r: float) -> void:
 		Vector2(c.x - r * 0.55, c.y + r * 0.95)]), Color("#bfe3ff"))
 	for i in 3:
 		draw_circle(Vector2(c.x - r * 0.5 + i * r * 0.5, c.y - r * 0.12), r * 0.13, Color("#2b4f8f"))
+
+
+func _crown(c: Vector2, r: float) -> void:
+	var g := Color("#f2c45a")
+	var d := Color("#8a5a14")
+	var pts := PackedVector2Array([c + Vector2(-r * 0.9, r * 0.45), c + Vector2(-r * 0.95, -r * 0.45), c + Vector2(-r * 0.45, 0),
+		c + Vector2(0, -r * 0.7), c + Vector2(r * 0.45, 0), c + Vector2(r * 0.95, -r * 0.45), c + Vector2(r * 0.9, r * 0.45)])
+	draw_colored_polygon(pts, g)
+	draw_polyline(pts + PackedVector2Array([pts[0]]), d, max(2.0, r * 0.08), true)
+	draw_rect(Rect2(c + Vector2(-r * 0.9, r * 0.45), Vector2(r * 1.8, r * 0.3)), d)
+	for x in [-0.95, 0.0, 0.95]:
+		draw_circle(c + Vector2(r * x, -r * (0.7 if x == 0.0 else 0.45)), r * 0.13, Color("#38e0d0"))
+
+
+func _rank_badge(c: Vector2, r: float) -> void:
+	var pts := PackedVector2Array([c + Vector2(-r * 0.75, -r * 0.8), c + Vector2(r * 0.75, -r * 0.8), c + Vector2(r * 0.75, r * 0.2),
+		c + Vector2(0, r * 0.9), c + Vector2(-r * 0.75, r * 0.2)])
+	draw_colored_polygon(pts, Color("#2b4f8f"))
+	draw_polyline(pts + PackedVector2Array([pts[0]]), Color("#f2c45a"), max(2.0, r * 0.1), true)
+	var star := PackedVector2Array()
+	for i in 10:
+		var a := -PI / 2 + i * PI / 5
+		var rr := r * (0.42 if i % 2 == 0 else 0.18)
+		star.append(c + Vector2(cos(a), sin(a)) * rr + Vector2(0, -r * 0.05))
+	draw_colored_polygon(star, Color("#f2c45a"))

@@ -363,6 +363,7 @@ class Guild(Base):
     week_points: Mapped[int] = mapped_column(BigInteger, default=0, server_default="0")
     version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     ai_policy: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")  # leader's AI switches
+    settings: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")  # min_power, auto_accept, notify_chat
 
 
 class GuildMember(Base):

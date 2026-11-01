@@ -73,6 +73,29 @@ def levels(db: Session, guild_id: str) -> dict[str, int]:
     return {u.code: u.level for u in db.scalars(select(GuildUpgrade).where(GuildUpgrade.guild_id == guild_id))}
 
 
+GUILD_SETTINGS_DEFAULT = {"min_power": 0, "auto_accept": False, "notify_chat": True}
+EMBLEMS = ["wolf", "bear", "eagle", "tree", "horse", "stone"]
+
+
+def gsettings(g: Guild) -> dict:
+    return {**GUILD_SETTINGS_DEFAULT, **(g.settings or {})}
+
+
+def public_id(g: Guild) -> str:
+    return "G-" + str(int(g.id.replace("-", "")[:8], 16) % 10000).zfill(4)
+
+
+def guild_power(db: Session, guild_id: str) -> int:
+    from .common import compute_power
+    return sum(compute_power(db, m.user_id) for m in members(db, guild_id))
+
+
+def guild_rank(db: Session, g: Guild) -> int:
+    return (db.scalar(select(func.count()).select_from(Guild).where(
+        Guild.is_ai.is_(False) if not g.is_ai else Guild.is_ai.is_(True),
+        (Guild.level > g.level) | ((Guild.level == g.level) & (Guild.exp > g.exp)))) or 0) + 1
+
+
 def guild_level(exp: int) -> int:
     lv = 1
     for i, need in enumerate(G()["level_exp"]):
@@ -128,8 +151,9 @@ def join(db: Session, g: Guild, user_id: str, actor: str | None, how: str) -> Gu
         a.status = "cancelled"
     log(db, g.id, actor, "join", user_id, how=how)
     P.add_stat(db, user_id, "guild_joined", absolute=1)
-    from .chat import system_message
-    system_message(db, f"guild:{g.id}", f"{profile(db, user_id).nickname} вступает в гильдию.")
+    if gsettings(g).get("notify_chat", True):
+        from .chat import system_message
+        system_message(db, f"guild:{g.id}", f"{profile(db, user_id).nickname} вступает в гильдию.")
     return m
 
 
@@ -208,7 +232,9 @@ def mine(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
                     .order_by(GuildWar.starts_at.desc()))
     lv_next = G()["level_exp"][g.level] if g.level < len(G()["level_exp"]) else None
     return {
-        "guild": {**guild_brief(db, g), "exp": g.exp or 0, "exp_next": lv_next, "treasury": g.treasury or 0},
+        "guild": {**guild_brief(db, g), "exp": g.exp or 0, "exp_next": lv_next, "treasury": g.treasury or 0,
+                  "public_id": public_id(g), "power": guild_power(db, g.id), "rank": guild_rank(db, g),
+                  "settings": gsettings(g), "emblems": EMBLEMS},
         "my_role": m.role, "my_role_name": G()["role_names"][m.role],
         "permissions": G()["permissions"][m.role], "role_names": G()["role_names"], "members": mem,
         "buildings": [{"code": c, **{k: v for k, v in b.items() if k != "cost"}, "level": lv.get(c, 1 if c == "hall" else 0),
@@ -316,7 +342,11 @@ def request_join(guild_id: str, user: CurrentUser = Depends(player), db: Session
         raise GameError("already_in_guild", "Вы уже в гильдии", 409)
     if profile(db, user.id).level < (g.min_level or 1):
         raise GameError("level", f"Нужен уровень {g.min_level}", 403)
-    if g.join_mode == "open":
+    gs = gsettings(g)
+    from .common import compute_power
+    if gs["min_power"] and compute_power(db, user.id) < int(gs["min_power"]):
+        raise GameError("power", f"Нужна сила отряда от {int(gs['min_power']):,}".replace(",", " "), 403)
+    if g.join_mode == "open" or (g.join_mode == "approval" and gs["auto_accept"]):
         join(db, g, user.id, user.id, "open")
         db.commit()
         return {"status": "joined"}
@@ -403,6 +433,9 @@ def leave(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
         raise GameError("leader_must_transfer", "Сначала передайте руководство другому участнику", 409)
     db.delete(m)
     log(db, g.id, user.id, "leave")
+    if gsettings(g).get("notify_chat", True) and n > 1:
+        from .chat import system_message
+        system_message(db, f"guild:{g.id}", f"{profile(db, user.id).nickname} покидает гильдию.")
     if n == 1:
         db.flush()
         db.delete(g)
@@ -469,21 +502,42 @@ def transfer(body: TargetIn, user: CurrentUser = Depends(player), db: Session = 
 
 
 class EditIn(BaseModel):
+    name: str | None = Field(default=None, min_length=3, max_length=24)
     description: str | None = Field(default=None, max_length=300)
     join_mode: str | None = Field(default=None, pattern="^(open|approval|invite)$")
     min_level: int | None = Field(default=None, ge=1, le=80)
     emblem: str | None = Field(default=None, max_length=32)
+    min_power: int | None = Field(default=None, ge=0, le=10_000_000)
+    auto_accept: bool | None = None
+    notify_chat: bool | None = None
 
 
 @router.post("/edit")
 def edit(body: EditIn, user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
     g, m = my_guild(db, user.id, "edit", lock=True)
+    if body.name is not None and body.name.strip() != g.name:
+        name = body.name.strip()
+        if m.role != "leader":
+            raise GameError("forbidden", "Название меняет только глава", 403)
+        if not NAME_RE.match(name):
+            raise GameError("bad_name", "Название: 3–24 буквы, цифры, пробел, дефис")
+        _check_text(name)
+        if db.scalar(select(Guild).where(func.lower(Guild.name) == name.lower(), Guild.id != g.id)):
+            raise GameError("name_taken", "Такое название уже занято", 409)
+        g.name = name
     if body.description is not None:
         _check_text(body.description)
         g.description = body.description.strip()
+    if body.emblem is not None and body.emblem not in EMBLEMS:
+        raise GameError("bad_emblem", "Нет такого знамени")
     for f in ("join_mode", "min_level", "emblem"):
         if getattr(body, f) is not None:
             setattr(g, f, getattr(body, f))
+    st = gsettings(g)
+    for f in ("min_power", "auto_accept", "notify_chat"):
+        if getattr(body, f) is not None:
+            st[f] = getattr(body, f)
+    g.settings = st
     log(db, g.id, user.id, "edit")
     db.commit()
     return guild_brief(db, g)
