@@ -6,6 +6,7 @@ signal wallet_changed
 signal heroes_changed
 signal profile_changed
 signal afk_changed
+signal layout_changed
 
 const CURRENCY_NAMES := {
 	"gold": "Золото", "crystals": "Кристаллы", "summon_essence": "Эссенция призыва",
@@ -62,6 +63,11 @@ var server_time_offset := 0.0
 var cosmetics := {}  # equipped cosmetics resolved by the server (frame, title, hero_skins, ...)
 var test_mode := true
 var loaded := false
+## Interface layout from the admin editor (bottom bar, main screen, «Ещё»); {} = the built-in layout.
+var layout := {}
+var layout_version := -1
+var _layout_at := -1e9
+const LAYOUT_PATH := "user://layout.json"
 
 
 ## Story state (lore stage S2): flags and decisions made; choices registry by id.
@@ -103,6 +109,7 @@ func bootstrap() -> Dictionary:
 	afk = d.afk
 	rarities = d.rarities
 	cosmetics = d.get("cosmetics", {})
+	set_layout(d.get("layout"))
 	test_mode = d.get("test_mode", true)
 	var st := Time.get_unix_time_from_datetime_string(d.server_time)
 	server_time_offset = st - Time.get_unix_time_from_system()
@@ -117,6 +124,60 @@ func bootstrap() -> Dictionary:
 	profile_changed.emit()
 	afk_changed.emit()
 	return r
+
+
+# ------------------------------------------------------------------ interface layout (admin editor)
+func set_layout(d: Variant, save := true) -> void:
+	if not (d is Dictionary) or not (d.get("layout") is Dictionary):
+		return
+	_layout_at = Time.get_ticks_msec() / 1000.0
+	var v := int(d.get("version", 0))
+	if v == layout_version:
+		return
+	layout_version = v
+	layout = d.layout if v > 0 else {}
+	if save:
+		var f := FileAccess.open(LAYOUT_PATH, FileAccess.WRITE)
+		if f:
+			f.store_string(JSON.stringify(d))
+	layout_changed.emit()
+
+
+## The last layout seen (works offline and before the first bootstrap).
+func load_cached_layout() -> void:
+	if layout_version >= 0 or not FileAccess.file_exists(LAYOUT_PATH):
+		return
+	var d: Variant = JSON.parse_string(FileAccess.get_file_as_string(LAYOUT_PATH))
+	set_layout(d, false)
+
+
+## Picks up a new layout without restarting the game (at most every 5 minutes).
+func refresh_layout() -> void:
+	if Time.get_ticks_msec() / 1000.0 - _layout_at < 300.0:
+		return
+	_layout_at = Time.get_ticks_msec() / 1000.0
+	var r := await Api.get_json("/client/layout")
+	if r.ok:
+		set_layout(r.data)
+
+
+## A part of the layout ("nav", "home.left", "more.groups"…) or `fallback` when the admin has not changed it.
+func ui_part(path: String, fallback: Variant) -> Variant:
+	var cur: Variant = layout
+	for k in path.split("."):
+		if not (cur is Dictionary) or not (cur as Dictionary).has(k):
+			return fallback
+		cur = cur[k]
+	return cur if typeof(cur) == typeof(fallback) else fallback
+
+
+## Visible items of a layout list (hidden ones and unknown ids dropped by the caller's `known` check).
+static func visible_items(items: Array, known: Callable) -> Array:
+	var out := []
+	for it in items:
+		if it is Dictionary and not bool(it.get("hidden", false)) and known.call(String(it.get("id", ""))):
+			out.append(it)
+	return out
 
 
 func set_wallet(w: Variant) -> void:

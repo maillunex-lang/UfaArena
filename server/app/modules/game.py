@@ -65,7 +65,9 @@ def bootstrap(user: CurrentUser = Depends(player), db: Session = Depends(get_db)
     db.commit()
     nxt = next_node(db, user.id)
     from .shop import equipped_view
+    from ..game_editor import layout as LAYOUT
     return {
+        "layout": LAYOUT.get(db),  # admin interface editor: menus and buttons of the main screens
         "cosmetics": equipped_view(db, user.id),
         "test_mode": is_test(db),
         "server_time": utcnow().isoformat(),

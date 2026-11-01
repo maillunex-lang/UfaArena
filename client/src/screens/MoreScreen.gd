@@ -4,6 +4,21 @@ extends Control
 
 var main: Node
 
+const KNOWN := ["inventory", "equipment", "artifacts", "summon", "quests", "achievements", "mail", "shop", "rankings", "friends",
+	"chat", "caravan", "profile", "settings", "events", "raids", "arena", "tournaments", "heroes", "campaign", "guild", "world",
+	"formation", "search", "home", "battle", "afk"]
+const DEFAULT_GROUPS := [
+	{"title": "Предметы", "items": [{"id": "inventory", "label": "Инвентарь", "icon": "quests"},
+		{"id": "equipment", "label": "Экипировка", "icon": "lock"}, {"id": "artifacts", "label": "Артефакты", "icon": "lock"}]},
+	{"title": "Прогресс", "items": [{"id": "summon", "label": "Призыв", "icon": "summon"}, {"id": "quests", "label": "Задания", "icon": "quests"},
+		{"id": "achievements", "label": "Достижения", "icon": "ranks"}]},
+	{"title": "Социальное и сервисы", "items": [{"id": "mail", "label": "Почта", "icon": "mail"}, {"id": "shop", "label": "Магазин", "icon": "shop"},
+		{"id": "rankings", "label": "Рейтинг", "icon": "ranks"}, {"id": "friends", "label": "Друзья", "icon": "friends"},
+		{"id": "chat", "label": "Чат", "icon": "chat"}, {"id": "caravan", "label": "Караван", "icon": "caravan"}]},
+	{"title": "Управление", "items": [{"id": "profile", "label": "Профиль", "icon": "profile"},
+		{"id": "settings", "label": "Настройки", "icon": "settings"}]},
+]
+
 
 func setup(m: Node, _p: Dictionary) -> void:
 	main = m
@@ -17,31 +32,27 @@ func setup(m: Node, _p: Dictionary) -> void:
 	sc.offset_top = UI.SP.s
 	add_child(sc)
 	var b: Dictionary = main.badges
-	var groups := [
-		["Предметы", [["quests", "Инвентарь", "inventory", false, 0], ["lock", "Экипировка", "", true, 0], ["lock", "Артефакты", "", true, 0]]],
-		["Прогресс", [["summon", "Призыв", "summon", false, 0], ["quests", "Задания", "quests", false, int(b.get("quests", 0))],
-			["ranks", "Достижения", "quests:ach", false, 0]]],
-		["Социальное и сервисы", [["mail", "Почта", "mail", false, int(b.get("mail", 0))], ["shop", "Магазин", "shop", false, 0],
-			["ranks", "Рейтинг", "rankings", false, 0], ["friends", "Друзья", "friends", false, int(b.get("friends", 0))],
-			["chat", "Чат", "chat", false, int(b.get("chat", 0))], ["caravan", "Караван", "caravan", false, 0]]],
-		["Управление", [["profile", "Профиль", "profile", false, 0], ["settings", "Настройки", "settings", false, 0]]],
-	]
-	for g in groups:
-		body.add_child(UI.section(String(g[0])))
+	var badge := {"quests": int(b.get("quests", 0)), "mail": int(b.get("mail", 0)), "friends": int(b.get("friends", 0)),
+		"chat": int(b.get("chat", 0))}
+	var cols := int(Game.ui_part("more.columns", 3.0))
+	# groups and tiles from the admin layout (Редактор игры → Интерфейс); the built-in set otherwise
+	for g in Game.ui_part("more.groups", DEFAULT_GROUPS):
+		if not (g is Dictionary):
+			continue
+		var items: Array = Game.visible_items(g.get("items", []), func(k): return k in KNOWN)
+		if items.is_empty():
+			continue
+		body.add_child(UI.section(String(g.get("title", ""))))
 		var grid := GridContainer.new()
-		grid.columns = 3
+		grid.columns = clampi(cols, 2, 4)
 		grid.add_theme_constant_override("h_separation", UI.SP.m)
 		grid.add_theme_constant_override("v_separation", UI.SP.m)
-		for it in g[1]:
-			var t := UI.tile(it[0], it[1], "скоро" if it[3] else "", it[3], it[4])
-			var target: String = it[2]
-			var nm: String = it[1]
-			if it[3]:
-				t.pressed.connect(func(): Router.toast("«%s» появится вместе с системой предметов в следующих обновлениях" % nm))
-			elif ":" in target:
-				t.pressed.connect(func(): main.open(target.split(":")[0], {"tab": target.split(":")[1]}))
-			else:
-				t.pressed.connect(func(): main.open(target))
+		for it in items:
+			var id := String(it.id)
+			var locked: bool = id in ["equipment", "artifacts"]
+			var t := UI.tile(String(it.get("icon", id)), String(it.get("label", id)), "скоро" if locked else "", locked,
+				int(badge.get(id, 0)))
+			t.pressed.connect(func(): main.do_action(id))
 			grid.add_child(t)
 		body.add_child(grid)
 	body.add_child(UI.spacer(UI.SP.l))

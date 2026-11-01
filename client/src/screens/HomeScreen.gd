@@ -13,6 +13,20 @@ var _event_end := ""
 var _caravan_sub: Label
 var _caravan_arrive := ""
 
+const DEFAULT_BLOCKS := [{"id": "campaign"}, {"id": "middle"}, {"id": "daily"}, {"id": "actions"}]
+const DEFAULT_LEFT := [{"id": "quests", "label": "Задания", "icon": "quests"}, {"id": "mail", "label": "Почта", "icon": "mail"},
+	{"id": "friends", "label": "Друзья", "icon": "friends"}, {"id": "chat", "label": "Чат", "icon": "chat"},
+	{"id": "caravan", "label": "Караван", "icon": "caravan"}]
+const DEFAULT_RIGHT := [{"id": "events", "label": "События", "icon": "events"}, {"id": "afk", "label": "Дозор", "icon": "afk"},
+	{"id": "raids", "label": "Рейды", "icon": "shulgan"}, {"id": "arena", "label": "Арена", "icon": "arena"},
+	{"id": "tournaments", "label": "Турниры", "icon": "crown"}]
+const DEFAULT_ACTIONS := [{"id": "shop", "label": "Магазин", "icon": "shop", "color": "#1d4f8a", "ratio": 1.0},
+	{"id": "summon", "label": "Призыв", "icon": "summon", "color": "#4b2a7a", "ratio": 1.0},
+	{"id": "battle", "label": "В бой", "icon": "arena", "color": "#8e1b1b", "ratio": 1.5}]
+const SIDE_IDS := ["quests", "mail", "friends", "chat", "caravan", "events", "afk", "raids", "arena", "tournaments", "shop",
+	"summon", "battle", "rankings", "inventory", "formation", "profile", "settings", "search", "achievements", "heroes",
+	"campaign", "guild", "world", "more", "home"]
+
 
 func setup(m: Node, _p: Dictionary) -> void:
 	main = m
@@ -51,16 +65,27 @@ func _load() -> void:
 		return
 	_s = r.data
 	main.set_badges(_s)
-	_root.add_child(_campaign_strip())
-	var mid := HBoxContainer.new()
-	mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	mid.add_theme_constant_override("separation", UI.SP.xs)
-	mid.add_child(_left_column())
-	mid.add_child(_squad())
-	mid.add_child(_right_column())
-	_root.add_child(mid)
-	_root.add_child(_daily_strip())
-	_root.add_child(_actions())
+	# block order and visibility come from the admin layout (Редактор игры → Интерфейс)
+	var blocks: Array = Game.visible_items(Game.ui_part("home.blocks", DEFAULT_BLOCKS),
+		func(k): return k in ["campaign", "middle", "daily", "actions"])
+	if blocks.is_empty():
+		blocks = DEFAULT_BLOCKS
+	for b in blocks:
+		match String(b.id):
+			"campaign": _root.add_child(_campaign_strip())
+			"middle":
+				var mid := HBoxContainer.new()
+				mid.size_flags_vertical = Control.SIZE_EXPAND_FILL
+				mid.add_theme_constant_override("separation", UI.SP.xs)
+				mid.add_child(_left_column())
+				mid.add_child(_squad())
+				mid.add_child(_right_column())
+				_root.add_child(mid)
+			"daily": _root.add_child(_daily_strip())
+			"actions": _root.add_child(_actions())
+	if not blocks.any(func(x): return x.id == "middle"):
+		_root.add_child(UI.spacer(0))  # the squad block is hidden: keep the rest at the top
+	Game.refresh_layout()
 	_tick()
 
 
@@ -161,38 +186,53 @@ func _column() -> VBoxContainer:
 
 func _left_column() -> Control:
 	var col := _column()
-	var q: Dictionary = _s.quests
-	var soc: Dictionary = _s.social
-	col.add_child(_side("quests", "Задания", "%d/%d" % [int(q.daily_done), int(q.daily_total)], int(q.claimable), func(): main.open("quests")))
-	col.add_child(_side("mail", "Почта", "", int(_s.mail_unclaimed), func(): main.open("mail")))
-	col.add_child(_side("friends", "Друзья", "", int(soc.friend_requests) + int(soc.gifts), func(): main.open("friends")))
-	col.add_child(_side("chat", "Чат", "", int(soc.chat_unread), func(): main.open_mini_chat()))
-	var cv := _side("caravan", "Караван", "", 0, func(): main.open("caravan"))
-	_caravan_sub = cv.find_child("Sub", true, false)
-	col.add_child(cv)
-	_load_caravan()
+	for it in Game.visible_items(Game.ui_part("home.left", DEFAULT_LEFT), func(k): return k in SIDE_IDS):
+		col.add_child(_side_item(it))
 	return col
 
 
 func _right_column() -> Control:
 	var col := _column()
-	# nearest-ending world event with a live countdown
-	var ev = null
-	for e in _s.events:
-		if ev == null or String(e.ends_at) < String(ev.ends_at):
-			ev = e
-	var eb := _side("events", "События", "", 0, func(): main.open("events"), ev != null)
-	_event_sub = eb.find_child("Sub", true, false)
-	_event_end = String(ev.ends_at) if ev else ""
-	col.add_child(eb)
-	# patrol (AFK) chest: one tap claims, the timer shows time left until the cap
-	var afk := _side("afk", "Дозор", "", 0, _claim_afk, bool(_s.afk.full))
-	_afk_sub = afk.find_child("Sub", true, false)
-	col.add_child(afk)
-	col.add_child(_side("shulgan", "Рейды", "", 0, func(): main.open("raids")))
-	col.add_child(_side("arena", "Арена", "", 0, func(): main.open("arena")))
-	col.add_child(_side("crown", "Турниры", "", 0, func(): main.open("tournaments")))
+	for it in Game.visible_items(Game.ui_part("home.right", DEFAULT_RIGHT), func(k): return k in SIDE_IDS):
+		col.add_child(_side_item(it))
 	return col
+
+
+## A side button by its layout id: live counters / timers for the known ones, a plain shortcut for the rest.
+func _side_item(it: Dictionary) -> Control:
+	var id := String(it.id)
+	var lbl := String(it.get("label", id))
+	var ic := String(it.get("icon", id))
+	var q: Dictionary = _s.quests
+	var soc: Dictionary = _s.social
+	match id:
+		"quests":
+			return _side(ic, lbl, "%d/%d" % [int(q.daily_done), int(q.daily_total)], int(q.claimable), func(): main.open("quests"))
+		"mail":
+			return _side(ic, lbl, "", int(_s.mail_unclaimed), func(): main.open("mail"))
+		"friends":
+			return _side(ic, lbl, "", int(soc.friend_requests) + int(soc.gifts), func(): main.open("friends"))
+		"chat":
+			return _side(ic, lbl, "", int(soc.chat_unread), func(): main.open_mini_chat())
+		"caravan":
+			var cv := _side(ic, lbl, "", 0, func(): main.open("caravan"))
+			_caravan_sub = cv.find_child("Sub", true, false)
+			_load_caravan()
+			return cv
+		"events":  # nearest-ending world event with a live countdown
+			var ev = null
+			for e in _s.events:
+				if ev == null or String(e.ends_at) < String(ev.ends_at):
+					ev = e
+			var eb := _side(ic, lbl, "", 0, func(): main.open("events"), ev != null)
+			_event_sub = eb.find_child("Sub", true, false)
+			_event_end = String(ev.ends_at) if ev else ""
+			return eb
+		"afk":  # patrol (AFK) chest: one tap claims, the timer shows time left until the cap
+			var afk := _side(ic, lbl, "", 0, _claim_afk, bool(_s.afk.full))
+			_afk_sub = afk.find_child("Sub", true, false)
+			return afk
+	return _side(ic, lbl, "", 0, func(): main.do_action(id, "home"))
 
 
 func _process(_d: float) -> void:
@@ -407,15 +447,21 @@ func _big(text: String, sub: String, icon: String, base: StyleBoxFlat, art_path:
 func _actions() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UI.SP.s)
-	row.add_child(_big("Магазин", "", "shop", UI._flat(Color("#1d4f8a"), Color("#9fd3ff"), UI.R.m, 3), "ui/home/shop_button.png",
-		func(): main.open("shop")))
-	row.add_child(_big("Призыв", "", "summon", UI._flat(Color("#4b2a7a"), Color("#d6b8ff"), UI.R.m, 3), "ui/home/summon_button.png",
-		func(): main.open("summon")))
-	var nx = _s.campaign.get("next")
-	var battle := UI._flat(Color("#8e1b1b"), UI.GOLD, UI.R.m, 3)
-	battle.shadow_color = Color(1.0, 0.4, 0.2, 0.45)
-	battle.shadow_size = 12
-	var code: String = nx.code if nx else ""
-	row.add_child(_big("В бой", ("Этап " + code) if nx else "Карта похода", "arena", battle, "ui/home/battle_button.png",
-		func(): main.open("campaign", {"select": code} if code != "" else {}), 1.5))
+	var art := {"shop": "ui/home/shop_button.png", "summon": "ui/home/summon_button.png", "battle": "ui/home/battle_button.png"}
+	for it in Game.visible_items(Game.ui_part("home.actions", DEFAULT_ACTIONS), func(k): return k in SIDE_IDS):
+		var id := String(it.id)
+		var col := Color(String(it.get("color", "#1d4f8a")))
+		var edge := {"#1d4f8a": Color("#9fd3ff"), "#4b2a7a": Color("#d6b8ff")}  # the built-in look stays identical
+		var base := UI._flat(col, UI.GOLD if id == "battle" else edge.get(String(it.get("color", "")).to_lower(), col.lightened(0.55)), UI.R.m, 3)
+		var sub := ""
+		var cb := func(): main.do_action(id, "home")
+		if id == "battle":
+			base.shadow_color = Color(1.0, 0.4, 0.2, 0.45)
+			base.shadow_size = 12
+			var nx = _s.campaign.get("next")
+			var code: String = nx.code if nx else ""
+			sub = ("Этап " + code) if nx else "Карта похода"
+			cb = func(): main.open("campaign", {"select": code} if code != "" else {})
+		row.add_child(_big(String(it.get("label", id)), sub, String(it.get("icon", id)), base,
+			String(art.get(id, "ui/home/%s_button.png" % id)), cb, float(it.get("ratio", 1.0))))
 	return row

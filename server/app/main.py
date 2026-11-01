@@ -58,6 +58,9 @@ def create_app() -> FastAPI:
     app.include_router(game_editor.router)
     from .game_editor import campaign as campaign_editor
     app.include_router(campaign_editor.router)
+    from .game_editor import layout as layout_editor
+    app.include_router(layout_editor.router)
+    app.include_router(layout_editor.public, prefix=API)
     # Web version of the game (Godot Web export, same API on the same origin). Optional: only if exported.
     web = get_settings().web_client_path
     if (web / "index.html").exists():

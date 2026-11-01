@@ -48,6 +48,7 @@ var current := ""
 var screen: Control
 var _chips := {}
 var _nav_buttons := {}
+var _nav_panel: Control
 var _guide: PanelContainer
 var _guide_label: Label
 var _profile_lbl: Label
@@ -70,7 +71,9 @@ func _ready() -> void:
 	content.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(content)
 	_build_top()
+	Game.load_cached_layout()
 	_build_nav()
+	Game.layout_changed.connect(_on_layout_changed)
 	_build_guide()
 	Game.wallet_changed.connect(_update_chips)
 	Game.profile_changed.connect(_update_profile)
@@ -127,7 +130,9 @@ func open(screen_name: String, params := {}) -> void:
 	if screen.has_method("setup"):
 		screen.setup(self, params)
 	_enter_anim(screen, screen_name)
-	var section: String = NAV_OF.get(screen_name, screen_name)
+	var section: String = screen_name if _nav_buttons.has(screen_name) else NAV_OF.get(screen_name, screen_name)
+	if not _nav_buttons.has(section):
+		section = "more"
 	for k in _nav_buttons:
 		_style_nav(k, k == section)
 	for tip in get_tree().get_nodes_in_group("tip_card"):
@@ -470,15 +475,66 @@ func _build_nav() -> void:
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_theme_constant_override("separation", 6)
 	panel.add_child(h)
-	var icons := {"home": "home", "heroes": "heroes", "campaign": "campaign", "guild": "guild", "world": "world", "more": "more"}
-	for item in NAV:
-		var b := UI.icon_button(icons[item[0]], item[1], true)
+	_nav_panel = panel
+	_nav_buttons.clear()
+	for item in nav_items():
+		var b := UI.icon_button(String(item.icon), String(item.label), true)
 		b.get_node("Badge").visible = false
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		var key: String = item[0]
+		var key: String = item.id
 		b.pressed.connect(func(): open(key))
 		h.add_child(b)
 		_nav_buttons[key] = b
+
+
+## Bottom bar items: the admin layout (Редактор игры → Интерфейс) or the built-in six sections.
+func nav_items() -> Array:
+	var def := []
+	var icons := {"home": "home", "heroes": "heroes", "campaign": "campaign", "guild": "guild", "world": "world", "more": "more"}
+	for n in NAV:
+		def.append({"id": n[0], "label": n[1], "icon": icons[n[0]]})
+	var items: Array = Game.visible_items(Game.ui_part("nav", def), func(k): return SCREENS.has(k))
+	if not items.any(func(x): return x.id == "home") or not items.any(func(x): return x.id == "more"):
+		return def  # never lock the player out
+	return items
+
+
+## One place that knows what a layout button does (main screen columns, big buttons, «Ещё» tiles).
+func do_action(id: String, from := "") -> void:
+	match id:
+		"achievements": open("quests", {"tab": "ach"})
+		"chat":
+			if from == "home":
+				open_mini_chat()
+			else:
+				open("chat")
+		"search":
+			var gs: Control = preload("res://src/ui/GlobalSearch.gd").new()
+			gs.main = self
+			ui.add_child(gs)
+		"battle":
+			var nx = Game.campaign.get("next") if Game.campaign is Dictionary else null
+			var code: String = String(nx.code) if nx is Dictionary else ""
+			open("campaign", {"select": code} if code != "" else {})
+		"equipment", "artifacts":
+			Router.toast("Появится вместе с системой предметов в следующих обновлениях")
+		"afk":
+			open("home")
+		_:
+			if SCREENS.has(id):
+				open(id)
+
+
+func _on_layout_changed() -> void:
+	if _nav_panel:
+		_nav_panel.queue_free()
+		_nav_panel = null
+	_build_nav()
+	var section: String = current if _nav_buttons.has(current) else NAV_OF.get(current, current)
+	for k in _nav_buttons:
+		_style_nav(k, k == section)
+	if current in ["home", "more"]:
+		open(current)
 
 
 func _style_nav(key: String, active: bool) -> void:

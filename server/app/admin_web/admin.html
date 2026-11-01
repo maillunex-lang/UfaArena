@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Уралия — админ-панель</title>
 <script type="module" src="https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <style>
 :root{--bg:#0b1416;--panel:#10201f;--panel2:#14292a;--line:#2c4a48;--gold:#e0ad4f;--gold2:#ffe3a1;--teal:#3fd6c8;
 --text:#eef3f2;--muted:#9fb7b4;--red:#ff7a6b;--green:#7fe39a}
@@ -37,7 +38,28 @@ display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv
 #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#132826;border:1px solid var(--gold);padding:10px 16px;border-radius:12px;display:none;max-width:90%}
 .login{max-width:420px;margin:60px auto}.chatlog{max-height:440px;overflow:auto}
 .chk{display:flex;gap:10px;align-items:center;padding:4px 0;cursor:pointer}.chk input{width:18px;height:18px}
-.msg{padding:6px 0;border-bottom:1px solid #1b3331}.msg .a{color:var(--gold2);font-weight:600}
+.msg{padding:6px 0;border-bottom:1px solid #1b3331}
+.uiwrap{display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap}.uiside{flex:1 1 320px;min-width:0}
+.phone{flex:0 0 auto;width:min(380px,100%);aspect-ratio:9/16;background:linear-gradient(#10282a,#0a1516);border:9px solid #1e2b2c;border-radius:30px;display:flex;flex-direction:column;overflow:hidden;font-size:12px;box-shadow:0 10px 40px #0008}
+.ptop{display:flex;justify-content:space-between;padding:8px 10px;background:#0006;color:var(--gold2);font-weight:600}
+.pscreen{flex:1;overflow:auto;padding:6px;display:flex;flex-direction:column;gap:6px}
+.pblock{position:relative;border:1px dashed transparent;border-radius:10px;padding:2px}.pblock:hover{border-color:#2c4a48}.pblock.hid{opacity:.35}
+.ptag{position:absolute;top:-2px;right:6px;font-size:10px;color:var(--muted);pointer-events:none}
+.pbar{background:#14292acc;border:1px solid #a37a2c88;border-radius:10px;padding:8px 10px;display:flex;justify-content:space-between;align-items:center}
+.pbtn{background:linear-gradient(#e7b453,#b98326);color:#241400;border-radius:8px;padding:2px 8px;font-weight:600}
+.pmid{display:flex;gap:4px;min-height:220px}.pcol{display:flex;flex-direction:column;gap:4px;width:64px;min-height:120px;justify-content:center}
+.psq{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:26px;line-height:1.5;background:#0003;border-radius:10px}
+.pl{border-radius:8px}.pl:empty{min-height:40px;border:1px dashed #2c4a48}
+.pi{cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:1px;padding:3px 2px;border-radius:9px;text-align:center;user-select:none;touch-action:manipulation}
+.pi .ic{width:34px;height:34px;border-radius:50%;background:#1d3a3b;border:1px solid #9fb7b455;display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden}
+.pi .ic img,.icgrid img{width:100%;height:100%;object-fit:contain}.pi .lb{font-size:10px;line-height:1.1;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pi.hid{opacity:.35}.pi.sel{outline:2px solid var(--gold2);background:#e0ad4f22}.pi.sortable-ghost{opacity:.3}
+.pact{display:flex;gap:4px}.pact .pi{flex-direction:row;justify-content:center;min-height:52px;color:#fff;border:1px solid #fff4}.pact .pi .lb{font-size:13px;font-weight:700;max-width:none}
+.pact .pi .ic{background:none;border:0}
+.pnav{display:flex;justify-content:space-around;gap:2px;margin:6px;padding:4px;background:#a9c9ff22;border:1px solid #a9c9ff55;border-radius:18px}.pnav .pi{flex:1}
+.pgrp{color:var(--gold2);font-weight:700;padding:4px 2px;cursor:pointer;border-radius:6px}.pgrp.sel{outline:2px solid var(--gold2)}
+.pgrid{display:grid;gap:5px;min-height:44px}.pgrid .pi{background:#14292a;border:1px solid #a37a2c66;padding:6px 2px}
+.icgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;margin-top:4px}.icgrid button{padding:4px;height:44px;font-size:20px}.msg .a{color:var(--gold2);font-weight:600}
 </style>
 </head>
 <body>
@@ -49,7 +71,7 @@ display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv
 <script>
 const $=s=>document.querySelector(s);const main=$('#main');
 const TABS=[['overview','Обзор'],['server','Сервер и APK'],['events','События'],['chat','Чат'],['players','Игроки и модерация'],['ai','ИИ-жители'],['editor','Редактор игры'],['art','Графика'],['shop','Магазин']];
-let tab='overview',artSec='heroes',aiSec='director',edSec='heroes';
+let tab='overview',artSec='heroes',aiSec='director',edSec='heroes',edUiView='home';
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function toast(t,bad){const e=$('#toast');e.textContent=t;e.style.borderColor=bad?'#a8433a':'';e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',3500)}
 function hdr(extra){return Object.assign({'X-Admin-Token':sessionStorage.getItem('tok')||'','X-Admin-Name':encodeURIComponent(sessionStorage.getItem('who')||'owner')},extra||{})}
@@ -180,7 +202,7 @@ async art(){const d=await api('/web/art');
  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{await api('/web/art/remove?path='+encodeURIComponent(sec.slots[+b.dataset.rm].path),'POST',{});VIEWS.art()})},
 
 async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a></div>`},
-async editor(){const SECS=[['heroes','Герои'],['balance','Баланс'],['campaign','Кампания'],['map','Редактор карты'],['history','История правок']];
+async editor(){const SECS=[['heroes','Герои'],['balance','Баланс'],['campaign','Кампания'],['map','Редактор карты'],['ui','Интерфейс'],['history','История правок']];
  main.innerHTML=`<nav style="border:0;padding:0 0 12px;background:none;flex-wrap:wrap">${SECS.map(([k,t])=>`<button class="${k===edSec?'on':''}" data-eds="${k}">${t}</button>`).join('')}</nav><div id="edbox"><p class="muted">Загрузка…</p></div>`;
  document.querySelectorAll('[data-eds]').forEach(b=>b.onclick=()=>{edSec=b.dataset.eds;VIEWS.editor()});
  await ED[edSec]($('#edbox'))},
@@ -345,6 +367,86 @@ async map(box,regionCode){const d=await api('/game/campaign/map');let mode=regio
    drag(svg,g,(x,y)=>{mp[n.code]=toMp(ix(x),iy(y));place();upd();$('#mhint').textContent=`${n.code} «${n.name}»: координаты [${mp[n.code].join(', ')}]`})});upd();
   $('#msave').onclick=async()=>{const ch={};reg.nodes.forEach(n=>{if(mp[n.code].join()!==n.map_pos.join())ch[n.code]=mp[n.code]});if(!Object.keys(ch).length)return toast('Изменений нет');
    await api('/game/campaign/map/nodes','PUT',{positions:ch});toast('Расположение этапов сохранено');ED.map(box,rc)}};
+ render()},
+
+async ui(box){const d=await api('/game/layout');let L=JSON.parse(JSON.stringify(d.layout)),view=edUiView,sel=null,dirty=false;
+ const T={};d.targets.forEach(t=>T[t.id]=t);const BL={};d.blocks.forEach(b=>BL[b.id]=b.title);
+ const EMO={gold:'🪙',crystals:'💎',summon_essence:'🔮',ancient_seals:'📜',guild_marks:'🎖',nature_essence:'🌿',campaign:'🗺',heroes:'🛡',fortress:'🏰',summon:'✨',modes:'🎮',quests:'📋',mail:'✉️',settings:'⚙️',afk:'⏳',events:'🎉',friends:'👥',chat:'💬',crown:'👑',home:'🏠',world:'🌍',more:'☰',bell:'🔔',ranks:'🏆',guild:'⚜️',shop:'🛒',arena:'⚔️',profile:'👤',lock:'🔒',search:'🔍',caravan:'🐎',stone_sky:'⛰',living_kurai:'🌾',ashen_reach:'🔥',shulgan:'🐉'};
+ const IMG={};try{const a=await api('/web/art');const st=new Set();a.sections.forEach(s=>s.slots.forEach(x=>{if(x.staged&&/^icons\/[a-z_0-9]+\.png$/.test(x.path))st.add(x.path)}));
+  await Promise.all([...st].map(async p=>{const r=await fetch('/admin/api/web/art/file?path='+p,{headers:hdr()});if(r.ok)IMG[p.slice(6,-4)]=URL.createObjectURL(await r.blob())}))}catch(e){}
+ const ico=k=>IMG[k]?`<img src="${IMG[k]}" alt="">`:(EMO[k]||'●');
+ const lists=()=>{const o={'nav':'Нижняя панель','home.left':'Левая колонка','home.right':'Правая колонка','home.actions':'Большие кнопки'};L.more.groups.forEach((g,i)=>o['more.groups.'+i+'.items']='«Ещё» → '+g.title);return o};
+ const get=p=>p.split('.').reduce((o,k)=>o[k],L);
+ const okFor=(p,id)=>{const k=T[id].kind;if(p==='nav')return k==='screen';if(p.startsWith('home.'))return k!=='locked';return true};
+ const mark=()=>{dirty=true;const e=$('#uidirty');if(e)e.style.display=''};
+ const item=(p,i,it,extra='')=>{const s=sel&&sel.p===p&&sel.i===i;return `<div class="pi${it.hidden?' hid':''}${s?' sel':''}" data-p="${p}" data-i="${i}" ${extra}><span class="ic">${ico(it.icon)}</span><span class="lb">${esc(it.label)}</span></div>`};
+ const listHtml=(p,cls,fn)=>`<div class="pl ${cls}" data-list="${p}">${get(p).map((it,i)=>fn?fn(p,i,it):item(p,i,it)).join('')}</div>`;
+ const homeMock=()=>L.home.blocks.map((b,bi)=>{let h='';
+  if(b.id==='campaign')h=`<div class="pbar">🗺 Поход · Глава 1 · Этап 1-4 <b>›</b></div>`;
+  if(b.id==='middle')h=`<div class="pmid">${listHtml('home.left','pcol')}<div class="psq">🛡 🗡<br>🏹 ✨ 🛡<div class="small muted">отряд игрока</div></div>${listHtml('home.right','pcol')}</div>`;
+  if(b.id==='daily')h=`<div class="pbar">📋 Ежедневные задания 2/5 <span class="pbtn">Забрать</span></div>`;
+  if(b.id==='actions')h=listHtml('home.actions','pact',(p,i,it)=>item(p,i,it,`style="flex:${it.ratio||1};background:${it.color||'#1d4f8a'}"`));
+  return `<div class="pblock${b.hidden?' hid':''}" data-b="${bi}"><span class="ptag">${esc(BL[b.id])}${b.hidden?' · скрыт':''}</span>${h}</div>`}).join('');
+ const moreMock=()=>L.more.groups.map((g,gi)=>`<div class="pgrp${sel&&sel.g===gi?' sel':''}" data-g="${gi}">${esc(g.title)}</div>`+
+  `<div class="pl pgrid" data-list="more.groups.${gi}.items" style="grid-template-columns:repeat(${L.more.columns},1fr)">${g.items.map((it,i)=>item('more.groups.'+gi+'.items',i,it)).join('')||'<span class="small muted">пусто — перетащите сюда кнопку</span>'}</div>`).join('');
+ const props=()=>{if(sel&&sel.g!==undefined){const g=L.more.groups[sel.g];return `<h3>Группа «${esc(g.title)}»</h3><label class="small">Название</label><input id="gt" value="${esc(g.title)}" maxlength="32">
+   <div class="row" style="margin-top:8px"><button id="gup">↑ Выше</button><button id="gdn">↓ Ниже</button><button class="danger" id="gdel" ${g.items.length?'disabled title="Сначала уберите кнопки"':''}>Удалить группу</button></div>`}
+  if(!sel)return `<p class="small muted">Нажмите на кнопку в макете, чтобы изменить подпись, иконку, цвет или скрыть её. Перетаскивайте кнопки мышью или пальцем: между колонками, группами и местами. Серые — скрыты у игроков.</p>`;
+  const it=get(sel.p)[sel.i];const t=T[it.id];const core=sel.p==='nav'&&(it.id==='home'||it.id==='more');const act=sel.p==='home.actions';
+  return `<h3>${esc(it.label)} <span class="small muted">· ${esc(lists()[sel.p])}</span></h3><p class="small muted">Открывает: ${esc(t.label)}${t.kind==='locked'?' (ещё не работает в игре — плитка «скоро»)':''}</p>
+   <label class="small">Подпись (до 20 символов)</label><input id="ul" value="${esc(it.label)}" maxlength="20">
+   <label class="small" style="display:block;margin-top:8px">Иконка <span class="muted">(свою картинку для любой иконки можно загрузить в «Графика» → Иконки)</span></label>
+   <div class="icgrid">${d.icons.map(k=>`<button class="${k===it.icon?'on':''}" data-ic="${k}" title="${k}">${ico(k)}</button>`).join('')}</div>
+   ${act?`<div class="row" style="margin-top:8px"><label class="small">Цвет<input type="color" id="uc" value="${it.color||'#1d4f8a'}" style="height:38px;padding:2px"></label><label class="small">Ширина ×<b id="urv">${it.ratio||1}</b><input type="range" id="ur" min="0.5" max="3" step="0.25" value="${it.ratio||1}"></label></div>`:''}
+   <label class="chk"><input type="checkbox" id="uh" ${it.hidden?'checked':''} ${core?'disabled':''}> Скрыть у игроков ${core?'<span class="small muted">(эту кнопку убрать нельзя)</span>':''}</label>
+   <div class="row"><button id="uup">↑</button><button id="udn">↓</button><select id="umv"><option value="">Переместить в…</option>${Object.entries(lists()).filter(([p])=>p!==sel.p&&okFor(p,it.id)).map(([p,n])=>`<option value="${p}">${esc(n)}</option>`).join('')}</select>
+   <button class="danger" id="udel" ${core?'disabled':''}>Убрать</button></div>`};
+ const render=()=>{edUiView=view;box.innerHTML=`<div class="card"><h2>Интерфейс игры</h2><p class="small muted">Визуальный редактор главного меню: нижняя панель, главный экран и «Ещё». Кнопки открывают только существующие разделы; «Главная» и «Ещё» всегда остаются на панели. Игроки получают раскладку при входе в игру (и на главном экране раз в 5 минут) — без обновления APK, начиная с версии игры 0.7.7.</p>
+  <div class="row"><button class="${view==='home'?'on':''}" id="vh">Главный экран</button><button class="${view==='more'?'on':''}" id="vm">Экран «Ещё»</button>
+  <span id="uidirty" class="tag g" style="flex:0 0 auto;${dirty?'':'display:none'}">есть неопубликованные изменения</span><span style="flex:1"></span><button class="primary" id="upub">Опубликовать</button></div></div>
+  <div class="uiwrap"><div class="phone"><div class="ptop">👤 Игрок · ур. 12 <span>🪙 12 400 💎 350</span></div><div class="pscreen">${view==='home'?homeMock():moreMock()}</div>${listHtml('nav','pnav')}</div>
+  <div class="uiside"><div class="card" id="uprops">${props()}</div>
+   ${view==='home'?`<div class="card"><h3>Блоки главного экрана</h3>${L.home.blocks.map((b,i)=>`<div class="row" style="margin:4px 0"><label class="chk" style="flex:1 1 0;min-width:0"><input type="checkbox" data-bv="${i}" ${b.hidden?'':'checked'}> ${esc(BL[b.id])}</label><button class="small" data-bu="${i}">↑</button><button class="small" data-bd="${i}">↓</button></div>`).join('')}</div>`
+    :`<div class="card"><h3>Экран «Ещё»</h3><div class="row"><label class="small">Колонок<select id="mcols">${[2,3,4].map(n=>`<option ${n===L.more.columns?'selected':''}>${n}</option>`).join('')}</select></label><button id="gadd">+ Группа</button></div><p class="small muted">Нажмите на название группы, чтобы переименовать или переставить её.</p></div>`}
+   <div class="card"><h3>Добавить кнопку</h3><div class="row"><select id="at">${d.targets.map(t=>`<option value="${t.id}">${esc(t.label)}${t.kind==='locked'?' (скоро)':''}</option>`).join('')}</select>
+    <select id="ato">${Object.entries(lists()).map(([p,n])=>`<option value="${p}">${esc(n)}</option>`).join('')}</select><button id="aadd">Добавить</button></div></div>
+   <div class="card"><h3>Версии</h3><p class="small">Опубликована: <b>${d.version?('версия '+d.version):'стандартная раскладка игры'}</b></p>
+    <div class="row"><button id="urel">Отменить несохранённое</button><button id="urb" ${d.history.length?'':'disabled'}>Откатить публикацию</button><button class="danger" id="urs">Сбросить к стандартной</button></div>
+    <div class="small muted" style="margin-top:6px">${d.history.slice(-6).reverse().map(h=>`${esc(h.at.slice(0,16).replace('T',' '))} · ${esc(h.by)} · ${h.action==='ui_layout_reset'?'сброс':h.action==='ui_layout_rollback'?'откат':'публикация'}`).join('<br>')}</div></div></div></div>`;
+  bind()};
+ const move=(fp,fi,tp,ti)=>{const it=get(fp).splice(fi,1)[0];if(!okFor(tp,it.id)){get(fp).splice(fi,0,it);toast('Эту кнопку сюда поставить нельзя',true);return false}
+  if(tp==='home.actions'&&it.ratio===undefined){it.ratio=1;it.color=it.color||'#1d4f8a'}get(tp).splice(Math.min(ti,get(tp).length),0,it);sel={p:tp,i:Math.min(ti,get(tp).length-1)};mark();return true};
+ const bind=()=>{$('#vh').onclick=()=>{view='home';sel=null;render()};$('#vm').onclick=()=>{view='more';sel=null;render()};
+  box.querySelectorAll('.pi').forEach(e=>e.onclick=ev=>{ev.stopPropagation();sel={p:e.dataset.p,i:+e.dataset.i};render()});
+  box.querySelectorAll('.pgrp').forEach(e=>e.onclick=()=>{sel={g:+e.dataset.g};render()});
+  if(window.Sortable)box.querySelectorAll('[data-list]').forEach(el=>{const p=el.dataset.list;const grp=p==='nav'?'nav':p==='home.actions'?'act':p.startsWith('home.')?'side':'more';
+   Sortable.create(el,{group:{name:grp,pull:true,put:(to,from,dragEl)=>true},animation:150,delay:120,delayOnTouchOnly:true,draggable:'.pi',onEnd:ev=>{
+    const tp=ev.to.dataset.list;let ti=[...ev.to.querySelectorAll('.pi')].indexOf(ev.item);move(ev.from.dataset.list,ev.oldDraggableIndex,tp,ti);render()}})});
+  if(sel&&sel.g!==undefined){const g=L.more.groups[sel.g];$('#gt').oninput=e=>{g.title=e.target.value;mark();box.querySelector(`.pgrp[data-g="${sel.g}"]`).textContent=g.title};$('#gt').onchange=()=>render();
+   const sw=(a,b)=>{if(b<0||b>=L.more.groups.length)return;[L.more.groups[a],L.more.groups[b]]=[L.more.groups[b],L.more.groups[a]];sel={g:b};mark();render()};
+   $('#gup').onclick=()=>sw(sel.g,sel.g-1);$('#gdn').onclick=()=>sw(sel.g,sel.g+1);$('#gdel').onclick=()=>{L.more.groups.splice(sel.g,1);sel=null;mark();render()}}
+  else if(sel){const arr=get(sel.p),it=arr[sel.i];const lab=box.querySelector(`.pi.sel .lb`);
+   $('#ul').oninput=e=>{it.label=e.target.value;if(lab)lab.textContent=it.label;mark()};
+   box.querySelectorAll('[data-ic]').forEach(b=>b.onclick=()=>{it.icon=b.dataset.ic;mark();render()});
+   $('#uh').onchange=e=>{it.hidden=e.target.checked;mark();render()};
+   if($('#uc'))$('#uc').oninput=e=>{it.color=e.target.value;mark();const x=box.querySelector('.pi.sel');if(x)x.style.background=it.color};
+   if($('#ur'))$('#ur').oninput=e=>{it.ratio=+e.target.value;$('#urv').textContent=it.ratio;mark();const x=box.querySelector('.pi.sel');if(x)x.style.flex=it.ratio};
+   const sw=(a,b)=>{if(b<0||b>=arr.length)return;[arr[a],arr[b]]=[arr[b],arr[a]];sel.i=b;mark();render()};
+   $('#uup').onclick=()=>sw(sel.i,sel.i-1);$('#udn').onclick=()=>sw(sel.i,sel.i+1);
+   $('#umv').onchange=e=>{if(e.target.value&&move(sel.p,sel.i,e.target.value,1e9))render()};
+   $('#udel').onclick=()=>{arr.splice(sel.i,1);sel=null;mark();render()}}
+  box.querySelectorAll('[data-bv]').forEach(c=>c.onchange=()=>{L.home.blocks[+c.dataset.bv].hidden=!c.checked;mark();render()});
+  const bsw=(a,b)=>{const B=L.home.blocks;if(b<0||b>=B.length)return;[B[a],B[b]]=[B[b],B[a]];mark();render()};
+  box.querySelectorAll('[data-bu]').forEach(b=>b.onclick=()=>bsw(+b.dataset.bu,+b.dataset.bu-1));box.querySelectorAll('[data-bd]').forEach(b=>b.onclick=()=>bsw(+b.dataset.bd,+b.dataset.bd+1));
+  if($('#mcols'))$('#mcols').onchange=e=>{L.more.columns=+e.target.value;mark();render()};
+  if($('#gadd'))$('#gadd').onclick=()=>{L.more.groups.push({title:'Новая группа',items:[]});sel={g:L.more.groups.length-1};mark();render()};
+  $('#aadd').onclick=()=>{const id=$('#at').value,p=$('#ato').value,t=T[id];if(!okFor(p,id))return toast('Эту кнопку сюда поставить нельзя',true);
+   const it={id,label:t.label,icon:t.icon,hidden:false};if(p==='home.actions'){it.color='#1d4f8a';it.ratio=1}get(p).push(it);sel={p,i:get(p).length-1};
+   if(p.startsWith('more'))view='more';else if(p.startsWith('home'))view='home';mark();render()};
+  $('#upub').onclick=async()=>{const r=await api('/game/layout','POST',{layout:L});d.version=r.version;L=r.layout;dirty=false;toast('Опубликовано: версия '+r.version);ED.ui(box)};
+  $('#urel').onclick=()=>{if(!dirty||confirm('Отменить несохранённые изменения?'))ED.ui(box)};
+  $('#urb').onclick=async()=>{if(!confirm('Вернуть предыдущую опубликованную раскладку?'))return;const r=await api('/game/layout/rollback','POST',{});toast('Откачено, версия '+r.version);ED.ui(box)};
+  $('#urs').onclick=async()=>{if(!confirm('Сбросить меню к стандартному виду игры? (текущую можно будет вернуть откатом)'))return;await api('/game/layout/reset','POST',{});toast('Сброшено');ED.ui(box)}};
  render()},
 
 async history(box){const d=await api('/game/history');
