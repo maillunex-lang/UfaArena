@@ -164,7 +164,7 @@ func _left_column() -> Control:
 	col.add_child(_side("quests", "Задания", "%d/%d" % [int(q.daily_done), int(q.daily_total)], int(q.claimable), func(): main.open("quests")))
 	col.add_child(_side("mail", "Почта", "", int(_s.mail_unclaimed), func(): main.open("mail")))
 	col.add_child(_side("friends", "Друзья", "", int(soc.friend_requests) + int(soc.gifts), func(): main.open("friends")))
-	col.add_child(_side("chat", "Чат", "", int(soc.chat_unread), func(): main.open("chat")))
+	col.add_child(_side("chat", "Чат", "", int(soc.chat_unread), func(): main.open_mini_chat()))
 	col.add_child(_side("ranks", "Рейтинг", "", 0, func(): main.open("rankings")))
 	return col
 

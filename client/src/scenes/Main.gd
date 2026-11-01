@@ -125,6 +125,7 @@ func open(screen_name: String, params := {}) -> void:
 	content.add_child(screen)
 	if screen.has_method("setup"):
 		screen.setup(self, params)
+	_enter_anim(screen, screen_name)
 	var section: String = NAV_OF.get(screen_name, screen_name)
 	for k in _nav_buttons:
 		_style_nav(k, k == section)
@@ -133,6 +134,27 @@ func open(screen_name: String, params := {}) -> void:
 		tip.queue_free()
 	_check_onboarding()
 	Tips.maybe_show(self, screen_name)
+
+
+## Contextual entrance per section (brief §24): heroes slide in from the side, maps fade with a slight zoom,
+## the shop rises from below, everything else fades. Short (≤0.2 s); off with reduced motion.
+func _enter_anim(c: Control, name: String) -> void:
+	if UI.reduce_motion():
+		return
+	c.modulate.a = 0.0
+	var tw := c.create_tween().set_parallel(true).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tw.tween_property(c, "modulate:a", 1.0, 0.18)
+	match name:
+		"heroes", "formation", "profile":
+			c.position.x = 60
+			tw.tween_property(c, "position:x", 0.0, 0.2)
+		"shop", "summon":
+			c.position.y = 50
+			tw.tween_property(c, "position:y", 0.0, 0.2)
+		"campaign", "world":
+			c.pivot_offset = content.size / 2
+			c.scale = Vector2(1.03, 1.03)
+			tw.tween_property(c, "scale", Vector2.ONE, 0.22)
 
 
 ## Modal overlay above content (full screen within bars).
@@ -241,6 +263,21 @@ func _build_top() -> void:
 		_chips[k] = chip
 		chips.add_child(chip)
 	bar.add_child(chips)
+	# mini chat over any screen (brief §16)
+	var chat_b := UI.button("", "glass", 92, 92)
+	chat_b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var ci := GameIcon.new()
+	ci.kind = "chat"
+	ci.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ci.offset_left = 14
+	ci.offset_right = -14
+	ci.offset_top = 14
+	ci.offset_bottom = -14
+	ci.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chat_b.add_child(ci)
+	chat_b.tooltip_text = "Чат"
+	chat_b.pressed.connect(open_mini_chat)
+	bar.add_child(chat_b)
 	_bell = UI.button("", "glass", 92, 92)
 	_bell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var bi := GameIcon.new()
@@ -259,6 +296,12 @@ func _build_top() -> void:
 	bar.add_child(_bell)
 
 
+func open_mini_chat() -> void:
+	var c: Control = preload("res://src/ui/MiniChat.gd").new()
+	c.main = self
+	ui.add_child(c)
+
+
 func _open_notifications() -> void:
 	var n: Control = Notifications.new()
 	n.main = self
@@ -275,6 +318,8 @@ func _refresh_summary() -> void:
 
 ## Badges on the bell and nav from the server summary (merged per category).
 func set_badges(s: Dictionary) -> void:
+	if not summary.is_empty() and summary != s:
+		_live_toasts(summary, s)
 	summary = s
 	var soc: Dictionary = s.get("social", {})
 	var afk: Dictionary = s.get("afk", {})
@@ -291,6 +336,53 @@ func set_badges(s: Dictionary) -> void:
 	_nav_badge("home", badges.quests + badges.afk)
 	_nav_badge("guild", badges.guild)
 	_nav_badge("more", badges.mail + badges.friends)
+
+
+var _toasted_events := {}
+
+
+## Live notifications (brief §18): compares the previous and the new server summary and shows ONE merged toast for
+## what appeared since the last check; categories switched off in Settings are skipped; event deadlines once per event.
+func _live_toasts(a: Dictionary, b: Dictionary) -> void:
+	var on := func(k: String) -> bool: return bool(Config.settings.get("notify_" + k, true))
+	var parts: Array = []
+	var sa: Dictionary = a.get("social", {})
+	var sb: Dictionary = b.get("social", {})
+	if on.call("rewards"):
+		if b.get("afk", {}).get("full", false) and not a.get("afk", {}).get("full", false):
+			parts.append("сундук «Дозор» полон")
+		var dq := int(b.get("quests", {}).get("claimable", 0)) - int(a.get("quests", {}).get("claimable", 0))
+		if dq > 0:
+			parts.append("выполнено заданий: %d" % dq)
+		var dm := int(b.get("mail_unclaimed", 0)) - int(a.get("mail_unclaimed", 0))
+		if dm > 0:
+			parts.append("новых писем с наградами: %d" % dm)
+	if on.call("social"):
+		var df := int(sb.get("friend_requests", 0)) - int(sa.get("friend_requests", 0))
+		if df > 0:
+			parts.append("заявок в друзья: %d" % df)
+		var dg := int(sb.get("gifts", 0)) - int(sa.get("gifts", 0))
+		if dg > 0:
+			parts.append("подарков: %d" % dg)
+	if on.call("guild"):
+		var da := int(sb.get("guild_apps", 0)) - int(sa.get("guild_apps", 0))
+		if da > 0:
+			parts.append("заявок в гильдию: %d" % da)
+	if on.call("events"):
+		var old_ids := {}
+		for e in a.get("events", []):
+			old_ids[String(e.id)] = true
+		for e in b.get("events", []):
+			var id := String(e.id)
+			if not old_ids.has(id) and not _toasted_events.has(id + ":start"):
+				_toasted_events[id + ":start"] = true
+				parts.append("началось событие «%s»" % e.name)
+			var left := Time.get_unix_time_from_datetime_string(String(e.ends_at).substr(0, 19)) - Time.get_unix_time_from_system()
+			if left > 0 and left < 3600 and not _toasted_events.has(id + ":end"):
+				_toasted_events[id + ":end"] = true
+				parts.append("событие «%s» заканчивается меньше чем через час" % e.name)
+	if parts.size() > 0 and current != "" and screen != null:
+		Router.toast("Новое: " + ", ".join(parts))
 
 
 func _nav_badge(key: String, n: int) -> void:

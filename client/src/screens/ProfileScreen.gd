@@ -42,6 +42,10 @@ func setup(m: Node, p: Dictionary) -> void:
 	_d = a.data
 	_prog = b.data if b.ok else {}
 	head.add_child(_header())
+	if not b.ok:  # partial data: the profile is shown, progression could not be loaded
+		var pl := UI.label("Достижения и история временно недоступны — показана основная информация.", 22, UI.WARNING)
+		pl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		head.add_child(pl)
 	_render()
 
 

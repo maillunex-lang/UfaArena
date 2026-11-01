@@ -547,7 +547,7 @@ func _external_result(victory: bool) -> void:
 		var row := UI.rewards_row(rw, 36)
 		row.alignment = BoxContainer.ALIGNMENT_CENTER
 		v.add_child(row)
-	v.add_child(_stats_block())
+	v.add_child(_stats_block({"rewards": rw, "progress": p.get("lines", [])}))
 	var back := UI.button("Назад", "primary", 360)
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func(): Router.goto(Router.MAIN, {"screen": String(p.get("back", "home")), "params": p.get("back_params", {})}))
@@ -563,6 +563,10 @@ func _claim(victory: bool) -> void:
 		return
 	Game.set_wallet(r.data.get("wallet", {}))
 	Game.campaign["next_node"] = r.data.get("next_node")
+	if r.data.has("level"):
+		Game.profile["level"] = int(r.data.level)
+		Game.profile["exp"] = int(r.data.exp)
+		Game.profile_changed.emit()
 	if victory and r.data.get("first_clear", false):
 		var cleared: Array = Game.campaign.get("cleared", [])
 		cleared.append(node_code)
@@ -595,6 +599,8 @@ func _result_panel(victory: bool, rewards: Dictionary, r: Dictionary) -> void:
 			var fc := UI.label("Первое прохождение!", 34, UI.GOLD, true)
 			fc.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 			v.add_child(fc)
+			# large reward (first clear) gets the expressive effect; regular rewards stay compact
+			rw.ready.connect(func(): UI.celebrate(rw), CONNECT_ONE_SHOT)
 	else:
 		var tip := UI.label("Повысьте уровень героев, улучшите Кузницу или смените формацию.\nОтряд не теряется — можно сразу повторить.", 30, UI.TEXT)
 		tip.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -604,7 +610,20 @@ func _result_panel(victory: bool, rewards: Dictionary, r: Dictionary) -> void:
 		var retry := UI.button("Повторить получение", "primary")
 		retry.pressed.connect(func(): dim.queue_free(); panel.queue_free(); _claim(victory))
 		v.add_child(retry)
-	v.add_child(_stats_block())
+	var extra := {"rewards": rewards}
+	if r.ok:
+		extra["exp_gained"] = r.data.get("exp_gained", 0)
+		extra["level"] = r.data.get("level", Game.profile.get("level", 1))
+		extra["level_up"] = r.data.get("level_up", false)
+		var cp: Dictionary = r.data.get("campaign_progress", {})
+		if not cp.is_empty():
+			extra["progress"] = ["Поход: пройдено %d из %d этапов" % [int(cp.cleared), int(cp.total)]]
+		if r.data.get("level_up", false):
+			var lu := UI.label("Новый уровень хранителя: %d!" % int(r.data.level), 32, UI.GOLD, true)
+			lu.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			v.add_child(lu)
+			lu.ready.connect(func(): UI.celebrate(lu), CONNECT_ONE_SHOT)
+	v.add_child(_stats_block(extra))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 20)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -654,7 +673,7 @@ func _battle_stats() -> Dictionary:
 
 
 ## Expandable statistics block: contribution of each hero, damage dealt/taken, healing, survival, duration.
-func _stats_block() -> VBoxContainer:
+func _stats_block(extra := {}) -> VBoxContainer:
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", UI.SP.xs)
 	var toggle := UI.button("Статистика боя ▾", "glass", 0, 72)
@@ -663,6 +682,18 @@ func _stats_block() -> VBoxContainer:
 	var body := VBoxContainer.new()
 	body.visible = false
 	body.add_theme_constant_override("separation", 4)
+	# 1. rewards · 4. experience & level-ups · 6. activity progress (from the server response)
+	var rw: Dictionary = extra.get("rewards", {})
+	if not rw.is_empty():
+		var rr := HBoxContainer.new()
+		rr.add_child(UI.label("Награды:", 22, UI.MUTED, true))
+		rr.add_child(UI.rewards_row(rw, 24))
+		body.add_child(rr)
+	if int(extra.get("exp_gained", 0)) > 0:
+		body.add_child(UI.label("Опыт игрока: +%d · уровень %d%s" % [int(extra.exp_gained), int(extra.get("level", 1)),
+			" — новый уровень!" if extra.get("level_up", false) else ""], 22, UI.GOLD if extra.get("level_up", false) else UI.TEXT, true))
+	for line in extra.get("progress", []):
+		body.add_child(UI.label(String(line), 22, UI.TEXT))
 	var st := _battle_stats()
 	var alive: Array = sim.get("survivors", [])
 	var mine: Array = []

@@ -722,3 +722,38 @@ static func tile(icon: String, caption: String, sub := "", locked := false, badg
 		b.add_child(bd)
 	b.pressed.connect(func(): Sfx.play("open"))
 	return b
+
+
+## Expressive reward / rarity effect (brief §24, §26: rare and large rewards are animated, common ones stay compact).
+## Pop with overshoot + gold sparks; particle count follows the graphics tier; nothing at all with reduced motion.
+static func celebrate(c: Control, color := GOLD, strong := true) -> void:
+	if reduce_motion() or not is_instance_valid(c):
+		return
+	c.pivot_offset = c.size / 2 if c.size != Vector2.ZERO else c.custom_minimum_size / 2
+	c.scale = Vector2(0.6, 0.6)
+	var tw := c.create_tween()
+	tw.tween_property(c, "scale", Vector2(1.12, 1.12), 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(c, "scale", Vector2.ONE, 0.15)
+	var fl := c.create_tween()
+	fl.tween_property(c, "modulate", Color(1.5, 1.35, 1.0), 0.12)
+	fl.tween_property(c, "modulate", Color.WHITE, 0.35)
+	var amount := int((32 if strong else 14) * float(Gfx.setting("particles")))
+	if amount < 4:
+		return
+	var p := CPUParticles2D.new()
+	p.amount = amount
+	p.one_shot = true
+	p.explosiveness = 0.92
+	p.lifetime = 0.9
+	p.direction = Vector2(0, -1)
+	p.spread = 180.0
+	p.initial_velocity_min = 120.0
+	p.initial_velocity_max = 320.0
+	p.gravity = Vector2(0, 380)
+	p.scale_amount_min = 3.0
+	p.scale_amount_max = 6.0
+	p.color = color
+	p.position = c.custom_minimum_size / 2 if c.size == Vector2.ZERO else c.size / 2
+	c.add_child(p)
+	p.emitting = true
+	c.get_tree().create_timer(1.6).timeout.connect(func(): if is_instance_valid(p): p.queue_free())

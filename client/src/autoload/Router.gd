@@ -29,6 +29,13 @@ func _ready() -> void:
 	_toast_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_toast_box.add_theme_constant_override("separation", 12)
 	root.add_child(_toast_box)
+	_fade = ColorRect.new()
+	_fade.color = UI.BG
+	_fade.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_fade.visible = false
+	root.add_child(_fade)
+	root.move_child(_fade, 0)  # under toasts and the offline banner
 	_build_offline(root)
 	_build_loader(root)
 	Api.offline_changed.connect(_on_offline)
@@ -51,9 +58,27 @@ func _ready() -> void:
 	Api.session_lost.connect(func(): toast("Сессия завершена. Выполняем повторный вход…", true); goto(BOOT))
 
 
+var _fade: ColorRect
+
+
+## Scene change with a short fade (battle ↔ menus, brief §24); instant with reduced motion.
 func goto(scene: String, p := {}) -> void:
 	params = p
+	if UI.reduce_motion() or _fade == null:
+		get_tree().change_scene_to_file(scene)
+		return
+	_fade.visible = true
+	_fade.modulate.a = 0.0
+	var tw := _fade.create_tween()
+	tw.tween_property(_fade, "modulate:a", 1.0, 0.14)
+	await tw.finished
 	get_tree().change_scene_to_file(scene)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	var tw2 := _fade.create_tween()
+	tw2.tween_property(_fade, "modulate:a", 0.0, 0.22)
+	await tw2.finished
+	_fade.visible = false
 
 
 func toast(text: String, warn := false) -> void:
@@ -86,6 +111,7 @@ func _build_offline(root: Control) -> void:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 24)
 	var l := UI.label("Нет связи с Крепостью. Прогресс хранится на сервере — ничего не потеряно.", 30)
+	_offline_lbl = l
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(l)
@@ -97,15 +123,58 @@ func _build_offline(root: Control) -> void:
 	root.add_child(_offline)
 
 
+var _offline_lbl: Label
+var _reconnecting := false
+const BASE_TEXT := "Нет связи с Крепостью. Прогресс хранится на сервере — ничего не потеряно."
+
+
 func _retry() -> void:
 	var r := await Api.get_json("/player/me")
 	if r.ok:
 		Game.set_wallet(r.data.wallet)
 		toast("Соединение восстановлено")
+		_resync()
 
 
+## Reconnecting state (brief §26, §28.1): automatic retries with growing pauses and a visible countdown; nothing is
+## confirmed locally — after reconnection the current screen reloads its data from the server.
 func _on_offline(is_off: bool) -> void:
 	_offline.visible = is_off
+	if is_off and not _reconnecting:
+		_auto_reconnect()
+
+
+func _auto_reconnect() -> void:
+	_reconnecting = true
+	var attempt := 0
+	while Api.is_offline:
+		attempt += 1
+		var wait_s := mini(5 * int(pow(2, mini(attempt - 1, 3))), 30)
+		for i in range(wait_s, 0, -1):
+			if not Api.is_offline:
+				break
+			if is_instance_valid(_offline_lbl):
+				_offline_lbl.text = "%s\nПереподключение: попытка %d через %d с" % [BASE_TEXT, attempt, i]
+			await get_tree().create_timer(1.0).timeout
+		if not Api.is_offline:
+			break
+		if is_instance_valid(_offline_lbl):
+			_offline_lbl.text = "%s\nПереподключение…" % BASE_TEXT
+		var r := await Api.get_json("/player/me")
+		if r.ok:
+			Game.set_wallet(r.data.wallet)
+			toast("Соединение восстановлено")
+			_resync()
+			break
+	if is_instance_valid(_offline_lbl):
+		_offline_lbl.text = BASE_TEXT
+	_reconnecting = false
+
+
+func _resync() -> void:
+	var sc := get_tree().current_scene
+	if sc and sc.name == "Main" and sc.has_method("open") and String(sc.current) != "":
+		sc.open(String(sc.current))
 
 
 func _build_loader(root: Control) -> void:

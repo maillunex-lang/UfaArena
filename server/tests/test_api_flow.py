@@ -32,6 +32,7 @@ def test_full_mvp_loop(client, newplayer):
     key = "complete-1-1-abcdef"
     done = p.post("/campaign/1-1/complete", {"battle_id": b["battle_id"]}, key=key).json()
     assert done["first_clear"] and done["rewards"]["gold"] == 120 and done["next_node"] == "1-2"
+    assert done["exp_gained"] > 0 and done["level"] >= 1 and done["campaign_progress"]["cleared"] == 1
     # retry with the same key replays, no double reward
     again = p.post("/campaign/1-1/complete", {"battle_id": b["battle_id"]}, key=key).json()
     assert again["replayed"] and again["wallet"] == done["wallet"]

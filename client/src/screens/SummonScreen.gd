@@ -184,6 +184,9 @@ func _reveal(results: Array, heroes: Dictionary) -> void:
 			card.add_child(dl)
 		if int(res.rarity) >= 5:
 			Sfx.play("spell")
+			UI.celebrate(card, Game.RARITY_COLORS.get(int(res.rarity), UI.GOLD))  # rarity effect for epic+ heroes
+		elif int(res.rarity) == 4:
+			UI.celebrate(card, Game.RARITY_COLORS.get(4, UI.GOLD), false)
 		await get_tree().create_timer(0.12 if results.size() > 1 else 0.3).timeout
 	var ok := UI.button("Отлично", "primary", 420)
 	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER

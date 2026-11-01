@@ -302,6 +302,8 @@ def campaign_complete(node_id: str, body: CompleteIn, user: CurrentUser = Depend
         node = db.get(CampaignNode, node_id)
         rewards: dict = {}
         first_clear = False
+        prof = db.get(PlayerProfile, user.id)
+        lvl_before, exp_gained = prof.level, 0
         if battle.result == "victory":
             rewards = dict(node.rewards)
             if db.get(PlayerCampaignProgress, (user.id, node_id)) is None:
@@ -315,14 +317,19 @@ def campaign_complete(node_id: str, body: CompleteIn, user: CurrentUser = Depend
                 BP.add_xp(db, user.id, "campaign_clear")
             grant(db, user.id, rewards, "campaign_reward", battle.id)
             p = db.get(PlayerProfile, user.id)
-            p.exp += 40 + 10 * node.order
+            exp_gained = 40 + 10 * node.order
+            p.exp += exp_gained
             while p.exp >= 100 * p.level:
                 p.exp -= 100 * p.level
                 p.level += 1
         audit(db, user.id, "campaign.complete", node=node_id, result=battle.result, rewards=rewards)
         nxt = next_node(db, user.id)
+        from ..services import cleared_count, ordered_nodes
         return {"result": battle.result, "rewards": rewards, "first_clear": first_clear,
-                "wallet": wallet_dict(db, user.id), "next_node": nxt.code if nxt else None}
+                "wallet": wallet_dict(db, user.id), "next_node": nxt.code if nxt else None,
+                # result screen statistics: player experience, level-ups and campaign progress
+                "exp_gained": exp_gained, "level": prof.level, "exp": prof.exp, "level_up": prof.level > lvl_before,
+                "campaign_progress": {"cleared": cleared_count(db, user.id), "total": len(ordered_nodes(db))}}
 
     return run_idempotent(db, user.id, key, f"campaign_complete:{node_id}", {"battle_id": body.battle_id}, do)
 
