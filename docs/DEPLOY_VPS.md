@@ -329,3 +329,8 @@ git pull
 docker compose up -d --build
 docker compose logs --tail=40 api | grep -i upgrade      # 0014 -> 0015
 ```
+
+## 27. Админка на телефоне (приложение «Уралия Админ»)
+Скачайте https://github.com/maillunex-lang/UfaArena/raw/apk/uralia-admin.apk и установите (отдельно от игры).
+Откроется `http://144.31.254.99:8000/admin` во весь экран; войдите токеном (галочка «Запомнить вход» — чтобы не вводить
+каждый раз). «Назад» на первой странице — обновить / сменить адрес сервера / выйти. Подробно — `admin_app/README.md`.

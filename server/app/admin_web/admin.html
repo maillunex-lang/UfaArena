@@ -81,13 +81,14 @@ async function api(p,m='GET',b,raw){const o={method:m,headers:hdr(raw?{'Content-
 async function copyText(t){try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(t);return true}}catch(e){}
  const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.top='-1000px';document.body.appendChild(ta);
  ta.select();ta.setSelectionRange(0,t.length);let ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(ta);return ok}
-function logout(){sessionStorage.removeItem('tok');location.reload()}
+function logout(){sessionStorage.removeItem('tok');try{localStorage.removeItem('tok')}catch(e){}location.reload()}
 $('#logout').onclick=logout;
 function login(){main.innerHTML=`<div class="card login"><h2>Вход</h2><p class="muted small">Токен — значение URALIA_ADMIN_TOKEN из файла .env на сервере (команда: grep URALIA_ADMIN_TOKEN /opt/uralia/.env).</p>
 <div class="row"><input id="tok" type="password" placeholder="Токен администратора"></div><div class="row" style="margin-top:8px"><input id="nm" placeholder="Ваше имя (для журнала)" value="owner"></div>
+<label class="chk" style="margin-top:8px"><input type="checkbox" id="rem" ${/UraliaAdmin/.test(navigator.userAgent)?'checked':''}> Запомнить вход на этом устройстве</label>
 <div class="row" style="margin-top:10px"><button class="primary" id="go">Войти</button></div></div>`;
  $('#go').onclick=async()=>{sessionStorage.setItem('tok',$('#tok').value.trim());sessionStorage.setItem('who',$('#nm').value.trim()||'owner');
-  try{await api('/web/overview');start()}catch(e){sessionStorage.removeItem('tok')}}}
+  try{await api('/web/overview');if($('#rem').checked){try{localStorage.setItem('tok',sessionStorage.getItem('tok'));localStorage.setItem('who',sessionStorage.getItem('who'))}catch(e){}}start()}catch(e){sessionStorage.removeItem('tok')}}}
 function start(){$('#nav').style.display='flex';$('#logout').style.display='';$('#who').textContent=sessionStorage.getItem('who');renderNav();show(tab)}
 function renderNav(){$('#nav').innerHTML=TABS.map(([k,t])=>`<button class="${k===tab?'on':''}" data-t="${k}">${t}</button>`).join('');
  document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;renderNav();show(tab)})}
@@ -729,6 +730,7 @@ async function findPlayer(id){if(!id)return;const d=await api('/social/players/'
  $('#sgo').onclick=async()=>{await api('/social/sanctions','POST',{uralia_id:c.uralia_id,kind:$('#sk').value,reason:$('#sr').value||'Нарушение правил',minutes:$('#sm').value?+$('#sm').value:null});toast('Санкция выдана');findPlayer(id)};
  $('#vgo').onclick=async()=>{const r=await api('/vip','POST',{uralia_id:c.uralia_id,delta_xp:+$('#vl').value});toast('Теперь VIP '+r.vip_level)};
  document.querySelectorAll('[data-rv]').forEach(b=>b.onclick=async()=>{await api('/social/sanctions/'+b.dataset.rv+'/revoke','POST',{});findPlayer(id)})}
+try{if(!sessionStorage.getItem('tok')&&localStorage.getItem('tok')){sessionStorage.setItem('tok',localStorage.getItem('tok'));sessionStorage.setItem('who',localStorage.getItem('who')||'owner')}}catch(e){}
 if(sessionStorage.getItem('tok'))api('/web/overview').then(start).catch(login);else login();
 </script>
 </body>
