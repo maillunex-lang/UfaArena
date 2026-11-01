@@ -192,6 +192,18 @@ static func fmt(n: Variant) -> String:
 	return str(v)
 
 
+## Exact value with thin grouping for detail views ("12 345"); fmt() stays abbreviated for the resource bar.
+static func exact(n: Variant) -> String:
+	var v := int(n)
+	var neg := v < 0
+	var s := str(abs(v))
+	var out := ""
+	while s.length() > 3:
+		out = " " + s.substr(s.length() - 3) + out
+		s = s.substr(0, s.length() - 3)
+	return ("-" if neg else "") + s + out
+
+
 static func rewards_text(rw: Dictionary) -> String:
 	var parts := []
 	for k in rw:

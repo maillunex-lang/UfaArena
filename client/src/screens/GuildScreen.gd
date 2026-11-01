@@ -37,7 +37,7 @@ func _init() -> void:
 
 func setup(m: Node, p: Dictionary) -> void:
 	main = m
-	main.use_world("hub")
+	main.use_world("none")
 	tab = String(p.get("tab", tab))
 	if tab == "activities":
 		tab = "events"

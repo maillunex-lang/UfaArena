@@ -211,6 +211,9 @@ func _open_catalog(code: String) -> void:
 	_show_detail({}, Game.catalog_hero(code), false)
 
 
+var _dtab := "stats"
+
+
 func _show_detail(h: Dictionary, cat: Dictionary, owned: bool) -> void:
 	if _detail:
 		_detail.queue_free()
@@ -243,65 +246,97 @@ func _show_detail(h: Dictionary, cat: Dictionary, owned: bool) -> void:
 		cat.get("role_name", ""), Game.faction_name(fac)], 27, Game.faction_color(fac), true)
 	tags.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(tags)
+	var tabs := [["stats", "Характеристики"], ["skills", "Навыки"], ["gear", "Экипировка"], ["artifacts", "Артефакты"], ["ascend", "Вознесение"]]
+	var tabs_sc := ScrollContainer.new()
+	tabs_sc.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	tabs_sc.custom_minimum_size = Vector2(0, 82)
+	var trow := HBoxContainer.new()
+	trow.add_theme_constant_override("separation", UI.SP.xs)
+	for t in tabs:
+		var key: String = t[0]
+		var tb := UI.button(String(t[1]), "accent" if key == _dtab else "glass", 0, 74)
+		tb.add_theme_font_size_override("font_size", 24)
+		tb.pressed.connect(func(): _dtab = key; _show_detail(h, cat, owned))
+		trow.add_child(tb)
+	tabs_sc.add_child(trow)
+	v.add_child(tabs_sc)
 	var body := VBoxContainer.new()
-	body.add_theme_constant_override("separation", 10)
-	var stats := GridContainer.new()
-	stats.columns = 4
-	stats.add_theme_constant_override("h_separation", 34)
-	var st: Dictionary = h.get("stats", cat.get("base", {}))
-	var pairs := [["Здоровье", st.get("hp", 0)], ["Атака", st.get("atk", 0)], ["Защита", st.get("def", 0)],
-		["Скорость", st.get("spd", 0)], ["Крит. шанс", "%d%%" % int(float(cat.get("crit", 0.1)) * 100)],
-		["Крит. урон", "×%.2f" % float(cat.get("crit_dmg", 1.5))]]
-	if owned:
-		pairs = [["Уровень", h.level], ["Звёзды", "★".repeat(int(h.stars)) if int(h.stars) > 0 else "—"],
-			["Сила", h.power], ["Осколки", "%d/10" % int(h.shards)]] + pairs
-	for pair in pairs:
-		stats.add_child(UI.label(pair[0], 25, UI.MUTED))
-		stats.add_child(UI.label(str(int(pair[1])) if (pair[1] is float or pair[1] is int) else str(pair[1]), 28, UI.TEXT, true))
-	body.add_child(stats)
+	body.add_theme_constant_override("separation", UI.SP.s)
 	var kit: Dictionary = cat.get("kit", {})
-	_ability(body, "Базовая атака", kit.get("basic"), "")
-	var i := 1
-	for sk in kit.get("skills", []):
-		_ability(body, "Навык %d" % i, sk, "перезарядка %d с" % int(sk.get("cooldown", 0)))
-		i += 1
-	_ability(body, "Ультимейт", kit.get("ultimate"), "при 100 энергии")
-	_ability(body, "Пассивное", kit.get("passive"), "")
-	_ability(body, "Уникальная механика", kit.get("mechanic"), "")
-	for f in Game.catalog.get("factions", []):
-		if f.code == fac and f.get("strong_against"):
-			var adv := UI.label("Фракция: %s. Преимущество над «%s» (+20%% урона). Бонус отряда при 3/4/5 героях фракции." % [
-				f.description, Game.faction_name(f.strong_against)], 23, UI.MUTED)
-			adv.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			body.add_child(adv)
-	for sec in [["Внешность", "appearance"], ["История", "lore"], ["Характер", "personality"]]:
-		var txt := String(cat.get(sec[1], ""))
-		if txt == "":
-			continue
-		body.add_child(UI.label(sec[0], 28, UI.ACCENT, true))
-		var t := UI.label(txt, 24, UI.TEXT)
-		t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		body.add_child(t)
+	match _dtab:
+		"stats":
+			var stats := GridContainer.new()
+			stats.columns = 4
+			stats.add_theme_constant_override("h_separation", 34)
+			var st: Dictionary = h.get("stats", cat.get("base", {}))
+			var pairs := [["Здоровье", st.get("hp", 0)], ["Атака", st.get("atk", 0)], ["Защита", st.get("def", 0)],
+				["Скорость", st.get("spd", 0)], ["Крит. шанс", "%d%%" % int(float(cat.get("crit", 0.1)) * 100)],
+				["Крит. урон", "×%.2f" % float(cat.get("crit_dmg", 1.5))]]
+			if owned:
+				pairs = [["Уровень", h.level], ["Звёзды", "★".repeat(int(h.stars)) if int(h.stars) > 0 else "—"],
+					["Боевой рейтинг", h.power], ["Осколки", "%d/10" % int(h.shards)]] + pairs
+			for pair in pairs:
+				stats.add_child(UI.label(pair[0], 24, UI.MUTED))
+				stats.add_child(UI.label(Game.exact(int(pair[1])) if (pair[1] is float or pair[1] is int) else str(pair[1]), 27, UI.TEXT, true))
+			body.add_child(stats)
+			for f in Game.catalog.get("factions", []):
+				if f.code == fac and f.get("strong_against"):
+					var adv := UI.label("Фракция: %s. Преимущество над «%s» (+20%% урона). Бонус отряда при 3/4/5 героях фракции." % [
+						f.description, Game.faction_name(f.strong_against)], 23, UI.MUTED)
+					adv.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+					body.add_child(adv)
+			for sec in [["Внешность", "appearance"], ["История", "lore"], ["Характер", "personality"]]:
+				var txt := String(cat.get(sec[1], ""))
+				if txt == "":
+					continue
+				body.add_child(UI.label(sec[0], 28, UI.ACCENT, true))
+				var tl := UI.label(txt, 24, UI.TEXT)
+				tl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+				body.add_child(tl)
+		"skills":
+			if owned:
+				body.add_child(UI.label("Уровень навыков: %d (+5%% силы навыков и ультимейта за уровень)" % int(h.get("skill_level", 1)), 24, UI.GOLD))
+			_ability(body, "Базовая атака", kit.get("basic"), "")
+			var i := 1
+			for sk in kit.get("skills", []):
+				_ability(body, "Навык %d" % i, sk, "перезарядка %d с" % int(sk.get("cooldown", 0)))
+				i += 1
+			_ability(body, "Ультимейт", kit.get("ultimate"), "при 100 энергии")
+			_ability(body, "Пассивное", kit.get("passive"), "")
+			_ability(body, "Уникальная механика", kit.get("mechanic"), "")
+		"gear":
+			body.add_child(UI.state("locked", "Экипировка появится вместе с системой предметов. Сейчас сила героя растёт от уровня, звёзд, построек крепости и бонусов гильдии."))
+		"artifacts":
+			body.add_child(UI.state("locked", "Артефакты появятся в одном из следующих обновлений."))
+		"ascend":
+			if owned:
+				body.add_child(UI.label("Звёзды: %s" % ("★".repeat(int(h.stars)) if int(h.stars) > 0 else "пока нет"), UI.FS.h3, UI.GOLD, true))
+				body.add_child(UI.progress(int(h.shards), 10, "Осколки %d / 10" % int(h.shards), UI.GOLD_DARK, 30))
+				for line in ["Каждые 10 осколков — +1 звезда: +8% к характеристикам и +1 к уровню навыков.",
+						"Осколки дают повторные герои из призыва, а также лавка за кристаллы и магазин.",
+						"Звезда применяется автоматически, как только осколков достаточно."]:
+					var l := UI.label("• " + line, 24, UI.TEXT)
+					l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+					body.add_child(l)
+			else:
+				body.add_child(UI.state("locked", "Получите героя в призыве, чтобы повышать его звёзды."))
 	v.add_child(UI.scroll(body))
-	if owned:
+	if owned and _dtab == "stats":
 		var cost = h.get("level_up_cost")
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 14)
 		if cost:
-			row.add_child(UI.rewards_row(cost, 28))
-			var up := UI.button("Повысить уровень", "primary", 0, 104)
+			row.add_child(UI.rewards_row(cost, 26))
+			var up := UI.button("Повысить уровень", "primary", 0, 96)
 			up.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			var hid: String = h.id
-			up.pressed.connect(func(): _level_up(hid))
+			up.pressed.connect(func(): UI.set_loading(up, true); _level_up(hid))
 			row.add_child(up)
 		else:
-			row.add_child(UI.label("Максимальный уровень MVP", 28, UI.GOLD, true))
+			row.add_child(UI.label("Достигнут максимальный уровень", 28, UI.GOLD, true))
 		v.add_child(row)
-		var rank := UI.label("Ранг: ★ из осколков дубликатов (10 осколков = +1 звезда, +8%% характеристик, уровень навыков %d)." % int(h.get("skill_level", 1)), 22, UI.MUTED)
-		rank.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		v.add_child(rank)
-	else:
-		v.add_child(UI.label("Герой ещё не получен — доступен в Зале призыва.", 28, UI.GOLD, true))
+	elif not owned:
+		v.add_child(UI.label("Герой ещё не получен — доступен в призыве («Ещё» → «Призыв»).", 26, UI.GOLD, true))
 	_detail.add_child(v)
 	add_child(_detail)
 

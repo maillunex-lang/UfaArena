@@ -43,6 +43,10 @@ func _draw() -> void:
 		"friends": _people(c, r)
 		"chat": _chat_bubble(c, r)
 		"crown": _crown(c, r)
+		"home": _home(c, r)
+		"world": _world(c, r)
+		"more": _more(c, r)
+		"bell": _bell(c, r)
 		"ranks": _rank_badge(c, r)
 		"guild": _shield(c, r, Color("#a8c8ff"), Color("#2b4f8f"))
 		"shop": _bag(c, r)
@@ -349,3 +353,41 @@ func _rank_badge(c: Vector2, r: float) -> void:
 		var rr := r * (0.42 if i % 2 == 0 else 0.18)
 		star.append(c + Vector2(cos(a), sin(a)) * rr + Vector2(0, -r * 0.05))
 	draw_colored_polygon(star, Color("#f2c45a"))
+
+
+# duotone (gold + turquoise) navigation icons
+func _home(c: Vector2, r: float) -> void:
+	var g := Color("#efcf86")
+	var t := Color("#3fd0c3")
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-r, -0.05 * r), c + Vector2(0, -r * 0.95), c + Vector2(r, -0.05 * r)]), g)
+	draw_rect(Rect2(c + Vector2(-r * 0.7, -0.05 * r), Vector2(r * 1.4, r * 0.95)), g)
+	draw_rect(Rect2(c + Vector2(-r * 0.2, r * 0.35), Vector2(r * 0.4, r * 0.55)), t)
+
+
+func _world(c: Vector2, r: float) -> void:
+	var g := Color("#efcf86")
+	var t := Color("#3fd0c3")
+	draw_circle(c, r * 0.92, Color("#15605a"))
+	draw_arc(c, r * 0.92, 0, TAU, 40, g, max(2.0, r * 0.1), true)
+	draw_colored_polygon(PackedVector2Array([c + Vector2(-r * 0.75, r * 0.45), c + Vector2(-r * 0.25, -r * 0.35), c + Vector2(0.05 * r, r * 0.05),
+		c + Vector2(r * 0.35, -r * 0.5), c + Vector2(r * 0.8, r * 0.45)]), t)
+	draw_line(c + Vector2(-r * 0.9, 0), c + Vector2(r * 0.9, 0), Color(g, 0.6), max(1.5, r * 0.05), true)
+
+
+func _more(c: Vector2, r: float) -> void:
+	var g := Color("#efcf86")
+	var t := Color("#3fd0c3")
+	var s := r * 0.7
+	for i in 4:
+		var o := Vector2(-s if i % 2 == 0 else s * 0.15, -s if i < 2 else s * 0.15)
+		var rr := Rect2(c + o, Vector2(s * 0.85, s * 0.85))
+		draw_rect(rr, t if i == 3 else g)
+
+
+func _bell(c: Vector2, r: float) -> void:
+	var g := Color("#efcf86")
+	var pts := PackedVector2Array([c + Vector2(-r * 0.75, r * 0.45), c + Vector2(-r * 0.55, -r * 0.2), c + Vector2(-r * 0.35, -r * 0.65),
+		c + Vector2(0, -r * 0.8), c + Vector2(r * 0.35, -r * 0.65), c + Vector2(r * 0.55, -r * 0.2), c + Vector2(r * 0.75, r * 0.45)])
+	draw_colored_polygon(pts, g)
+	draw_rect(Rect2(c + Vector2(-r * 0.85, r * 0.42), Vector2(r * 1.7, r * 0.18)), g)
+	draw_circle(c + Vector2(0, r * 0.78), r * 0.18, Color("#3fd0c3"))

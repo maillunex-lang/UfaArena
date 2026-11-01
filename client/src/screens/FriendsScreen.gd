@@ -15,7 +15,7 @@ var _data := {}
 func setup(m: Node, p: Dictionary) -> void:
 	main = m
 	tab = String(p.get("tab", "friends"))
-	main.use_world("hub")
+	main.use_world("none")
 	var panel := UI.glass_panel()
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.offset_left = 16

@@ -1,17 +1,35 @@
 class_name UI
 extends RefCounted
-## «Liquid Glass Fantasy» UI kit: glass panels, gilded buttons, labels, chips, bars.
+## URALIA design system — the single source of UI tokens and components.
+## Palette «Night Turquoise + Ancient Gold», Premium Dark Glass surfaces (no blur by default: performance),
+## Manrope for interface text, Philosopher for large headings. See docs/ui/design-system.md.
 
-const FONT_REG := preload("res://assets/third_party/fonts/Philosopher-Regular.ttf")
-const FONT_BOLD := preload("res://assets/third_party/fonts/Philosopher-Bold.ttf")
+const FONT_REG := preload("res://assets/third_party/fonts/Manrope-500.ttf")
+const FONT_BOLD := preload("res://assets/third_party/fonts/Manrope-700.ttf")
+const FONT_TITLE := preload("res://assets/third_party/fonts/Philosopher-Bold.ttf")
 const GLASS_SHADER := preload("res://src/ui/glass.gdshader")
 
-const GOLD := Color("#f4cf7a")
-const GOLD_DARK := Color("#9a6b22")
-const INK := Color("#0d1424")
-const TEXT := Color("#f5f1e6")
-const MUTED := Color("#d3dcea")
-const ACCENT := Color("#7fd4ff")
+# ---- colour tokens (system roles) ----
+const BG := Color("#0b1215")           # app background (graphite)
+const SURFACE := Color("#121c21")      # cards
+const SURFACE_2 := Color("#182830")    # raised elements / secondary buttons
+const LINE := Color("#2c4549")         # dividers, idle borders
+const TEAL := Color("#3fd0c3")         # active state, secondary accent
+const TEAL_DEEP := Color("#15605a")
+const GOLD := Color("#efcf86")         # champagne gold: headings, values, primary accents
+const GOLD_DARK := Color("#a37a2c")    # antique gold: borders, pressed primary
+const INK := Color("#1d1405")          # text on gold
+const TEXT := Color("#eef2f0")
+const MUTED := Color("#a9bab7")
+const ACCENT := TEAL
+const DANGER := Color("#e0604f")
+const WARNING := Color("#e8a33d")
+const SUCCESS := Color("#5fc98a")
+const RARITY := {1: Color("#9aa4a8"), 2: Color("#6fcf7c"), 3: Color("#58a6ff"), 4: Color("#b77cff"), 5: Color("#f2c14e"), 6: Color("#ff6f61")}
+# ---- spacing / radius / type scale ----
+const SP := {"xs": 6, "s": 10, "m": 16, "l": 24, "xl": 32}
+const R := {"s": 12, "m": 18, "l": 24, "pill": 60}
+const FS := {"caption": 24, "body": 28, "body_l": 31, "h3": 34, "h2": 40, "h1": 50}
 
 static var _theme: Theme
 
@@ -22,24 +40,24 @@ static func theme() -> Theme:
 	var t := Theme.new()
 	var sys := SystemFont.new()  # emoji / symbols missing in Philosopher come from the device fonts
 	sys.font_names = PackedStringArray(["Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji", "Noto Sans Symbols", "Roboto"])
-	for f in [FONT_REG, FONT_BOLD]:
+	for f in [FONT_REG, FONT_BOLD, FONT_TITLE]:
 		if f.fallbacks.is_empty():
 			f.fallbacks = [sys]
 	t.default_font = FONT_REG
-	t.default_font_size = 34
+	t.default_font_size = 30
 	t.set_color("font_color", "Label", TEXT)
-	t.set_color("font_outline_color", "Label", Color(0.02, 0.03, 0.07, 0.9))
-	t.set_constant("outline_size", "Label", 8)
-	t.set_color("font_outline_color", "Button", Color(0.02, 0.03, 0.07, 0.85))
-	t.set_constant("outline_size", "Button", 7)
-	t.set_color("font_outline_color", "CheckButton", Color(0.02, 0.03, 0.07, 0.85))
-	t.set_constant("outline_size", "CheckButton", 6)
+	# light outline only: surfaces are dark and opaque enough for clean text
+	t.set_color("font_outline_color", "Label", Color(0, 0, 0, 0.55))
+	t.set_constant("outline_size", "Label", 4 if not high_contrast() else 6)
+	t.set_color("font_outline_color", "Button", Color(0, 0, 0, 0.35))
+	t.set_constant("outline_size", "Button", 2)
+	t.set_color("font_color", "CheckButton", TEXT)
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = Color(1, 1, 1, 0.06)
 	sb.set_corner_radius_all(18)
 	t.set_stylebox("panel", "PanelContainer", StyleBoxEmpty.new())
-	var le_n := _flat(Color(0.02, 0.03, 0.07, 0.55), Color(1, 1, 1, 0.35), 18, 2)
-	var le_f := _flat(Color(0.02, 0.03, 0.07, 0.65), GOLD, 18, 2)
+	var le_n := _flat(Color(BG, 0.9), LINE, R.s, 2)
+	var le_f := _flat(Color(BG, 0.95), GOLD_DARK, R.s, 2)
 	for st in [le_n, le_f]:
 		st.content_margin_left = 22
 		st.content_margin_right = 22
@@ -78,39 +96,45 @@ static func _flat(bg: Color, border: Color, radius: int, bw: int) -> StyleBoxFla
 	return s
 
 
-static func glass_style(tint := Color("#bfe3ff"), radius := 34) -> StyleBoxFlat:
-	# dark smoky fill (also the fallback look when the blur shader is off)
-	var fill := Color(0.05, 0.08, 0.14).lerp(tint, 0.18)
-	# with the blur shader the fill alpha must stay low (shader reads high alpha as border)
-	var s := _flat(Color(fill.r, fill.g, fill.b, 0.16 if Gfx.setting("blur") else 0.68), Color(1, 1, 1, 0.55), radius, 3)
-	s.border_color = Color(tint.lightened(0.5), 0.75)
-	s.shadow_color = Color(0, 0, 0, 0.28)
-	s.shadow_size = 18
-	s.shadow_offset = Vector2(0, 8)
-	s.content_margin_left = 30
-	s.content_margin_right = 30
-	s.content_margin_top = 22
-	s.content_margin_bottom = 22
+static func high_contrast() -> bool:
+	return bool(Config.settings.get("high_contrast", false))
+
+
+static func reduce_motion() -> bool:
+	return bool(Config.settings.get("reduce_motion", false))
+
+
+## Premium Dark Glass: opaque-enough graphite surface, thin gold border, soft shadow. `tint` nudges the border hue.
+static func glass_style(tint := Color("#bfe3ff"), radius := 24) -> StyleBoxFlat:
+	var alpha := 0.97 if high_contrast() else (0.86 if not Gfx.setting("blur") else 0.2)
+	var s := _flat(Color(SURFACE, alpha), Color(GOLD_DARK.lerp(tint, 0.25), 0.75), mini(radius, R.l), 2)
+	s.shadow_color = Color(0, 0, 0, 0.35)
+	s.shadow_size = 14
+	s.shadow_offset = Vector2(0, 6)
+	s.content_margin_left = SP.l
+	s.content_margin_right = SP.l
+	s.content_margin_top = SP.m + 2
+	s.content_margin_bottom = SP.m + 2
 	return s
 
 
-static func glass_panel(tint := Color("#bfe3ff"), radius := 34) -> PanelContainer:
+static func glass_panel(tint := Color("#bfe3ff"), radius := 24) -> PanelContainer:
 	var p := PanelContainer.new()
 	p.add_theme_stylebox_override("panel", glass_style(tint, radius))
 	apply_glass(p, tint)
 	return p
 
 
-## Opaque dark panel for overlays that sit on top of busy UI (hero card, pickers).
-static func solid_panel(tint := Color("#bfe3ff"), radius := 34) -> PanelContainer:
+## Opaque panel for overlays (modals, context panels).
+static func solid_panel(tint := Color("#bfe3ff"), radius := 24) -> PanelContainer:
 	var p := PanelContainer.new()
 	var st := glass_style(tint, radius)
-	var fill := Color(0.05, 0.07, 0.12).lerp(tint, 0.10)
-	st.bg_color = Color(fill.r, fill.g, fill.b, 0.96)
+	st.bg_color = Color(SURFACE.lerp(BG, 0.3), 0.985)
 	p.add_theme_stylebox_override("panel", st)
 	return p
 
 
+## Blur shader only on the high preset and only where callers ask for it (one per screen at most).
 static func apply_glass(c: CanvasItem, tint := Color("#bfe3ff")) -> void:
 	if not Gfx.setting("blur"):
 		return
@@ -123,7 +147,7 @@ static func apply_glass(c: CanvasItem, tint := Color("#bfe3ff")) -> void:
 static func label(text: String, size := 34, color := TEXT, bold := false) -> Label:
 	var l := Label.new()
 	l.text = text
-	l.add_theme_font_size_override("font_size", maxi(size, 26))  # phone readability floor
+	l.add_theme_font_size_override("font_size", maxi(size, 24))  # phone readability floor
 	l.add_theme_color_override("font_color", color)
 	if bold:
 		l.add_theme_font_override("font", FONT_BOLD)
@@ -186,57 +210,81 @@ static func local_time(iso: String) -> String:
 
 
 static func title(text: String, size := 52) -> Label:
-	var l := label(text, size, GOLD, true)
-	l.add_theme_constant_override("outline_size", 10)
-	l.add_theme_color_override("font_outline_color", Color(0.15, 0.08, 0.0, 0.85))
+	var l := label(text, size, GOLD, false)
+	l.add_theme_font_override("font", FONT_TITLE)
+	l.add_theme_constant_override("outline_size", 6)
+	l.add_theme_color_override("font_outline_color", Color(0.1, 0.06, 0.0, 0.8))
 	return l
 
 
-static func button(text: String, kind := "glass", min_w := 0, h := 104) -> Button:
+## Buttons: primary (gold, important), glass/secondary (neutral), accent (teal, active choice), danger, dim (inactive).
+## States: normal, hover, pressed (scale), focus, disabled; set_loading() for async actions.
+static func button(text: String, kind := "glass", min_w := 0, h := 96) -> Button:
 	var b := Button.new()
 	b.text = text
 	b.custom_minimum_size = Vector2(min_w, h)
 	b.add_theme_font_override("font", FONT_BOLD)
-	b.add_theme_font_size_override("font_size", 36)
+	b.add_theme_font_size_override("font_size", 30)
 	b.focus_mode = Control.FOCUS_NONE
 	var normal: StyleBoxFlat
+	var fc := TEXT
 	match kind:
 		"primary":
-			normal = _flat(Color("#e7b453"), Color("#fff1c2"), 28, 3)
-			normal.bg_color = Color("#d9a23f")
-			b.add_theme_color_override("font_color", Color("#2b1600"))
-			b.add_theme_color_override("font_hover_color", Color("#2b1600"))
-			b.add_theme_color_override("font_pressed_color", Color("#2b1600"))
+			normal = _flat(Color("#d9ab52"), Color("#f6dc9c"), R.m, 2)
+			fc = INK
+		"accent":
+			normal = _flat(TEAL_DEEP, TEAL, R.m, 2)
 		"danger":
-			normal = _flat(Color("#b6474a"), Color("#ffb3a8"), 28, 3)
+			normal = _flat(Color("#7a2a22"), DANGER, R.m, 2)
 		"dim":
-			normal = _flat(Color(0.04, 0.05, 0.09, 0.45), Color(1, 1, 1, 0.25), 28, 2)
-			b.add_theme_color_override("font_color", MUTED)
+			normal = _flat(Color(SURFACE, 0.8), Color(LINE, 0.7), R.m, 1)
+			fc = MUTED
 		_:
-			normal = _flat(Color(0.10, 0.17, 0.30, 0.74), Color(1, 1, 1, 0.6), 28, 3)
+			normal = _flat(SURFACE_2, Color(GOLD_DARK, 0.7), R.m, 2)
+	for k in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		b.add_theme_color_override(k, fc)
 	normal.shadow_color = Color(0, 0, 0, 0.3)
-	normal.shadow_size = 10
-	normal.shadow_offset = Vector2(0, 5)
-	normal.content_margin_left = 26
-	normal.content_margin_right = 26
+	normal.shadow_size = 6
+	normal.shadow_offset = Vector2(0, 3)
+	normal.content_margin_left = SP.l
+	normal.content_margin_right = SP.l
 	var hover := normal.duplicate() as StyleBoxFlat
-	hover.bg_color = normal.bg_color.lightened(0.12)
+	hover.bg_color = normal.bg_color.lightened(0.08)
 	var pressed := normal.duplicate() as StyleBoxFlat
 	pressed.bg_color = normal.bg_color.darkened(0.15)
-	pressed.shadow_size = 3
-	var disabled := normal.duplicate() as StyleBoxFlat
-	disabled.bg_color = Color(0.3, 0.32, 0.38, 0.6)
-	disabled.border_color = Color(1, 1, 1, 0.2)
+	pressed.shadow_size = 1
+	var disabled := _flat(Color(SURFACE, 0.7), Color(LINE, 0.5), R.m, 1)
+	disabled.content_margin_left = SP.l
+	disabled.content_margin_right = SP.l
+	var focus := _flat(Color.TRANSPARENT, TEAL, R.m, 2)
+	focus.draw_center = false
 	b.add_theme_stylebox_override("normal", normal)
 	b.add_theme_stylebox_override("hover", hover)
 	b.add_theme_stylebox_override("pressed", pressed)
 	b.add_theme_stylebox_override("disabled", disabled)
-	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.72))
+	b.add_theme_stylebox_override("focus", focus)
+	b.add_theme_color_override("font_disabled_color", Color(MUTED, 0.6))
 	b.pressed.connect(func(): Sfx.play("click"))
-	b.button_down.connect(func(): b.pivot_offset = b.size / 2; b.create_tween().tween_property(b, "scale", Vector2(0.96, 0.96), 0.06))
-	b.button_up.connect(func(): b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.1))
+	if not reduce_motion():
+		b.button_down.connect(func(): b.pivot_offset = b.size / 2; b.create_tween().tween_property(b, "scale", Vector2(0.97, 0.97), 0.05))
+		b.button_up.connect(func(): b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.08))
 	return b
+
+
+## Loading state: disables the button and shows an animated ellipsis until set_loading(b, false).
+static func set_loading(b: Button, on: bool) -> void:
+	if not is_instance_valid(b):
+		return
+	if on:
+		if not b.has_meta("label"):
+			b.set_meta("label", b.text)
+		b.disabled = true
+		b.text = "…"
+	else:
+		b.disabled = false
+		if b.has_meta("label"):
+			b.text = String(b.get_meta("label"))
+			b.remove_meta("label")
 
 
 static func icon_button(kind: String, caption: String, badge := false) -> Button:
@@ -278,7 +326,7 @@ static func icon_button(kind: String, caption: String, badge := false) -> Button
 
 
 static func _round_glass() -> StyleBoxFlat:
-	var s := _flat(Color(0.75, 0.88, 1.0, 0.18), Color(1, 1, 1, 0.7), 56, 3)
+	var s := _flat(Color(SURFACE_2, 0.95), Color(GOLD_DARK, 0.8), 56, 2)
 	s.shadow_color = Color(0, 0, 0, 0.3)
 	s.shadow_size = 12
 	s.content_margin_left = 18
@@ -290,9 +338,9 @@ static func _round_glass() -> StyleBoxFlat:
 
 static func chip(kind: String, value: String) -> PanelContainer:
 	var p := PanelContainer.new()
-	var s := _flat(Color(0.05, 0.08, 0.16, 0.55), Color(1, 1, 1, 0.35), 30, 2)
-	s.content_margin_left = 10
-	s.content_margin_right = 22
+	var s := _flat(Color(BG, 0.82), Color(GOLD_DARK, 0.6), 30, 2)
+	s.content_margin_left = 8
+	s.content_margin_right = 18
 	s.content_margin_top = 4
 	s.content_margin_bottom = 4
 	p.add_theme_stylebox_override("panel", s)
@@ -300,9 +348,9 @@ static func chip(kind: String, value: String) -> PanelContainer:
 	h.add_theme_constant_override("separation", 8)
 	var ic := GameIcon.new()
 	ic.kind = kind
-	ic.custom_minimum_size = Vector2(52, 52)
+	ic.custom_minimum_size = Vector2(46, 46)
 	h.add_child(ic)
-	var l := label(value, 32, TEXT, true)
+	var l := label(value, 28, TEXT, true)
 	l.name = "Value"
 	h.add_child(l)
 	p.add_child(h)
@@ -329,7 +377,7 @@ static func bar(value: float, max_v: float, color: Color, h := 18, w := 0) -> Pr
 	pb.value = value
 	pb.show_percentage = false
 	pb.custom_minimum_size = Vector2(w, h)
-	pb.add_theme_stylebox_override("background", _flat(Color(0, 0, 0, 0.5), Color(1, 1, 1, 0.25), h / 2, 1))
+	pb.add_theme_stylebox_override("background", _flat(Color(BG, 0.9), Color(LINE, 0.8), h / 2, 1))
 	pb.add_theme_stylebox_override("fill", _flat(color, Color.TRANSPARENT, h / 2, 0))
 	return pb
 
@@ -361,3 +409,227 @@ static func scroll(child: Control) -> ScrollContainer:
 	child.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	s.add_child(child)
 	return s
+
+
+
+# ====================================================================== components
+## Card: the base surface for list items and dashboard blocks.
+static func card(border := Color(0, 0, 0, 0), pad := SP.m) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := _flat(Color(SURFACE, 0.94), border if border.a > 0 else Color(LINE, 0.9), R.m, 1 if border.a == 0 else 2)
+	sb.content_margin_left = pad + 4
+	sb.content_margin_right = pad + 4
+	sb.content_margin_top = pad
+	sb.content_margin_bottom = pad
+	p.add_theme_stylebox_override("panel", sb)
+	return p
+
+
+## Section header: title + optional action link on the right.
+static func section(text: String, action := "", cb := Callable()) -> HBoxContainer:
+	var h := HBoxContainer.new()
+	var t := label(text, FS.h3, GOLD, true)
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h.add_child(t)
+	if action != "" and cb.is_valid():
+		var b := Button.new()
+		b.text = action + " ›"
+		b.flat = true
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_override("font", FONT_BOLD)
+		b.add_theme_font_size_override("font_size", FS.body)
+		b.add_theme_color_override("font_color", TEAL)
+		b.pressed.connect(cb)
+		h.add_child(b)
+	return h
+
+
+## Tabs: equal-width segmented control. Returns the row; cb(key) on change.
+static func tabs(items: Array, current: String, cb: Callable, h := 80) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", SP.xs)
+	for it in items:
+		var key: String = it[0]
+		var b := button(String(it[1]), "accent" if key == current else "glass", 0, h)
+		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		b.add_theme_font_size_override("font_size", FS.caption + 2)
+		b.pressed.connect(func(): cb.call(key))
+		row.add_child(b)
+	return row
+
+
+## Progress with a centred caption.
+static func progress(value: float, max_v: float, caption := "", color := TEAL, h := 30) -> Control:
+	var box := Control.new()
+	box.custom_minimum_size = Vector2(0, h)
+	box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var pb := bar(value, max_v, color, h)
+	pb.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.add_child(pb)
+	if caption != "":
+		var l := label(caption, FS.caption - 2, Color.WHITE, true)
+		l.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		box.add_child(l)
+	return box
+
+
+## Small numeric badge (notifications).
+static func badge(n: int) -> PanelContainer:
+	var p := PanelContainer.new()
+	var sb := _flat(DANGER, Color.WHITE, 16, 2)
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	p.add_theme_stylebox_override("panel", sb)
+	p.add_child(label(str(n) if n < 100 else "99+", 20, Color.WHITE, true))
+	p.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	p.visible = n > 0
+	return p
+
+
+## Rarity tag in the rarity colour.
+static func rarity_tag(rarity: int, text: String) -> PanelContainer:
+	var p := PanelContainer.new()
+	var c: Color = RARITY.get(rarity, MUTED)
+	var sb := _flat(Color(c, 0.18), c, 10, 1)
+	sb.content_margin_left = 8
+	sb.content_margin_right = 8
+	p.add_theme_stylebox_override("panel", sb)
+	p.add_child(label(text, 22, c, true))
+	return p
+
+
+## Empty / error / locked states: icon, message and an optional action.
+static func state(kind: String, text: String, action := "", cb := Callable()) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.add_theme_constant_override("separation", SP.m)
+	var ic := GameIcon.new()
+	ic.kind = {"empty": "quests", "error": "settings", "offline": "settings", "locked": "lock"}.get(kind, "quests")
+	ic.custom_minimum_size = Vector2(96, 96)
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ic.modulate = Color(1, 1, 1, 0.75)
+	v.add_child(ic)
+	var l := label(text, FS.body, MUTED if kind != "error" else DANGER)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	v.add_child(l)
+	if action != "" and cb.is_valid():
+		var b := button(action, "glass", 320, 84)
+		b.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		b.pressed.connect(cb)
+		v.add_child(b)
+	return v
+
+
+## Skeleton placeholder rows shown while a screen loads its data.
+static func skeleton(rows := 3, h := 110) -> VBoxContainer:
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", SP.m)
+	for i in rows:
+		var p := Panel.new()
+		p.custom_minimum_size = Vector2(0, h)
+		p.add_theme_stylebox_override("panel", _flat(Color(SURFACE_2, 0.7), Color.TRANSPARENT, R.m, 0))
+		v.add_child(p)
+		if not reduce_motion():
+			var tw := p.create_tween().set_loops()
+			tw.tween_property(p, "modulate:a", 0.45, 0.6).set_delay(i * 0.08)
+			tw.tween_property(p, "modulate:a", 1.0, 0.6)
+	return v
+
+
+## Smart confirmation (irreversible actions, large spends, purchases). cb runs only on OK.
+static func confirm(parent: Node, title_text: String, body: String, ok_text: String, cb: Callable, danger := false) -> void:
+	var root := Control.new()
+	root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.6)
+	dim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(dim)
+	var p := solid_panel(Color("#ffe1a0"))
+	p.anchor_left = 0.5
+	p.anchor_right = 0.5
+	p.anchor_top = 0.5
+	p.anchor_bottom = 0.5
+	p.offset_left = -440
+	p.offset_right = 440
+	p.offset_top = -220
+	p.offset_bottom = 220
+	p.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	p.grow_vertical = Control.GROW_DIRECTION_BOTH
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", SP.l)
+	var t := title(title_text, FS.h2)
+	t.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(t)
+	var l := label(body, FS.body)
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	v.add_child(l)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", SP.m)
+	var cancel := button("Отмена", "glass", 0, 88)
+	cancel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	cancel.pressed.connect(root.queue_free)
+	row.add_child(cancel)
+	var ok := button(ok_text, "danger" if danger else "primary", 0, 88)
+	ok.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ok.pressed.connect(func(): root.queue_free(); cb.call())
+	row.add_child(ok)
+	v.add_child(row)
+	p.add_child(v)
+	root.add_child(p)
+	parent.add_child(root)
+	pop_in(p)
+
+
+## Short, predictable entrance animation (skipped with reduced motion).
+static func pop_in(c: Control) -> void:
+	if reduce_motion() or not is_instance_valid(c):
+		return
+	c.modulate.a = 0.0
+	var tw := c.create_tween()
+	tw.tween_property(c, "modulate:a", 1.0, 0.16)
+
+
+## Icon + caption tile for grouped menus ("Ещё", "Мир").
+static func tile(icon: String, caption: String, sub := "", locked := false, badge_n := 0) -> Button:
+	var b := Button.new()
+	b.custom_minimum_size = Vector2(0, 168)
+	b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	b.focus_mode = Control.FOCUS_NONE
+	var sb := _flat(Color(SURFACE, 0.95), Color(LINE, 0.9) if locked else Color(GOLD_DARK, 0.6), R.m, 1 if locked else 2)
+	var sbh := sb.duplicate() as StyleBoxFlat
+	sbh.border_color = GOLD
+	var sbp := sb.duplicate() as StyleBoxFlat
+	sbp.bg_color = SURFACE_2
+	b.add_theme_stylebox_override("normal", sb)
+	b.add_theme_stylebox_override("hover", sbh)
+	b.add_theme_stylebox_override("pressed", sbp)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	var v := VBoxContainer.new()
+	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	v.alignment = BoxContainer.ALIGNMENT_CENTER
+	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_theme_constant_override("separation", 4)
+	var ic := GameIcon.new()
+	ic.kind = "lock" if locked else icon
+	ic.custom_minimum_size = Vector2(64, 64)
+	ic.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ic.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(ic)
+	var l := label(caption, FS.body - 2, MUTED if locked else TEXT, true)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	v.add_child(l)
+	if sub != "":
+		var s2 := label(sub, 20, MUTED)
+		s2.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		s2.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		v.add_child(s2)
+	b.add_child(v)
+	if badge_n > 0:
+		var bd := badge(badge_n)
+		bd.position = Vector2(12, 10)
+		b.add_child(bd)
+	b.pressed.connect(func(): Sfx.play("open"))
+	return b

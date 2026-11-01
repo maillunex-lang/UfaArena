@@ -16,7 +16,7 @@ var _gen := 0  # render generation: async renders that finish late are dropped
 
 func setup(m: Node, p: Dictionary) -> void:
 	main = m
-	main.use_world("hub")
+	main.use_world("none")
 	if tab == "" and tabs.size() > 0:
 		tab = tabs[0][0]
 	tab = String(p.get("tab", tab))

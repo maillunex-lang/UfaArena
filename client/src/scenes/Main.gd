@@ -24,10 +24,20 @@ const SCREENS := {
 	"tournaments": preload("res://src/screens/TournamentsScreen.gd"),
 	"events": preload("res://src/screens/EventsScreen.gd"),
 	"rankings": preload("res://src/screens/RankingsScreen.gd"),
+	"world": preload("res://src/screens/WorldScreen.gd"),
+	"more": preload("res://src/screens/MoreScreen.gd"),
+	"profile": preload("res://src/screens/ProfileScreen.gd"),
+	"inventory": preload("res://src/screens/InventoryScreen.gd"),
 }
+const Notifications := preload("res://src/ui/Notifications.gd")
 const UpdateDialog := preload("res://src/ui/UpdateDialog.gd")
-const NAV := [["campaign", "Кампания"], ["heroes", "Герои"], ["home", "Крепость"], ["summon", "Призыв"],
-	["modes", "Режимы"], ["chat", "Чат"]]
+## Fixed order of the six main sections (design brief §4).
+const NAV := [["home", "Главная"], ["heroes", "Герои"], ["campaign", "Поход"], ["guild", "Гильдия"], ["world", "Мир"],
+	["more", "Ещё"]]
+## Which section stays highlighted for a secondary screen.
+const NAV_OF := {"formation": "heroes", "summon": "more", "quests": "more", "mail": "more", "shop": "more", "friends": "more",
+	"chat": "more", "settings": "more", "profile": "more", "inventory": "more", "rankings": "more", "fortress": "home",
+	"raids": "world", "arena": "world", "tournaments": "world", "events": "world"}
 
 var world: Node3D
 var world_kind := ""
@@ -83,11 +93,16 @@ func _ready() -> void:
 
 # ------------------------------------------------------------------ worlds
 func use_world(kind: String) -> Node3D:
-	if world_kind == kind and world:
+	if world_kind == kind and (world or kind == "none"):
 		return world
 	if world:
 		world.queue_free()
+		world = null
 	world_kind = kind
+	if _bg:
+		_bg.visible = kind == "none"
+	if kind == "none":  # dashboards and menus: no 3D scene behind (saves GPU/battery)
+		return null
 	if kind == "campaign":
 		world = CampaignMap.new()
 	else:
@@ -110,8 +125,9 @@ func open(screen_name: String, params := {}) -> void:
 	content.add_child(screen)
 	if screen.has_method("setup"):
 		screen.setup(self, params)
+	var section: String = NAV_OF.get(screen_name, screen_name)
 	for k in _nav_buttons:
-		_style_nav(k, k == screen_name)
+		_style_nav(k, k == section)
 	_check_onboarding()
 
 
@@ -121,58 +137,169 @@ func modal(node: Control) -> void:
 	content.add_child(node)
 
 
+var _bg: TextureRect
+var _bell: Button
+var _bell_badge: PanelContainer
+var badges := {}
+var summary := {}
+var _sum_t := 0.0
+
+
+func _build_background() -> void:
+	_bg = TextureRect.new()
+	var art := UI.art("ui/app_bg.png")
+	if art:
+		_bg.texture = art
+	else:
+		var g := Gradient.new()
+		g.set_color(0, Color("#13232a"))
+		g.set_color(1, UI.BG)
+		var gt := GradientTexture2D.new()
+		gt.gradient = g
+		gt.fill_from = Vector2(0.5, 0)
+		gt.fill_to = Vector2(0.5, 1)
+		gt.width = 8
+		gt.height = 256
+		_bg.texture = gt
+	_bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	_bg.stretch_mode = TextureRect.STRETCH_SCALE
+	_bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bg.visible = false
+	var layer := CanvasLayer.new()
+	layer.layer = -1
+	add_child(layer)
+	layer.add_child(_bg)
+
+
 func _build_top() -> void:
+	_build_background()
+	var bar_bg := Panel.new()
+	bar_bg.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	bar_bg.offset_bottom = 214
+	bar_bg.add_theme_stylebox_override("panel", UI._flat(Color(UI.BG, 0.88), Color.TRANSPARENT, 0, 0))
+	bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(bar_bg)
+	var line := ColorRect.new()
+	line.color = Color(UI.GOLD_DARK, 0.6)
+	line.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	line.offset_top = 212
+	line.offset_bottom = 214
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ui.add_child(line)
 	var bar := HBoxContainer.new()
 	bar.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	bar.offset_top = 64
-	bar.offset_left = 28
-	bar.offset_right = -28
+	bar.offset_top = 60
+	bar.offset_left = UI.SP.m
+	bar.offset_right = -UI.SP.m
 	bar.offset_bottom = 200
-	bar.add_theme_constant_override("separation", 14)
+	bar.add_theme_constant_override("separation", UI.SP.s)
 	ui.add_child(bar)
 	var prof := Button.new()
 	prof.flat = true
 	prof.focus_mode = Control.FOCUS_NONE
-	prof.custom_minimum_size = Vector2(300, 120)
+	prof.custom_minimum_size = Vector2(330, 120)
 	for st in ["normal", "hover", "pressed"]:
 		prof.add_theme_stylebox_override(st, StyleBoxEmpty.new())
 	var ph := HBoxContainer.new()
 	ph.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	ph.add_theme_constant_override("separation", 12)
+	ph.add_theme_constant_override("separation", UI.SP.s)
 	var av := PanelContainer.new()
 	_avatar = av
 	av.add_theme_stylebox_override("panel", UI._round_glass())
-	av.custom_minimum_size = Vector2(108, 108)
+	av.custom_minimum_size = Vector2(104, 104)
 	av.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var avi := GameIcon.new()
 	avi.kind = "profile"
 	avi.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	av.add_child(avi)
 	ph.add_child(av)
-	_profile_lbl = UI.label("", 28, UI.TEXT, true)
+	_profile_lbl = UI.label("", 26, UI.TEXT, true)
 	_profile_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ph.add_child(_profile_lbl)
 	prof.add_child(ph)
-	prof.pressed.connect(func(): open("settings"))
+	prof.pressed.connect(func(): open("profile"))
 	bar.add_child(prof)
 	bar.add_child(UI.expand())
-	var chips := VBoxContainer.new()
-	chips.add_theme_constant_override("separation", 6)
-	var row1 := HBoxContainer.new()
-	row1.alignment = BoxContainer.ALIGNMENT_END
-	row1.add_theme_constant_override("separation", 10)
-	var row2 := HBoxContainer.new()
-	row2.alignment = BoxContainer.ALIGNMENT_END
-	row2.add_theme_constant_override("separation", 10)
-	for k in ["gold", "crystals"]:
-		_chips[k] = UI.chip(k, "0")
-		row1.add_child(_chips[k])
-	for k in ["summon_essence", "nature_essence"]:
-		_chips[k] = UI.chip(k, "0")
-		row2.add_child(_chips[k])
-	chips.add_child(row1)
-	chips.add_child(row2)
+	var chips := GridContainer.new()
+	chips.columns = 2
+	chips.add_theme_constant_override("h_separation", UI.SP.xs)
+	chips.add_theme_constant_override("v_separation", UI.SP.xs)
+	for k in ["gold", "crystals", "summon_essence", "nature_essence"]:
+		var chip := UI.chip(k, "0")
+		chip.custom_minimum_size = Vector2(196, 0)
+		var hit := Button.new()
+		hit.flat = true
+		hit.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		hit.focus_mode = Control.FOCUS_NONE
+		hit.pressed.connect(func(): open("inventory"))
+		chip.add_child(hit)
+		_chips[k] = chip
+		chips.add_child(chip)
 	bar.add_child(chips)
+	_bell = UI.button("", "glass", 92, 92)
+	_bell.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var bi := GameIcon.new()
+	bi.kind = "bell"
+	bi.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	bi.offset_left = 14
+	bi.offset_right = -14
+	bi.offset_top = 14
+	bi.offset_bottom = -14
+	bi.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_bell.add_child(bi)
+	_bell_badge = UI.badge(0)
+	_bell_badge.position = Vector2(56, -8)
+	_bell.add_child(_bell_badge)
+	_bell.pressed.connect(_open_notifications)
+	bar.add_child(_bell)
+
+
+func _open_notifications() -> void:
+	var n: Control = Notifications.new()
+	n.main = self
+	n.data = summary
+	ui.add_child(n)
+	_refresh_summary()
+
+
+func _refresh_summary() -> void:
+	var r := await Api.get_json("/player/summary")
+	if r.ok:
+		set_badges(r.data)
+
+
+## Badges on the bell and nav from the server summary (merged per category).
+func set_badges(s: Dictionary) -> void:
+	summary = s
+	var soc: Dictionary = s.get("social", {})
+	var afk: Dictionary = s.get("afk", {})
+	badges = {"quests": int(s.get("quests", {}).get("claimable", 0)), "mail": int(s.get("mail_unclaimed", 0)),
+		"friends": int(soc.get("friend_requests", 0)) + int(soc.get("gifts", 0)), "chat": int(soc.get("chat_unread", 0)),
+		"guild": int(soc.get("guild_apps", 0)), "afk": 1 if afk.get("full", false) else 0}
+	var total: int = badges.quests + badges.mail + badges.friends + badges.guild + badges.afk + (1 if badges.chat > 0 else 0)
+	if is_instance_valid(_bell_badge):
+		_bell_badge.visible = total > 0
+		(_bell_badge.get_child(0) as Label).text = str(total) if total < 100 else "99+"
+	_nav_badge("home", badges.quests + badges.afk)
+	_nav_badge("guild", badges.guild)
+	_nav_badge("more", badges.mail + badges.friends)
+
+
+func _nav_badge(key: String, n: int) -> void:
+	if not _nav_buttons.has(key):
+		return
+	var b: Button = _nav_buttons[key]
+	var dot := b.get_node_or_null("Badge")
+	if dot:
+		dot.visible = n > 0
+
+
+func _process(delta: float) -> void:
+	_sum_t += delta
+	if _sum_t > 45.0 and Game.loaded:
+		_sum_t = 0.0
+		_refresh_summary()
 
 
 func _update_chips() -> void:
@@ -195,8 +322,8 @@ func _update_profile() -> void:
 	if t is Dictionary:
 		title = "\n«%s»" % String(t.get("data", {}).get("text", ""))
 	var vipl := int(p.get("vip_level", 0))
-	_profile_lbl.text = "%s%s\nУр. %d%s" % [p.get("nickname", "Хранитель"), title, int(p.get("level", 1)),
-		("  · VIP %d" % vipl) if vipl > 0 else ""]
+	_profile_lbl.text = "%s\nУр. %d%s\n⚔ %s" % [p.get("nickname", "Хранитель"), int(p.get("level", 1)),
+		("  · VIP %d" % vipl) if vipl > 0 else "", Game.fmt(Game.team_power())]
 	if _avatar:
 		var sb := UI._round_glass()
 		var fr: Variant = Game.cosmetics.get("frame")
@@ -222,9 +349,10 @@ func _build_nav() -> void:
 	h.alignment = BoxContainer.ALIGNMENT_CENTER
 	h.add_theme_constant_override("separation", 6)
 	panel.add_child(h)
-	var icons := {"campaign": "campaign", "heroes": "heroes", "home": "fortress", "summon": "summon", "modes": "modes", "chat": "chat"}
+	var icons := {"home": "home", "heroes": "heroes", "campaign": "campaign", "guild": "guild", "world": "world", "more": "more"}
 	for item in NAV:
-		var b := UI.icon_button(icons[item[0]], item[1])
+		var b := UI.icon_button(icons[item[0]], item[1], true)
+		b.get_node("Badge").visible = false
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		var key: String = item[0]
 		b.pressed.connect(func(): open(key))
@@ -322,16 +450,16 @@ func _check_onboarding() -> void:
 	var nav_hint := ""
 	match step:
 		1:
-			text = "Откройте «Кампанию» и пройдите бой «Берег Агидели»"
+			text = "Откройте «Поход» и пройдите бой «Берег Агидели»"
 			nav_hint = "campaign"
-		2: text = "В «Почте» ждут дары предков — заберите их"
+		2: text = "На главной откройте «Почту» — там ждут дары предков"
 		3:
-			text = "Откройте «Призыв» и призовите нового героя"
-			nav_hint = "summon"
+			text = "«Ещё» → «Призыв»: призовите нового героя"
+			nav_hint = "more"
 		4:
 			text = "Герои → «Формация»: поставьте нового героя в отряд"
 			nav_hint = "heroes"
-		5: text = "Нажмите на сундук «Дозор» и заберите AFK-награды"
+		5: text = "На главной в блоке «Дозор» нажмите «Забрать»"
 	_guide.visible = text != "" and current == "home"
 	_guide_label.text = text
 	_pulse_nav(nav_hint if nav_hint != current else "")

@@ -549,6 +549,7 @@ func _external_result(victory: bool) -> void:
 		var row := UI.rewards_row(rw, 36)
 		row.alignment = BoxContainer.ALIGNMENT_CENTER
 		v.add_child(row)
+	v.add_child(_stats_block())
 	var back := UI.button("Назад", "primary", 360)
 	back.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	back.pressed.connect(func(): Router.goto(Router.MAIN, {"screen": String(p.get("back", "home")), "params": p.get("back_params", {})}))
@@ -580,7 +581,7 @@ func _result_panel(victory: bool, rewards: Dictionary, r: Dictionary) -> void:
 	var panel := UI.glass_panel(Color("#ffe1a0") if victory else Color("#ff9b9b"))
 	panel.set_anchors_preset(Control.PRESET_CENTER)
 	panel.custom_minimum_size = Vector2(900, 0)
-	panel.position = Vector2(-450, -380)
+	panel.position = Vector2(-450, -520)
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 22)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -607,6 +608,7 @@ func _result_panel(victory: bool, rewards: Dictionary, r: Dictionary) -> void:
 		var retry := UI.button("Повторить получение", "primary")
 		retry.pressed.connect(func(): dim.queue_free(); panel.queue_free(); _claim(victory))
 		v.add_child(retry)
+	v.add_child(_stats_block())
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 20)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -631,3 +633,73 @@ func _result_panel(victory: bool, rewards: Dictionary, r: Dictionary) -> void:
 
 func _back() -> void:
 	Router.goto(Router.MAIN, {"screen": "home"})
+
+
+
+# ------------------------------------------------------------------ battle statistics (from the server event log)
+func _battle_stats() -> Dictionary:
+	var out := {}
+	for u in sim.units:
+		out[String(u.uid)] = {"name": String(u.name), "side": int(u.side), "code": String(u.code), "dealt": 0, "taken": 0, "healed": 0}
+	for ev in sim.events:
+		if ev.type in ["pos", "summon", "despawn"]:
+			continue
+		var actor := String(ev.get("actor", ""))
+		for t in ev.get("targets", []):
+			var tid := String(t.get("uid", t.get("target", "")))
+			if t.has("dmg"):
+				if out.has(actor):
+					out[actor].dealt += int(t.dmg)
+				if out.has(tid):
+					out[tid].taken += int(t.dmg)
+			if t.has("heal") and out.has(actor):
+				out[actor].healed += int(t.heal)
+	return out
+
+
+## Expandable statistics block: contribution of each hero, damage dealt/taken, healing, survival, duration.
+func _stats_block() -> VBoxContainer:
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", UI.SP.xs)
+	var toggle := UI.button("Статистика боя ▾", "glass", 0, 72)
+	toggle.add_theme_font_size_override("font_size", 26)
+	box.add_child(toggle)
+	var body := VBoxContainer.new()
+	body.visible = false
+	body.add_theme_constant_override("separation", 4)
+	var st := _battle_stats()
+	var alive: Array = sim.get("survivors", [])
+	var mine: Array = []
+	for uid in st:
+		if st[uid].side == 0:
+			mine.append(uid)
+	mine.sort_custom(func(a, b): return st[a].dealt > st[b].dealt)
+	var total := 0
+	for uid in mine:
+		total += int(st[uid].dealt)
+	var head := HBoxContainer.new()
+	for c in [["Герой", 260], ["Урон", 150], ["Получено", 150], ["Лечение", 140]]:
+		var l := UI.label(String(c[0]), 22, UI.MUTED, true)
+		l.custom_minimum_size = Vector2(int(c[1]), 0)
+		head.add_child(l)
+	body.add_child(head)
+	for uid in mine:
+		var r: Dictionary = st[uid]
+		var row := HBoxContainer.new()
+		var nm := UI.label(("" if uid in alive else "✝ ") + r.name, 24, UI.TEXT if uid in alive else UI.MUTED, true)
+		nm.custom_minimum_size = Vector2(260, 0)
+		nm.clip_text = true
+		row.add_child(nm)
+		for val in [r.dealt, r.taken, r.healed]:
+			var l := UI.label(Game.fmt(int(val)), 24, UI.GOLD if val == r.dealt else UI.TEXT)
+			l.custom_minimum_size = Vector2(150, 0)
+			row.add_child(l)
+		body.add_child(row)
+		body.add_child(UI.progress(float(r.dealt), max(1.0, float(total)), "%d%% урона" % int(100.0 * r.dealt / max(1, total)), UI.TEAL, 16))
+	body.add_child(UI.label("Длительность: %.1f с · выжили: %d из %d" % [float(sim.get("duration", 0.0)),
+		mine.filter(func(u): return u in alive).size(), mine.size()], 22, UI.MUTED))
+	box.add_child(body)
+	toggle.pressed.connect(func():
+		body.visible = not body.visible
+		toggle.text = "Статистика боя ▴" if body.visible else "Статистика боя ▾")
+	return box

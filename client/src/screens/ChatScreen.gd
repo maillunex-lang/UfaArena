@@ -42,7 +42,7 @@ var _base_bottom := -6.0
 
 func setup(m: Node, p: Dictionary) -> void:
 	main = m
-	main.use_world("hub")
+	main.use_world("none")
 	if p.has("to_user"):
 		_open_dm_target(String(p.to_user), String(p.get("name", "Игрок")))
 	elif String(p.get("channel", "")).begins_with("guild:"):

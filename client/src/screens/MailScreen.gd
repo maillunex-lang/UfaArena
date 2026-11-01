@@ -7,7 +7,7 @@ var _list: VBoxContainer
 
 func setup(m: Node, _p: Dictionary) -> void:
 	main = m
-	main.use_world("hub")
+	main.use_world("none")
 	var panel := UI.glass_panel()
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.offset_left = 24

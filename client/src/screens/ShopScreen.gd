@@ -19,7 +19,7 @@ const CUR := {"gold": "Золото", "crystals": "Кристаллы", "summon_
 func setup(m: Node, p: Dictionary) -> void:
 	main = m
 	tab = p.get("tab", "crystals")
-	main.use_world("hub")
+	main.use_world("none")
 	var panel := UI.glass_panel(Color("#ffe1a0"))
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	panel.offset_left = 16
@@ -514,7 +514,7 @@ func _equip(slot: String, cid: String, on: bool, c: Dictionary) -> void:
 	if main.world and main.world.has_method("show_hero"):
 		var code: String = main.world.hero_code
 		main.world_kind = ""
-		main.use_world("hub").show_hero(code if code != "" else "azamat")
+		main.use_world("none").show_hero(code if code != "" else "azamat")
 	_render()
 
 

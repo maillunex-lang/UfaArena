@@ -174,3 +174,10 @@ def test_campaign_chapters(newplayer):
     regions = p.get("/campaign").json()["regions"]
     assert regions[1]["nodes"][0]["unlocked"] and not regions[1]["nodes"][1]["unlocked"]
     assert p.get("/player/bootstrap").json()["campaign"]["next_node"] == "2-1"
+
+
+def test_player_summary(newplayer):
+    p = newplayer()
+    s = p.get("/player/summary").json()
+    assert s["campaign"]["total"] >= 60 and s["campaign"]["next"]["code"] == "1-1"
+    assert s["mail_unclaimed"] >= 1 and "afk" in s and "social" in s and s["quests"]["daily_total"] >= 1

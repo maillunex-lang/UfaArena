@@ -5,6 +5,7 @@ var main: Node
 var map: Node3D
 var region := {}
 var _card: PanelContainer
+var _select := ""
 var _head: PanelContainer
 var _chapter := 0
 
@@ -19,6 +20,12 @@ func setup(m: Node, _p: Dictionary) -> void:
 		return
 	var regions: Array = Game.campaign.regions
 	_chapter = 0
+	_select = String(_p.get("select", ""))
+	if _select != "":
+		for i in regions.size():
+			for n in regions[i].nodes:
+				if n.code == _select:
+					_p["chapter"] = i
 	if _p.has("chapter"):
 		_chapter = clampi(int(_p.chapter), 0, regions.size() - 1)
 	else:
@@ -91,8 +98,12 @@ func _open_chapter(i: int) -> void:
 			break
 	if not shown and region.nodes.size() > 0:
 		_show_node(region.nodes[-1].code)
+	if _select != "":
+		_show_node(_select)
+		_select = ""
 
 
+## Compact battle preparation: stage, enemies, your squad and power, rewards, start button.
 func _show_node(code: String) -> void:
 	var n := {}
 	for x in region.nodes:
@@ -103,46 +114,67 @@ func _show_node(code: String) -> void:
 	Sfx.play("open")
 	if _card:
 		_card.queue_free()
-	_card = UI.glass_panel(Color("#ffe1a0") if n.is_boss else Color("#bfe3ff"))
+	_card = UI.solid_panel(Color("#ffe1a0") if n.is_boss else Color("#bfe3ff"))
 	_card.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	_card.offset_left = 30
-	_card.offset_right = -30
-	_card.offset_top = -470
-	_card.offset_bottom = -10
+	_card.offset_left = UI.SP.m
+	_card.offset_right = -UI.SP.m
+	_card.offset_top = -560
+	_card.offset_bottom = -UI.SP.s
 	var v := VBoxContainer.new()
-	v.add_theme_constant_override("separation", 12)
-	var title := UI.title("%s  %s%s" % [n.code, n.name, "  · БОСС" if n.is_boss else ""], 42)
-	v.add_child(title)
-	var place := UI.label(n.real_place + "   ·   " + _territory(n.territory), 26, UI.MUTED)
+	v.add_theme_constant_override("separation", UI.SP.s)
+	var head := HBoxContainer.new()
+	var title := UI.title("%s  %s" % [n.code, n.name], UI.FS.h2)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	head.add_child(title)
+	if n.is_boss:
+		head.add_child(UI.rarity_tag(6, "БОСС"))
+	if n.cleared:
+		head.add_child(UI.rarity_tag(2, "пройден"))
+	v.add_child(head)
+	var place := UI.label(n.real_place + "  ·  " + _territory(n.territory), UI.FS.caption, UI.MUTED)
 	place.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(place)
+	var teams := HBoxContainer.new()
+	teams.add_theme_constant_override("separation", UI.SP.m)
+	var mine := VBoxContainer.new()
+	mine.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mine.add_child(UI.label("Ваш отряд · ⚔ %s" % Game.exact(Game.team_power()), UI.FS.caption, UI.TEAL, true))
+	var row_m := HBoxContainer.new()
+	row_m.add_theme_constant_override("separation", 4)
+	for pid in Game.formation:
+		if pid == null:
+			continue
+		var h := Game.hero_by_id(pid)
+		if h.is_empty():
+			continue
+		row_m.add_child(_face(String(h.hero_code), int(h.level), UI.RARITY.get(int(h.rarity), UI.TEXT)))
+	mine.add_child(row_m)
+	teams.add_child(mine)
+	var foes_box := VBoxContainer.new()
+	foes_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	foes_box.add_child(UI.label("Противники · %d" % n.enemies.size(), UI.FS.caption, UI.DANGER, true))
 	var foes := HBoxContainer.new()
-	foes.add_theme_constant_override("separation", 10)
+	foes.add_theme_constant_override("separation", 4)
 	for e in n.enemies:
-		var tr := TextureRect.new()
-		tr.custom_minimum_size = Vector2(110, 110)
-		tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		foes.add_child(tr)
-		_load_portrait(tr, e.hero_code)
-		var lv := UI.label("ур.%d" % int(e.level), 22, Color("#ffb3a8"), true)
-		lv.position = Vector2(4, 80)
-		tr.add_child(lv)
-	v.add_child(foes)
+		foes.add_child(_face(String(e.hero_code), int(e.level), UI.DANGER))
+	foes_box.add_child(foes)
+	teams.add_child(foes_box)
+	v.add_child(teams)
 	var rw := HBoxContainer.new()
-	rw.add_theme_constant_override("separation", 14)
-	rw.add_child(UI.label("Награда:", 28, UI.MUTED))
-	rw.add_child(UI.rewards_row(n.rewards, 28))
+	rw.add_theme_constant_override("separation", UI.SP.s)
+	rw.add_child(UI.label("Награда:", UI.FS.caption, UI.MUTED))
+	rw.add_child(UI.rewards_row(n.rewards, 24))
 	if not n.cleared:
-		rw.add_child(UI.label("  Первое:", 28, UI.GOLD))
-		rw.add_child(UI.rewards_row(n.first_clear_rewards, 28))
+		rw.add_child(UI.label(" Впервые:", UI.FS.caption, UI.GOLD))
+		rw.add_child(UI.rewards_row(n.first_clear_rewards, 24))
 	v.add_child(rw)
-	var btn := UI.button("Сражаться" if n.unlocked else "Закрыто", "primary" if n.unlocked else "dim", 0, 112)
+	var btn := UI.button("В бой" if n.unlocked else "Закрыто: пройдите предыдущий этап", "primary" if n.unlocked else "dim", 0, 100)
 	btn.disabled = not n.unlocked
 	btn.pressed.connect(func(): Router.goto(Router.BATTLE, {"node_code": n.code, "node": n}))
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 16)
-	var form := UI.button("Отряд · сила %s" % Game.fmt(Game.team_power()), "glass", 380, 112)
+	row.add_theme_constant_override("separation", UI.SP.m)
+	var form := UI.button("Изменить отряд", "glass", 300, 100)
 	form.pressed.connect(func(): main.open("formation", {"back": "campaign"}))
 	row.add_child(form)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -150,10 +182,36 @@ func _show_node(code: String) -> void:
 	v.add_child(row)
 	_card.add_child(v)
 	add_child(_card)
+	UI.pop_in(_card)
+
+
+func _face(code: String, level: int, ring: Color) -> Control:
+	var box := Control.new()
+	box.custom_minimum_size = Vector2(86, 96)
+	var bg := Panel.new()
+	bg.add_theme_stylebox_override("panel", UI._flat(Color(UI.SURFACE_2), ring, 14, 2))
+	bg.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	box.add_child(bg)
+	var tr := TextureRect.new()
+	tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+	tr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	tr.offset_left = 3
+	tr.offset_top = 3
+	tr.offset_right = -3
+	tr.offset_bottom = -3
+	box.add_child(tr)
+	_load_portrait(tr, code)
+	var lv := UI.label(str(level), 20, Color.WHITE, true)
+	lv.position = Vector2(6, 62)
+	box.add_child(lv)
+	return box
 
 
 func _load_portrait(tr: TextureRect, code: String) -> void:
-	tr.texture = await Models.portrait(code, 160)
+	var tex: Texture2D = await Models.portrait(code, 128)
+	if is_instance_valid(tr):
+		tr.texture = tex
 
 
 func _territory(t: String) -> String:

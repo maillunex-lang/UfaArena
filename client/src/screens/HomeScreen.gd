@@ -1,154 +1,126 @@
 extends Control
-## Крепость хранителей (home): hero in the centre, context buttons, AFK chest, battle CTA.
+## Home dashboard: player card, rewards (patrol AFK + mail), campaign progress, daily quests, events, activities.
+## Everything shown comes from the server (/player/summary + bootstrap state); no decorative numbers.
 
 var main: Node
+var _body: VBoxContainer
 var _afk_lbl: Label
-var _afk_btn: Button
-var _hero_idx := 0
-var _hero_lbl: Label
-var _battle_btn: Button
-var _mail_btn: Button
-var _quest_btn: Button
+var _afk_bar: Control
+var _s := {}
 
 
 func setup(m: Node, _p: Dictionary) -> void:
 	main = m
-	var w: Node3D = main.use_world("hub")
-	if Game.heroes.size() > 0:
-		w.show_hero(Game.heroes[0].hero_code)
-	# left column
-	var left := VBoxContainer.new()
-	left.position = Vector2(14, 40)
-	left.add_theme_constant_override("separation", 6)
-	add_child(left)
-	_afk_btn = UI.icon_button("afk", "Дозор")
-	_afk_btn.pressed.connect(_claim_afk)
-	left.add_child(_afk_btn)
-	_afk_lbl = UI.label("", 24, UI.GOLD, true)
-	_afk_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_afk_lbl.custom_minimum_size = Vector2(150, 0)
-	left.add_child(_afk_lbl)
-	_quest_btn = UI.icon_button("quests", "Задания", false)
-	_quest_btn.pressed.connect(func(): main.open("quests"))
-	left.add_child(_quest_btn)
-	_mail_btn = UI.icon_button("mail", "Почта", false)
-	_mail_btn.pressed.connect(func(): main.open("mail"))
-	left.add_child(_mail_btn)
-	# right column (phased release: locked until their functional block)
-	var right := VBoxContainer.new()
-	right.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	right.position = Vector2(-164, 40)
-	right.add_theme_constant_override("separation", 6)
-	add_child(right)
-	for it in [["fortress", "Здания", "fortress"], ["shop", "Магазин", "shop"], ["events", "Пропуск", "shop:battlepass"],
-			["guild", "Гильдия", "guild"], ["friends", "Друзья", "friends"], ["chat", "Чат", "chat"]]:
-		var b := UI.icon_button(it[0], it[1], it[0] == "chat")
-		var target: String = it[2]
-		if target == "":
-			b.modulate = Color(0.75, 0.75, 0.8)
-			b.pressed.connect(func(): Router.toast("«%s» откроется в следующем функциональном блоке" % it[1]))
-		elif target.begins_with("shop:"):
-			var tab := target.substr(5)
-			b.pressed.connect(func(): main.open("shop", {"tab": tab}))
-		else:
-			b.pressed.connect(func(): main.open(target))
-		right.add_child(b)
-		if it[0] == "chat":
-			b.get_node("Badge").visible = false
-			_chat_badge(b)
-	# bottom: hero plate + battle CTA
-	var bottom := VBoxContainer.new()
-	bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	bottom.offset_top = -290
-	bottom.offset_left = 60
-	bottom.offset_right = -60
-	bottom.add_theme_constant_override("separation", 16)
-	add_child(bottom)
-	var plate := HBoxContainer.new()
-	plate.alignment = BoxContainer.ALIGNMENT_CENTER
-	var prev := UI.button("◀", "dim", 90, 84)
-	prev.pressed.connect(func(): _cycle(-1))
-	plate.add_child(prev)
-	var pp := UI.glass_panel()
-	pp.custom_minimum_size = Vector2(560, 0)
-	_hero_lbl = UI.label("", 32, UI.TEXT, true)
-	_hero_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pp.add_child(_hero_lbl)
-	plate.add_child(pp)
-	var nxt := UI.button("▶", "dim", 90, 84)
-	nxt.pressed.connect(func(): _cycle(1))
-	plate.add_child(nxt)
-	var emo: Variant = Game.cosmetics.get("emote")
-	if emo is Dictionary:
-		var eb := UI.button("Эмоция", "glass", 170, 84)
-		eb.add_theme_font_size_override("font_size", 26)
-		var anim := String(emo.get("data", {}).get("anim", "cheer"))
-		eb.pressed.connect(func():
-			var hn: Node3D = main.world.hero
-			if hn:
-				var ap: AnimationPlayer = hn.get_meta("ap", null)
-				if ap and ap.has_animation(anim):
-					ap.play(anim)
-				else:
-					Models.play(hn, anim)
-				Models.queue_idle(hn))
-		plate.add_child(eb)
-	bottom.add_child(plate)
-	_battle_btn = UI.button("", "primary", 0, 124)
-	_battle_btn.add_theme_font_size_override("font_size", 40)
-	_battle_btn.pressed.connect(_go_battle)
-	bottom.add_child(_battle_btn)
-	_refresh()
-	Game.afk_changed.connect(_refresh)
-	Game.heroes_changed.connect(_refresh)
-	_poll_badges()
+	main.use_world("none")
+	_body = VBoxContainer.new()
+	_body.add_theme_constant_override("separation", UI.SP.l)
+	var sc := UI.scroll(_body)
+	sc.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	sc.offset_left = UI.SP.m
+	sc.offset_right = -UI.SP.m
+	sc.offset_top = UI.SP.s
+	add_child(sc)
+	UI.keep_wrapped(_body)
+	_body.add_child(UI.skeleton(4, 160))
+	Game.afk_changed.connect(_tick_afk)
+	_load()
 
 
-func _refresh() -> void:
+func _load() -> void:
+	var r := await Api.get_json("/player/summary")
 	if not is_inside_tree():
 		return
-	var nxt = Game.campaign.get("next_node")
-	_battle_btn.text = ("В бой: этап %s" % nxt) if nxt else "Глава пройдена — повторить бои"
-	_battle_btn.text += "  ·  сила %s" % Game.fmt(Game.team_power())
-	_update_hero_label()
+	for c in _body.get_children():
+		c.queue_free()
+	if not r.ok:
+		_body.add_child(UI.state("offline" if r.get("status", 0) == 0 else "error",
+			"Не удалось загрузить данные. Проверьте соединение.", "Повторить", func(): main.open("home")))
+		return
+	_s = r.data
+	main.set_badges(_s)
+	_rewards()
+	_campaign()
+	_daily()
+	_events()
+	_activities()
+
+
+# ------------------------------------------------------------------ rewards
+func _rewards() -> void:
+	_body.add_child(UI.section("Награды"))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UI.SP.m)
+	var afk := UI.card(UI.GOLD_DARK)
+	afk.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", UI.SP.s)
+	var hh := HBoxContainer.new()
+	var ic := GameIcon.new()
+	ic.kind = "afk"
+	ic.custom_minimum_size = Vector2(64, 64)
+	hh.add_child(ic)
+	var t := VBoxContainer.new()
+	t.add_child(UI.label("Дозор", UI.FS.h3, UI.GOLD, true))
+	_afk_lbl = UI.label("", UI.FS.caption, UI.MUTED)
+	t.add_child(_afk_lbl)
+	hh.add_child(t)
+	v.add_child(hh)
+	_afk_bar = UI.progress(0, 1, "", UI.TEAL, 18)
+	v.add_child(_afk_bar)
+	v.add_child(UI.rewards_row(_s.afk.rewards, 26))
+	var claim := UI.button("Забрать", "primary", 0, 84)
+	claim.pressed.connect(func(): _claim_afk(claim))
+	v.add_child(claim)
+	afk.add_child(v)
+	row.add_child(afk)
+	var mail := UI.card()
+	mail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var mv := VBoxContainer.new()
+	mv.add_theme_constant_override("separation", UI.SP.s)
+	var mh := HBoxContainer.new()
+	var mic := GameIcon.new()
+	mic.kind = "mail"
+	mic.custom_minimum_size = Vector2(64, 64)
+	mh.add_child(mic)
+	var mt := VBoxContainer.new()
+	mt.add_child(UI.label("Почта", UI.FS.h3, UI.GOLD, true))
+	var n := int(_s.mail_unclaimed)
+	mt.add_child(UI.label("%d с наградами" % n if n > 0 else "Новых наград нет", UI.FS.caption, UI.MUTED))
+	mh.add_child(mt)
+	mv.add_child(mh)
+	mv.add_child(UI.expand())
+	var open := UI.button("Открыть", "glass" if n == 0 else "accent", 0, 84)
+	open.pressed.connect(func(): main.open("mail"))
+	mv.add_child(open)
+	mail.add_child(mv)
+	row.add_child(mail)
+	_body.add_child(row)
 	_tick_afk()
-
-
-func _update_hero_label() -> void:
-	if Game.heroes.is_empty():
-		return
-	var h: Dictionary = Game.heroes[_hero_idx % Game.heroes.size()]
-	_hero_lbl.text = "%s · %s  ур.%d  %s" % [h.name, h.rarity_name, int(h.level), "★".repeat(int(h.stars))]
-	_hero_lbl.add_theme_color_override("font_color", Game.RARITY_COLORS.get(int(h.rarity), Color.WHITE))
-
-
-func _cycle(d: int) -> void:
-	if Game.heroes.is_empty():
-		return
-	_hero_idx = posmod(_hero_idx + d, Game.heroes.size())
-	main.world.show_hero(Game.heroes[_hero_idx].hero_code)
-	_update_hero_label()
 
 
 func _process(_d: float) -> void:
-	_tick_afk()
+	if Engine.get_process_frames() % 30 == 0:
+		_tick_afk()
 
 
 func _tick_afk() -> void:
-	if Game.afk.is_empty() or _afk_lbl == null:
+	if Game.afk.is_empty() or _afk_lbl == null or not is_instance_valid(_afk_lbl):
 		return
 	var since := Time.get_unix_time_from_datetime_string(String(Game.afk.since).substr(0, 19))
 	var now := Time.get_unix_time_from_system() + Game.server_time_offset
 	var cap: float = Game.afk.get("cap_s", 28800)
 	var el: float = clampf(now - since, 0, cap)
-	var gold_h: float = Game.afk.rates_per_hour.get("gold", 0)
-	_afk_lbl.text = "%02d:%02d  +%s" % [int(el / 3600), int(el / 60) % 60, Game.fmt(int(gold_h * el / 3600.0))]
+	_afk_lbl.text = "Накоплено %02d:%02d из %d ч" % [int(el / 3600), int(el / 60) % 60, int(cap / 3600)]
+	if is_instance_valid(_afk_bar):
+		var pb: ProgressBar = _afk_bar.get_child(0)
+		pb.max_value = cap
+		pb.value = el
 
 
-func _claim_afk() -> void:
-	Router.busy(true)
+func _claim_afk(b: Button) -> void:
+	UI.set_loading(b, true)
 	var r := await Api.post_json("/rewards/afk/claim", {}, true)
-	Router.busy(false)
+	UI.set_loading(b, false)
 	if not r.ok:
 		Router.error(r)
 		return
@@ -157,40 +129,112 @@ func _claim_afk() -> void:
 	Router.toast("Дозор принёс: " + Game.rewards_text(r.data.rewards))
 	await Game.refresh_afk()
 	main.onboarding_event("afk")
+	_load()
 
 
-func _go_battle() -> void:
-	main.open("campaign")
+# ------------------------------------------------------------------ campaign
+func _campaign() -> void:
+	var c: Dictionary = _s.campaign
+	_body.add_child(UI.section("Поход", "Карта", func(): main.open("campaign")))
+	var card := UI.card(UI.GOLD_DARK)
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", UI.SP.s)
+	var nx = c.get("next")
+	v.add_child(UI.label(("Следующий этап: %s «%s»" % [nx.code, nx.name]) if nx else "Все этапы пройдены!", UI.FS.body_l, UI.TEXT, true))
+	v.add_child(UI.progress(int(c.cleared), int(c.total), "Пройдено %d из %d" % [int(c.cleared), int(c.total)], UI.GOLD_DARK, 30))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", UI.SP.s)
+	row.add_child(UI.label("Сила отряда: %s" % Game.exact(Game.team_power()), UI.FS.body, UI.MUTED))
+	row.add_child(UI.expand())
+	if nx:
+		var go := UI.button("В бой", "primary", 260, 84)
+		var code: String = nx.code
+		go.pressed.connect(func(): main.open("campaign", {"select": code}))
+		row.add_child(go)
+	v.add_child(row)
+	card.add_child(v)
+	_body.add_child(card)
 
 
-func _poll_badges() -> void:
-	var m := await Api.get_json("/mail")
-	if m.ok and is_inside_tree():
-		for x in m.data.mail:
-			if not x.claimed:
-				_add_badge(_mail_btn)
-				break
-	var q := await Api.get_json("/quests")
-	if q.ok and is_inside_tree():
-		for x in q.data.quests:
-			if x.claimable:
-				_add_badge(_quest_btn)
-				break
+# ------------------------------------------------------------------ daily quests
+func _daily() -> void:
+	var q: Dictionary = _s.quests
+	_body.add_child(UI.section("Ежедневные задания %d/%d" % [int(q.daily_done), int(q.daily_total)], "Все задания",
+		func(): main.open("quests")))
+	var card := UI.card()
+	var v := VBoxContainer.new()
+	v.add_theme_constant_override("separation", UI.SP.m)
+	if q.daily.is_empty():
+		v.add_child(UI.label("Сегодня заданий нет.", UI.FS.body, UI.MUTED))
+	for x in q.daily:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", UI.SP.m)
+		var col := VBoxContainer.new()
+		col.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		col.add_child(UI.label(String(x.title), UI.FS.body, UI.TEXT, true))
+		col.add_child(UI.progress(int(x.progress), int(x.target), "%d/%d" % [int(x.progress), int(x.target)], UI.TEAL, 22))
+		row.add_child(col)
+		if x.claimable:
+			var b := UI.button("Забрать", "primary", 200, 76)
+			b.pressed.connect(func(): main.open("quests"))
+			row.add_child(b)
+		elif x.claimed:
+			row.add_child(UI.label("✓", UI.FS.h2, UI.SUCCESS, true))
+		v.add_child(row)
+	if int(q.claimable) > 0:
+		v.add_child(UI.label("Готово к получению наград: %d" % int(q.claimable), UI.FS.caption, UI.GOLD))
+	card.add_child(v)
+	_body.add_child(card)
 
 
-func _add_badge(b: Button) -> void:
-	if b.get_node_or_null("Badge"):
-		return
-	var dot := Panel.new()
-	dot.name = "Badge"
-	dot.add_theme_stylebox_override("panel", UI._flat(Color("#ff5a4f"), Color.WHITE, 16, 3))
-	dot.size = Vector2(32, 32)
-	dot.position = Vector2(108, 6)
-	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	b.add_child(dot)
+# ------------------------------------------------------------------ events
+func _events() -> void:
+	_body.add_child(UI.section("События", "Центр событий", func(): main.open("events")))
+	if _s.events.is_empty():
+		var c := UI.card()
+		c.add_child(UI.label("Сейчас нет активных событий.", UI.FS.body, UI.MUTED))
+		_body.add_child(c)
+	for e in _s.events:
+		var card := UI.card(UI.TEAL_DEEP)
+		var v := VBoxContainer.new()
+		v.add_theme_constant_override("separation", UI.SP.xs)
+		var h := HBoxContainer.new()
+		var t := UI.label(String(e.name), UI.FS.body_l, UI.TEXT, true)
+		t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(t)
+		h.add_child(UI.label(_left(String(e.ends_at)), UI.FS.caption, UI.WARNING, true))
+		v.add_child(h)
+		v.add_child(UI.progress(int(e.progress), int(e.goal), "%s / %s" % [Game.fmt(int(e.progress)), Game.fmt(int(e.goal))], UI.TEAL, 22))
+		var b := Button.new()
+		b.flat = true
+		b.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		b.pressed.connect(func(): main.open("events"))
+		card.add_child(v)
+		card.add_child(b)
+		_body.add_child(card)
 
 
-func _chat_badge(b: Button) -> void:
-	var r := await Api.get_json("/chat/unread")
-	if r.ok and is_instance_valid(b):
-		b.get_node("Badge").visible = int(r.data.unread) > 0
+func _left(iso: String) -> String:
+	var t := Time.get_unix_time_from_datetime_string(iso.substr(0, 19)) - Time.get_unix_time_from_system()
+	if t <= 0:
+		return "завершается"
+	var d := int(t / 86400)
+	return ("%d д %d ч" % [d, int(fmod(t, 86400) / 3600)]) if d > 0 else ("%d ч %d мин" % [int(t / 3600), int(fmod(t, 3600) / 60)])
+
+
+# ------------------------------------------------------------------ activities
+func _activities() -> void:
+	_body.add_child(UI.section("Активности"))
+	var grid := GridContainer.new()
+	grid.columns = 3
+	grid.add_theme_constant_override("h_separation", UI.SP.m)
+	grid.add_theme_constant_override("v_separation", UI.SP.m)
+	var soc: Dictionary = _s.social
+	for it in [["arena", "Арена", "arena"], ["events", "Рейды", "raids"], ["summon", "Призыв", "summon"],
+			["fortress", "Крепость", "fortress"], ["shop", "Магазин", "shop"], ["chat", "Чат", "chat"]]:
+		var key: String = it[2]
+		var t := UI.tile(it[0], it[1], "", false, int(soc.chat_unread) if key == "chat" else 0)
+		t.pressed.connect(func(): main.open(key))
+		grid.add_child(t)
+	_body.add_child(grid)
+	_body.add_child(UI.spacer(UI.SP.l))
