@@ -29,7 +29,8 @@ table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;border-bottom:1p
 .slot .pv{height:150px;border-radius:10px;background:#081010 repeating-conic-gradient(#0f1d1d 0 25%,#0b1616 0 50%) 50%/20px 20px;
 display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv img{max-width:100%;max-height:100%}
 .slot .pv .empty{color:var(--muted);font-size:13px;text-align:center;padding:8px}
-.prompt{font-size:12px;color:#cfe6e2;background:#081312;border-radius:8px;padding:6px 8px;max-height:84px;overflow:auto;white-space:pre-wrap}
+.prompt{font-size:12px;color:#cfe6e2;background:#081312;border:1px dashed #2c4a48;border-radius:8px;padding:6px 8px;max-height:120px;overflow:auto;white-space:pre-wrap;cursor:copy}
+.prompt:hover{border-color:var(--gold)}.size{font-weight:700;color:var(--gold2)}button.copy{background:linear-gradient(#2c6b64,#1b4642);border-color:var(--teal);font-weight:600}
 .tag{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;background:#24433f;color:var(--teal)}
 .tag.g{background:#3c2f12;color:var(--gold2)}.tag.r{background:#4a1d19;color:var(--red)}
 #toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#132826;border:1px solid var(--gold);padding:10px 16px;border-radius:12px;display:none;max-width:90%}
@@ -54,6 +55,9 @@ function hdr(extra){return Object.assign({'X-Admin-Token':sessionStorage.getItem
 async function api(p,m='GET',b,raw){const o={method:m,headers:hdr(raw?{'Content-Type':'application/octet-stream'}:{'Content-Type':'application/json'})};
  if(b!==undefined)o.body=raw?b:JSON.stringify(b);const r=await fetch('/admin/api'+p,o);let d={};try{d=await r.json()}catch(e){}
  if(!r.ok){const msg=(d.detail&&d.detail.message)||d.detail||r.statusText;toast('Ошибка: '+msg,true);if(r.status===403&&String(msg).includes('токен')){logout()}throw new Error(msg)}return d}
+async function copyText(t){try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(t);return true}}catch(e){}
+ const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.top='-1000px';document.body.appendChild(ta);
+ ta.select();ta.setSelectionRange(0,t.length);let ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(ta);return ok}
 function logout(){sessionStorage.removeItem('tok');location.reload()}
 $('#logout').onclick=logout;
 function login(){main.innerHTML=`<div class="card login"><h2>Вход</h2><p class="muted small">Токен — значение URALIA_ADMIN_TOKEN из файла .env на сервере (команда: grep URALIA_ADMIN_TOKEN /opt/uralia/.env).</p>
@@ -145,15 +149,18 @@ async art(){const d=await api('/web/art');
  document.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{artSec=b.dataset.sec;VIEWS.art()});
  $('#apub').onclick=async()=>{if(!confirm('Опубликовать загруженную графику для всех игроков?'))return;const r=await api('/web/art/publish','POST',{});toast(`Опубликовано: версия ${r.version}, файлов ${r.files}`);VIEWS.art()};
  const sec=d.sections.find(s=>s.id===artSec)||d.sections[0];
- $('#slots').innerHTML=`<div class="card"><p class="muted small">${esc(sec.hint)}</p><div class="grid">${sec.slots.map((s,i)=>`<div class="slot" data-i="${i}">
-  <b>${esc(s.title)}</b><span class="muted small">${esc(s.path)} · рекомендуемый размер ${esc(s.size)}</span>
+ $('#slots').innerHTML=`<div class="card"><div class="row"><p class="muted small" style="flex:1 1 300px">${esc(sec.hint)} Нажмите на текст промпта или на кнопку — он скопируется.</p><button class="copy" id="copyall">📋 Копировать все промпты раздела</button></div><div class="grid">${sec.slots.map((s,i)=>`<div class="slot" data-i="${i}">
+  <b>${esc(s.title)}</b><span class="small">Размер: <span class="size">${esc(s.size)} px</span> · PNG <span class="muted">· ${esc(s.path)}</span></span>
   <div class="pv">${s.staged?`<img data-src="${esc(s.path)}" alt="">`:'<div class="empty">Встроенная графика<br>(слот пуст)</div>'}</div>
   ${s.staged?`<span class="small">${s.staged.width}×${s.staged.height} · ${(s.staged.size/1024).toFixed(0)} КБ ${s.staged.published?'<span class="tag">в игре</span>':'<span class="tag g">не опубликовано</span>'}</span>`:''}
-  <span class="small">${esc(s.advice)}</span><div class="prompt">${esc(s.prompt)}</div>
-  <div class="row"><button class="small" data-copy="${i}">Копировать промпт</button><label class="btn small" style="text-align:center">Загрузить PNG<input type="file" accept="image/png" data-up="${i}" style="display:none"></label>
+  <span class="small">${esc(s.advice)}</span><div class="prompt" data-copy="${i}" title="Нажмите, чтобы скопировать">${esc(s.prompt)}</div>
+  <div class="row"><button class="small copy" data-copy="${i}">📋 Копировать промпт</button><label class="btn small" style="text-align:center">Загрузить PNG<input type="file" accept="image/png" data-up="${i}" style="display:none"></label>
   ${s.staged?`<button class="small danger" data-rm="${i}">Убрать</button>`:''}</div></div>`).join('')}</div></div>`;
  document.querySelectorAll('img[data-src]').forEach(async im=>{const r=await fetch('/admin/api/web/art/file?path='+encodeURIComponent(im.dataset.src),{headers:hdr()});if(r.ok)im.src=URL.createObjectURL(await r.blob())});
- document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(sec.slots[+b.dataset.copy].prompt);toast('Промпт скопирован')});
+ document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{const ok=await copyText(sec.slots[+b.dataset.copy].prompt);
+  toast(ok?'Промпт скопирован — вставьте его в генератор изображений':'Не удалось скопировать: выделите текст промпта вручную',!ok)});
+ $('#copyall').onclick=async()=>{const t=sec.slots.map(s=>`=== ${s.title} → файл ${s.path.split('/').pop()} (${s.size} px) ===\n${s.prompt}`).join('\n\n');
+  const ok=await copyText(t);toast(ok?`Скопированы все промпты раздела (${sec.slots.length})`:'Не удалось скопировать',!ok)};
  document.querySelectorAll('[data-up]').forEach(inp=>inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const s=sec.slots[+inp.dataset.up];
   const r=await api('/web/art/upload?path='+encodeURIComponent(s.path),'POST',f,true);const [w,h]=s.size.split('×').map(Number);
   toast(`Загружено ${r.width}×${r.height}`+((w&&(r.width/r.height).toFixed(2)!==(w/h).toFixed(2))?' — пропорции отличаются от рекомендованных':''));VIEWS.art()});
