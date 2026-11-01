@@ -176,7 +176,7 @@ func _build_top() -> void:
 	var bar_bg := Panel.new()
 	bar_bg.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	bar_bg.offset_bottom = 214
-	bar_bg.add_theme_stylebox_override("panel", UI._flat(Color(UI.BG, 0.88), Color.TRANSPARENT, 0, 0))
+	bar_bg.add_theme_stylebox_override("panel", UI.skin(UI._flat(Color(UI.BG, 0.88), Color.TRANSPARENT, 0, 0), "ui/topbar.png", 1080, 0))
 	bar_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	ui.add_child(bar_bg)
 	var line := ColorRect.new()
@@ -341,6 +341,10 @@ func _update_profile() -> void:
 
 func _build_nav() -> void:
 	var panel := UI.glass_panel(Color("#a9c9ff"), 44)
+	var nav_skin := UI.skin(UI.glass_style(Color("#a9c9ff"), 44), "ui/navbar.png", 1040, 72)
+	if nav_skin is StyleBoxTexture:
+		panel.add_theme_stylebox_override("panel", nav_skin)
+		panel.material = null
 	panel.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	panel.offset_left = 20
 	panel.offset_right = -20

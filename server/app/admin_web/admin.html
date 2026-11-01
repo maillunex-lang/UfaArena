@@ -143,18 +143,23 @@ async players(){const [rep,app,fl]=await Promise.all([api('/social/reports'),api
  document.querySelectorAll('[data-fl]').forEach(b=>b.onclick=async()=>{await api('/social/flags/'+b.dataset.fl,'POST',{status:b.dataset.s});show('players')})},
 
 async art(){const d=await api('/web/art');
- main.innerHTML=`<div class="card"><h2>Замена графики</h2><p class="muted small">Загрузите PNG в нужный слот (совет и готовый промпт для генерации — в карточке). Затем нажмите «Опубликовать» — игроки получат графику фоновым обновлением, без нового APK (нужна версия игры 0.6.3+). Пустые слоты используют встроенную графику.</p>
+ main.innerHTML=`<div class="card"><h2>Замена графики</h2><p class="muted small">Каждый элемент графики игры — отдельный слот: где он виден в игре, точный размер, формат и готовый промпт для генератора. Загрузите PNG (или JPEG там, где не нужна прозрачность), затем нажмите «Опубликовать» — игроки получат графику фоновым обновлением, без нового APK. Пустые слоты используют встроенную графику. JPEG отображается в игре с версии 0.7.1, остальное — с 0.6.3 (для кнопок, панелей, меню, рамок, регионов и заголовков боя нужна 0.7.1).</p>
+ <div class="row"><input id="afind" placeholder="Поиск по всем группам: название или файл" style="flex:1 1 280px"></div>
  <div class="row"><span>Опубликовано: версия ${d.published_version} · ${time(d.published_at)} ${d.dirty?'<span class="tag g">есть неопубликованные изменения</span>':''}</span><button class="primary" id="apub">Опубликовать для игроков</button></div></div>
  <nav style="border:0;padding:0 0 12px;background:none">${d.sections.map(s=>`<button class="${s.id===artSec?'on':''}" data-sec="${s.id}">${esc(s.title)} (${s.slots.filter(x=>x.staged).length}/${s.slots.length})</button>`).join('')}</nav><div id="slots"></div>`;
- document.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{artSec=b.dataset.sec;VIEWS.art()});
+ document.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{artSec=b.dataset.sec;sessionStorage.removeItem('afind');VIEWS.art()});
  $('#apub').onclick=async()=>{if(!confirm('Опубликовать загруженную графику для всех игроков?'))return;const r=await api('/web/art/publish','POST',{});toast(`Опубликовано: версия ${r.version}, файлов ${r.files}`);VIEWS.art()};
- const sec=d.sections.find(s=>s.id===artSec)||d.sections[0];
+ const q=(sessionStorage.getItem('afind')||'').toLowerCase();
+ const sec=q?{id:'search',title:'Поиск',hint:'Результаты поиска по всем группам.',slots:d.sections.flatMap(x=>x.slots.filter(sl=>(sl.title+' '+sl.path).toLowerCase().includes(q)))}:(d.sections.find(s=>s.id===artSec)||d.sections[0]);
+ $('#afind').value=sessionStorage.getItem('afind')||'';
+ $('#afind').onchange=()=>{sessionStorage.setItem('afind',$('#afind').value.trim());VIEWS.art()};
  $('#slots').innerHTML=`<div class="card"><div class="row"><p class="muted small" style="flex:1 1 300px">${esc(sec.hint)} Нажмите на текст промпта или на кнопку — он скопируется.</p><button class="copy" id="copyall">📋 Копировать все промпты раздела</button></div><div class="grid">${sec.slots.map((s,i)=>`<div class="slot" data-i="${i}">
-  <b>${esc(s.title)}</b><span class="small">Размер: <span class="size">${esc(s.size)} px</span> · PNG <span class="muted">· ${esc(s.path)}</span></span>
+  <b>${esc(s.title)}</b><span class="small">Размер: <span class="size">${esc(s.size)} px</span> · ${esc(s.formats)}${s.alpha?' <span class="tag g">прозрачный фон</span>':''} <span class="muted">· ${esc(s.path)}</span></span>
+  <span class="small muted">Где в игре: ${esc(s.where||'')}</span>
   <div class="pv">${s.staged?`<img data-src="${esc(s.path)}" alt="">`:'<div class="empty">Встроенная графика<br>(слот пуст)</div>'}</div>
   ${s.staged?`<span class="small">${s.staged.width}×${s.staged.height} · ${(s.staged.size/1024).toFixed(0)} КБ ${s.staged.published?'<span class="tag">в игре</span>':'<span class="tag g">не опубликовано</span>'}</span>`:''}
   <span class="small">${esc(s.advice)}</span><div class="prompt" data-copy="${i}" title="Нажмите, чтобы скопировать">${esc(s.prompt)}</div>
-  <div class="row"><button class="small copy" data-copy="${i}">📋 Копировать промпт</button><label class="btn small" style="text-align:center">Загрузить PNG<input type="file" accept="image/png" data-up="${i}" style="display:none"></label>
+  <div class="row"><button class="small copy" data-copy="${i}">📋 Копировать промпт</button><label class="btn small" style="text-align:center">Загрузить ${s.alpha?'PNG':'PNG / JPEG'}<input type="file" accept="${s.alpha?'image/png':'image/png,image/jpeg'}" data-up="${i}" style="display:none"></label>
   ${s.staged?`<button class="small danger" data-rm="${i}">Убрать</button>`:''}</div></div>`).join('')}</div></div>`;
  document.querySelectorAll('img[data-src]').forEach(async im=>{const r=await fetch('/admin/api/web/art/file?path='+encodeURIComponent(im.dataset.src),{headers:hdr()});if(r.ok)im.src=URL.createObjectURL(await r.blob())});
  document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=async()=>{const ok=await copyText(sec.slots[+b.dataset.copy].prompt);

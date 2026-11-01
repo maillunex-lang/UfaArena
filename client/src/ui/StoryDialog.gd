@@ -80,7 +80,7 @@ func play(lines: Array) -> void:
 		var sp: String = line.get("speaker", "narrator")
 		var hero := Game.catalog_hero(sp)
 		_name.text = hero.get("name", "Летописец") if sp != "narrator" else "Летописец"
-		_portrait.texture = null
+		_portrait.texture = UI.art("ui/story/narrator.png") if sp == "narrator" else null  # admin-panel portrait
 		if sp != "narrator":
 			_portrait.texture = await Models.portrait(sp)
 		if _skipped:

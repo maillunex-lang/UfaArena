@@ -73,6 +73,18 @@ func _regions() -> void:
 		for n in reg.nodes:
 			done += int(n.cleared)
 		var card := UI.card(UI.GOLD_DARK if open else Color(0, 0, 0, 0))
+		# admin-panel region banner (regions/<code>.png, 1024×320) as the card background
+		var ban := UI.art("regions/%s.png" % String(reg.get("code", "")))
+		if ban:
+			var bg := TextureRect.new()
+			bg.texture = ban
+			bg.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			bg.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+			bg.modulate = Color(1, 1, 1, 0.55) if open else Color(0.5, 0.5, 0.5, 0.4)
+			bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			bg.clip_contents = true
+			card.add_child(bg)
+			card.custom_minimum_size.y = 200
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", UI.SP.xs)
 		var h := HBoxContainer.new()

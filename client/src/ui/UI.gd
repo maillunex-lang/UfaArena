@@ -184,8 +184,10 @@ static func glass_style(tint := Color("#bfe3ff"), radius := 24) -> StyleBoxFlat:
 
 static func glass_panel(tint := Color("#bfe3ff"), radius := 24) -> PanelContainer:
 	var p := PanelContainer.new()
-	p.add_theme_stylebox_override("panel", glass_style(tint, radius))
-	apply_glass(p, tint)
+	var st := skin(glass_style(tint, radius), "ui/panels/glass.png", 512, 64)
+	p.add_theme_stylebox_override("panel", st)
+	if st is StyleBoxFlat:
+		apply_glass(p, tint)
 	return p
 
 
@@ -194,7 +196,7 @@ static func solid_panel(tint := Color("#bfe3ff"), radius := 24) -> PanelContaine
 	var p := PanelContainer.new()
 	var st := glass_style(tint, radius)
 	st.bg_color = Color(SURFACE.lerp(BG, 0.3), 0.985)
-	p.add_theme_stylebox_override("panel", st)
+	p.add_theme_stylebox_override("panel", skin(st, "ui/panels/dialog.png", 768, 80))
 	return p
 
 
@@ -237,6 +239,26 @@ static func keep_wrapped(root: Container) -> void:
 ## Art uploaded in the web admin panel arrives as a content package; every slot lives at art/<path>.
 static func art(path: String) -> Texture2D:
 	return Content.texture("art/" + path) if Content.has("art/" + path) else null
+
+
+## Admin-panel skin for a 9-slice element: returns a StyleBoxTexture built from art/<path> that keeps the content
+## margins of `base`, or `base` itself when the slot is empty. `ref_w`/`margin` are the recommended width and corner
+## size from the admin catalog: uploads of another resolution get proportionally scaled slice margins.
+static func skin(base: StyleBox, path: String, ref_w: int, margin: int, tint := Color.WHITE) -> StyleBox:
+	var t := art(path)
+	if t == null:
+		return base
+	var sb := StyleBoxTexture.new()
+	sb.texture = t
+	var m := float(margin) * t.get_width() / maxf(1.0, float(ref_w))
+	sb.texture_margin_left = m
+	sb.texture_margin_right = m
+	sb.texture_margin_top = m
+	sb.texture_margin_bottom = m
+	sb.modulate_color = tint
+	for side in [SIDE_LEFT, SIDE_TOP, SIDE_RIGHT, SIDE_BOTTOM]:
+		sb.set_content_margin(side, base.get_content_margin(side))
+	return sb
 
 
 ## Violet "ИИ" badge: AI personas are always labelled in social UI.
@@ -322,9 +344,10 @@ static func button(text: String, kind := "glass", min_w := 0, h := 96) -> Button
 	disabled.content_margin_right = SP.l
 	var focus := _flat(Color.TRANSPARENT, TEAL, R.m, 2)
 	focus.draw_center = false
-	b.add_theme_stylebox_override("normal", normal)
-	b.add_theme_stylebox_override("hover", hover)
-	b.add_theme_stylebox_override("pressed", pressed)
+	var bp := "ui/buttons/%s.png" % kind  # admin-panel skin (9-slice, 360×120)
+	b.add_theme_stylebox_override("normal", skin(normal, bp, 360, 40))
+	b.add_theme_stylebox_override("hover", skin(hover, bp, 360, 40, Color(1.12, 1.12, 1.12)))
+	b.add_theme_stylebox_override("pressed", skin(pressed, bp, 360, 40, Color(0.82, 0.82, 0.82)))
 	b.add_theme_stylebox_override("disabled", disabled)
 	b.add_theme_stylebox_override("focus", focus)
 	b.add_theme_color_override("font_disabled_color", Color(MUTED, 0.6))
@@ -362,7 +385,7 @@ static func icon_button(kind: String, caption: String, badge := false) -> Button
 	v.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
 	var bubble := PanelContainer.new()
-	bubble.add_theme_stylebox_override("panel", _round_glass())
+	bubble.add_theme_stylebox_override("panel", skin(_round_glass(), "ui/nav/bubble.png", 256, 100))
 	bubble.custom_minimum_size = Vector2(112, 112)
 	bubble.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	bubble.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -485,7 +508,7 @@ static func card(border := Color(0, 0, 0, 0), pad := SP.m) -> PanelContainer:
 	sb.content_margin_right = pad + 4
 	sb.content_margin_top = pad
 	sb.content_margin_bottom = pad
-	p.add_theme_stylebox_override("panel", sb)
+	p.add_theme_stylebox_override("panel", skin(sb, "ui/panels/card.png", 512, 48))
 	return p
 
 
@@ -667,9 +690,10 @@ static func tile(icon: String, caption: String, sub := "", locked := false, badg
 	sbh.border_color = GOLD
 	var sbp := sb.duplicate() as StyleBoxFlat
 	sbp.bg_color = SURFACE_2
-	b.add_theme_stylebox_override("normal", sb)
-	b.add_theme_stylebox_override("hover", sbh)
-	b.add_theme_stylebox_override("pressed", sbp)
+	var dim := Color(0.6, 0.6, 0.6) if locked else Color.WHITE
+	b.add_theme_stylebox_override("normal", skin(sb, "ui/panels/tile.png", 320, 48, dim))
+	b.add_theme_stylebox_override("hover", skin(sbh, "ui/panels/tile.png", 320, 48, dim * 1.12))
+	b.add_theme_stylebox_override("pressed", skin(sbp, "ui/panels/tile.png", 320, 48, dim * 0.85))
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	var v := VBoxContainer.new()
 	v.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)

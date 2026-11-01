@@ -388,10 +388,13 @@ func texture(path: String) -> Texture2D:
 	var img := Image.new()
 	var b := bytes(path)
 	var err := ERR_FILE_UNRECOGNIZED
-	match path.get_extension().to_lower():
-		"png": err = img.load_png_from_buffer(b)
-		"jpg", "jpeg": err = img.load_jpg_from_buffer(b)
-		"webp": err = img.load_webp_from_buffer(b)
+	# by file signature, not extension: the admin panel stores JPEG uploads under the slot's .png name
+	if b.size() > 3 and b[0] == 0x89 and b[1] == 0x50:
+		err = img.load_png_from_buffer(b)
+	elif b.size() > 3 and b[0] == 0xFF and b[1] == 0xD8:
+		err = img.load_jpg_from_buffer(b)
+	elif b.size() > 12 and b.slice(8, 12).get_string_from_ascii() == "WEBP":
+		err = img.load_webp_from_buffer(b)
 	if err != OK:
 		return null
 	var t := ImageTexture.create_from_image(img)

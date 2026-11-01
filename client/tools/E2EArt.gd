@@ -13,7 +13,7 @@ func _run() -> void:
 	while get_tree().current_scene == null or get_tree().current_scene.name != "Main":
 		await get_tree().create_timer(0.25).timeout
 	for i in 120:
-		if Content.has("art/icons/gold.png"):
+		if Content.has("art/icons/gold.png") and Content.has("art/ui/buttons/primary.png"):
 			break
 		if Content.has_pending():
 			await Content.apply_pending()
@@ -22,13 +22,24 @@ func _run() -> void:
 	for d in get_tree().root.find_children("*", "Control", true, false):
 		if d.get_script() and (String(d.get_script().resource_path).ends_with("StoryDialog.gd") or String(d.get_script().resource_path).ends_with("UpdateDialog.gd")):
 			d.queue_free()
-	get_tree().current_scene.open("home")
-	await get_tree().create_timer(2.0).timeout
+	# rebuild the shell so skins applied after start (top bar, menu, buttons) are picked up
+	Router.goto(Router.MAIN, {"screen": "home"})
+	while get_tree().current_scene == null or get_tree().current_scene.name != "Main":
+		await get_tree().create_timer(0.25).timeout
+	await get_tree().create_timer(3.0).timeout
+	for d in get_tree().root.find_children("*", "Control", true, false):
+		if d.get_script() and String(d.get_script().resource_path).ends_with("StoryDialog.gd"):
+			d.skip_all()
+	await get_tree().create_timer(1.0).timeout
 	for c in get_tree().root.find_children("*", "Control", true, false):
 		if c is GameIcon:
 			c.queue_redraw()
 	await get_tree().create_timer(0.5).timeout
 	await RenderingServer.frame_post_draw
 	get_viewport().get_texture().get_image().save_png(out + "/art_home.png")
+	get_tree().current_scene.open("world")
+	await get_tree().create_timer(3.0).timeout
+	await RenderingServer.frame_post_draw
+	get_viewport().get_texture().get_image().save_png(out + "/art_world.png")
 	print("ART: DONE")
 	get_tree().quit()

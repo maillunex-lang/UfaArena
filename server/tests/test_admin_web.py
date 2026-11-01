@@ -101,3 +101,46 @@ def test_art_upload_and_publish(client):
     service.remove(db, "ui.art", "dev", admin="test")  # the blob lives in this test's temporary store
     db.commit()
     gen.close()
+
+
+def _jpeg(w, h):
+    # minimal JPEG header with an SOF0 segment (enough for size detection)
+    import struct
+    return b"\xff\xd8\xff\xe0" + struct.pack(">H", 16) + b"JFIF\x00\x01\x01\x00\x00\x01\x00\x01\x00\x00" + \
+        b"\xff\xc0" + struct.pack(">HBHHB", 11, 8, h, w, 1) + b"\x01\x11\x00" + b"\xff\xd9"
+
+
+def test_art_catalog_groups_formats_and_jpeg(client):
+    cat = client.get("/admin/api/web/art", headers=H()).json()
+    ids = [s["id"] for s in cat["sections"]]
+    assert {"screens", "shell", "buttons", "panels", "currency", "icons", "factions", "cards", "heroes", "bosses",
+            "regions", "battle", "story", "chat", "guild"} <= set(ids)
+    slots = [sl for s in cat["sections"] for sl in s["slots"]]
+    assert len({sl["path"] for sl in slots}) == len(slots)  # no duplicates across groups
+    for sl in slots:
+        w, h = sl["size"].split("×")
+        assert f"exactly {w}x{h} pixels" in sl["prompt"] and sl["where"] and sl["formats"] in ("PNG", "PNG / JPEG")
+    opaque = next(sl for sl in slots if sl["path"] == "ui/app_bg.png")
+    alpha = next(sl for sl in slots if sl["path"] == "ui/buttons/primary.png")
+    assert not opaque["alpha"] and alpha["alpha"]
+    r = client.post("/admin/api/web/art/upload?path=ui/app_bg.png", content=_jpeg(1080, 1920), headers=H())
+    assert r.status_code == 200 and r.json()["format"] == "jpg" and r.json()["height"] == 1920
+    assert client.get("/admin/api/web/art/file?path=ui/app_bg.png", headers=H()).headers["content-type"] == "image/jpeg"
+    bad = client.post("/admin/api/web/art/upload?path=ui/buttons/primary.png", content=_jpeg(360, 120), headers=H())
+    assert bad.status_code == 400 and "PNG" in bad.json()["detail"]["message"]
+    client.post("/admin/api/web/art/remove?path=ui/app_bg.png", headers=H())
+
+
+def test_every_art_slot_is_read_by_the_client():
+    """No decorative slots: each catalog path (or its template) must appear in the Godot client sources."""
+    from pathlib import Path
+    from app.admin_web import art
+    src = "\n".join(p.read_text(encoding="utf-8") for p in (Path(__file__).resolve().parents[2] / "client" / "src").rglob("*.gd"))
+    templates = {"icons/": '"icons/%s.png"', "heroes/": '"heroes/%s.png"', "guild/banner_": '"guild/banner_%s.png"',
+                 "ui/chat/": '"ui/chat/"', "ui/buttons/": '"ui/buttons/%s.png"', "ui/cards/frame_r": '"ui/cards/frame_r%d.png"',
+                 "regions/": '"regions/%s.png"', "ui/battle/": '"ui/battle/%s.png"'}
+    for sec in art.catalog():
+        for sl in sec["slots"]:
+            tpl = next((t for pre, t in templates.items() if sl["path"].startswith(pre)), None)
+            needle = tpl if tpl else '"' + sl["path"] + '"'
+            assert needle in src, f"{sl['path']} is not used by the client ({needle})"

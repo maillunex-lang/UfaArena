@@ -48,6 +48,17 @@ func setup(h: Dictionary, selected := false, compact := false) -> void:
 	em.position = Vector2(custom_minimum_size.x - em.size.x - 6, 6)
 	em.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(em)
+	# admin-panel rarity frame (transparent centre) drawn over the portrait
+	var fr := UI.art("ui/cards/frame_r%d.png" % int(h.rarity))
+	if fr:
+		var frame := TextureRect.new()
+		frame.texture = fr
+		frame.set_anchors_preset(Control.PRESET_FULL_RECT)
+		frame.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		frame.stretch_mode = TextureRect.STRETCH_SCALE
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(frame)
+		move_child(frame, _tex.get_index() + 1)
 	var st_l := UI.stars(int(h.get("stars", 0)), 22)
 	st_l.position = Vector2(14, 40)
 	st_l.mouse_filter = Control.MOUSE_FILTER_IGNORE

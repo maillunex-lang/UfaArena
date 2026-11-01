@@ -308,7 +308,8 @@ def art_file(path: str = Query(max_length=120), who: str = Depends(admin)):
     f = art.staged_file(path)
     if f is None:
         raise GameError("not_found", "Файл не загружен", 404)
-    return FileResponse(f, media_type="image/png")
+    head = f.read_bytes()[:3]
+    return FileResponse(f, media_type="image/jpeg" if head == b"\xff\xd8\xff" else "image/png")
 
 
 @router.post("/art/publish")

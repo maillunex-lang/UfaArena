@@ -536,9 +536,7 @@ func _external_result(victory: bool) -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 20)
 	var head := String(p.get("result_title", "ПОБЕДА" if victory else "ПОРАЖЕНИЕ"))
-	var t := UI.title(head, 76)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(t)
+	v.add_child(_result_head(victory, head, 76, not p.has("result_title")))
 	for line in p.get("lines", []):
 		var l := UI.label(String(line), 32, UI.TEXT)
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -585,9 +583,7 @@ func _result_panel(victory: bool, rewards: Dictionary, r: Dictionary) -> void:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 22)
 	v.alignment = BoxContainer.ALIGNMENT_CENTER
-	var t := UI.title("ПОБЕДА" if victory else "ПОРАЖЕНИЕ", 88)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(t)
+	v.add_child(_result_head(victory, "ПОБЕДА" if victory else "ПОРАЖЕНИЕ", 88, true))
 	var dur := UI.label("Бой длился %.1f с" % float(sim.get("duration", 0.0)), 28, UI.MUTED)
 	dur.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(dur)
@@ -703,3 +699,19 @@ func _stats_block() -> VBoxContainer:
 		body.visible = not body.visible
 		toggle.text = "Статистика боя ▴" if body.visible else "Статистика боя ▾")
 	return box
+
+
+## Result heading: the admin-panel banner (ui/battle/victory.png / defeat.png, 1024×256) when uploaded,
+## otherwise the text title. Custom titles (raids, arena) always stay text.
+func _result_head(victory: bool, text: String, size: int, allow_art: bool) -> Control:
+	var tex := UI.art("ui/battle/%s.png" % ("victory" if victory else "defeat")) if allow_art else null
+	if tex:
+		var r := TextureRect.new()
+		r.texture = tex
+		r.custom_minimum_size = Vector2(820, 205)
+		r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		return r
+	var t := UI.title(text, size)
+	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	return t

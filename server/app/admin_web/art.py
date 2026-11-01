@@ -18,13 +18,72 @@ STYLE = ("dark fantasy mobile game art, Ural mountains and Bashkir ornament moti
 MAX_BYTES = 8 * 1024 * 1024
 PACKAGE_ID = "ui.art"
 
-ICON_KINDS = {
-    "gold": "Золото", "crystals": "Кристаллы", "summon_essence": "Эссенция призыва", "nature_essence": "Эссенция природы",
-    "ancient_seals": "Древние печати", "guild_marks": "Знаки гильдии", "friend_tokens": "Жетоны дружбы",
-    "raid_tickets": "Билеты рейда", "campaign": "Кампания", "heroes": "Герои", "fortress": "Крепость", "summon": "Призыв",
-    "modes": "Режимы", "chat": "Чат", "quests": "Задания", "mail": "Почта", "settings": "Настройки", "afk": "Дозор (AFK)",
-    "events": "События / пропуск", "friends": "Друзья", "guild": "Гильдия", "shop": "Магазин", "arena": "Арена",
+CURRENCY_ICONS = {
+    "gold": ("Золото", "a stack of ancient gold coins with a Bashkir sun ornament"),
+    "crystals": ("Кристаллы", "a cluster of glowing turquoise crystals"),
+    "summon_essence": ("Эссенция призыва", "a swirling violet-and-gold spirit orb in a small vessel"),
+    "nature_essence": ("Эссенция природы", "a green glowing leaf drop with a kurai reed"),
+    "ancient_seals": ("Древние печати", "a round bronze seal with ancient runes"),
+    "guild_marks": ("Знаки гильдии", "a gold medallion with an eagle emblem"),
+    "friend_tokens": ("Жетоны дружбы", "two clasped hands on a small silver token"),
+    "raid_tickets": ("Билеты рейда", "a parchment ticket with a stone-golem seal"),
 }
+SECTION_ICONS = {
+    "home": ("Главная (меню)", "a small fortress house with a golden roof"),
+    "heroes": ("Герои (меню)", "a knight helmet with a turquoise plume"),
+    "campaign": ("Поход (меню)", "a waving campaign flag on a spear"),
+    "guild": ("Гильдия (меню)", "a heraldic shield with an eagle"),
+    "world": ("Мир (меню)", "a round map of mountains and a river"),
+    "more": ("Ещё (меню)", "four rounded tiles in a 2x2 grid, gold and teal"),
+    "bell": ("Уведомления (колокольчик)", "a bell with a small turquoise gem"),
+    "profile": ("Профиль", "a silhouette bust in a round medallion"),
+    "fortress": ("Крепость", "a stone fortress tower"),
+    "summon": ("Призыв", "a glowing summoning star portal"),
+    "quests": ("Задания", "an unrolled quest scroll with a seal"),
+    "mail": ("Почта", "a sealed envelope with a wax seal"),
+    "settings": ("Настройки", "a bronze gear"),
+    "afk": ("Дозор (AFK)", "a treasure chest with a lantern on top"),
+    "events": ("События", "a bright gold four-pointed star"),
+    "friends": ("Друзья", "two friendly figures side by side"),
+    "chat": ("Чат", "a speech bubble with an ornament"),
+    "crown": ("Корона / управление", "a golden crown with turquoise gems"),
+    "ranks": ("Рейтинг", "a podium with three steps and a laurel"),
+    "shop": ("Магазин", "a merchant sack with coins"),
+    "arena": ("Арена", "two crossed sabers"),
+    "lock": ("Закрыто", "a heavy bronze padlock"),
+}
+FACTION_ICONS = {
+    "stone_sky": ("Каменное Небо", "a mountain peak with a sky spirit eye, grey-blue and silver"),
+    "living_kurai": ("Живой Курай", "a kurai reed flute wrapped in leaves, green and gold"),
+    "ashen_reach": ("Пепельный Предел", "a burning ember in an ash swirl, crimson and bronze"),
+    "shulgan": ("Шульган", "a horned shadow skull with violet glow"),
+}
+BUTTONS = {
+    "primary": ("Главная кнопка (золотая)", "polished warm gold", "«В бой», «Забрать», «Купить» — главные действия", "dark text sits on it: keep the middle light and even"),
+    "accent": ("Акцентная кнопка (бирюзовая)", "deep teal with a bright turquoise rim", "активный выбор, «Перейти», «Открыть»", "light text sits on it: keep the middle dark and even"),
+    "glass": ("Обычная кнопка (стекло)", "dark translucent teal glass with a thin gold rim", "вкладки, «Назад», второстепенные действия", "light text sits on it: keep the middle dark and even"),
+    "danger": ("Опасное действие (красная)", "dark crimson with a copper rim", "«Выйти», «Исключить», удаление", "light text sits on it: keep the middle dark and even"),
+    "dim": ("Неактивная кнопка", "muted graphite with a faint grey rim", "«В процессе», «Закрыто», недоступные действия", "light text sits on it: keep the middle dark and even"),
+}
+PANELS = {
+    "glass": ("Стеклянная панель", "512×512", 64, "large dark translucent teal glass panel, thin gold border with small ornament in each corner", "основные окна экранов, нижняя навигация (если не загружен отдельный фон меню)"),
+    "dialog": ("Окно диалога / подтверждения", "768×768", 80, "opaque dark graphite-teal dialog window, ornate gold border with Bashkir ornament corners and a small crest at the top centre", "подтверждения, уведомления, результат боя, контекстные окна"),
+    "card": ("Карточка", "512×512", 48, "compact dark card plate, thin teal-gold border, subtle inner bevel", "все карточки: задания, события, гильдия, магазин, настройки"),
+    "tile": ("Плитка раздела", "320×320", 48, "square menu tile, dark teal plate, gold border with a soft glow on the top edge", "плитки «Мир», «Ещё», активности на главной"),
+}
+REGION_LOOKS = {
+    "r1_shikhany": "four lonely shikhan mountains above the Agidel river valley at dusk, Toratau in the distance",
+    "r2_iremel": "snowy Iremel mountain slopes with stone rivers (kurums) and tundra",
+    "r3_shulgantash": "the mouth of the Shulgan-Tash cave with ancient ochre wall paintings and an underground river",
+    "r4_nugush": "the Nugush river valley with a reservoir, forested hills and morning mist",
+    "r5_yangantau": "the burning mountain Yangantau with warm vapour rising from rock fissures",
+    "r6_ufa_plateau": "the Ufa plateau with deep forests, karst canyons and a winding river",
+    "r7_zilair": "the wide Zilair steppe plateau with feather grass and wild horses under a stormy sky",
+}
+RARITY_NAMES = {1: ("Обычная", "plain grey steel"), 2: ("Необычная", "green-tinted bronze"), 3: ("Редкая", "blue steel with sapphires"),
+                4: ("Эпическая", "violet enamel with amethysts"), 5: ("Легендарная", "polished gold with turquoise gems and a soft glow"),
+                6: ("Мифическая", "crimson and gold with flame ornaments and a strong glow")}
+
 CHAT_UI = [
     ("panel.png", "Рамка окна чата", "1024×1536", "ornate rectangular window frame, thick gold border with Bashkir ornament, small turquoise diamonds in corners, crest at the top center, dark teal empty center, transparent background"),
     ("title_plaque.png", "Табличка заголовка", "880×200", "horizontal title plaque, dark teal glass center, gold ornamental frame with pointed diamond ends, transparent background"),
@@ -38,10 +97,6 @@ CHAT_UI = [
     ("event_tournaments.png", "Баннер события: турнир", "1024×256", "wide banner, crossed golden sabers and a trophy on the right, fading to the left"),
     ("event_events.png", "Баннер события мира", "1024×256", "wide banner, dark army under Toratau mountain in purple fog on the right, fading to the left"),
     ("event_guild.png", "Баннер события гильдии", "1024×256", "wide banner, golden guild banner with eagle emblem on the right, fading to the left"),
-]
-SCREENS = [
-    ("boot_bg.png", "Фон стартового экрана", "1080×1920", "epic vertical key art, Ural mountains at dawn, Toratau shikhan, ancient fortress, heroic silhouettes, cinematic light"),
-    ("logo.png", "Логотип «Уралия»", "1024×512", "game logo plate for the word URALIA, golden ornate frame with mountains, turquoise gems, empty space for the title, transparent background"),
 ]
 
 
@@ -61,14 +116,15 @@ def _ratio(size: str) -> tuple[int, int, str]:
     return w, h, f"{w // g}:{h // g}"
 
 
-def build_prompt(subject: str, size: str, composition: str, background: str) -> str:
+def build_prompt(subject: str, size: str, composition: str, background: str, fmt: str = "PNG", lettering: bool = False) -> str:
     """Prompt with the exact output size first, so any image generator gets the format right."""
     w, h, ratio = _ratio(size)
+    style = STYLE.replace(", no text,", ", lettering only as described above,") if lettering else STYLE
     return (f"{subject}.\n"
-            f"Format: exactly {w}x{h} pixels, aspect ratio {ratio}, PNG.\n"
+            f"Format: exactly {w}x{h} pixels, aspect ratio {ratio}, {fmt}.\n"
             f"Composition: {composition}.\n"
             f"Background: {background}.\n"
-            f"Style: {STYLE}.")
+            f"Style: {style}.")
 
 
 def _cap(t: str) -> str:
@@ -80,17 +136,110 @@ NINE_SLICE = ("frame for a stretchable 9-slice UI element: all four corners and 
               "ornaments only in the corners and along the border, the middle area plain and calm so it can be stretched")
 
 
+OPAQUE_NOTE = "Можно PNG или JPEG (прозрачность не нужна)."
+ALPHA_NOTE = "Только PNG с прозрачным фоном (JPEG не поддерживает прозрачность)."
+
+
+def _slot(path: str, title: str, size: str, where: str, advice: str, prompt: str, alpha: bool) -> dict:
+    if not alpha:
+        prompt = prompt.replace(", PNG.\n", ", PNG or JPEG.\n", 1)
+    return {"path": path, "title": title, "size": size, "where": where, "alpha": alpha,
+            "formats": "PNG" if alpha else "PNG / JPEG",
+            "advice": f"{advice} {ALPHA_NOTE if alpha else OPAQUE_NOTE}".strip(), "prompt": prompt}
+
+
+def _icon(path: str, name: str, look: str, where: str) -> dict:
+    prompt = build_prompt(f"Game icon \"{name}\": {look}, gold and turquoise duotone, soft magical glow", "256×256",
+                          "single object centered, filling about 80% of the canvas with even padding, strong silhouette "
+                          "readable at 48x48 px, no frame, no letters or numbers", TRANSPARENT)
+    return _slot(path, name, "256×256", where, f"Иконка «{name}». Должна читаться в размере 48 px.", prompt, True)
+
+
 def catalog() -> list[dict]:
-    sections = [{"id": "heroes", "title": "Герои", "hint": "Портреты используются в чате, на карточках героев, в бою и в профиле. Квадрат 512×512, герой по пояс, лицо в верхней трети.", "slots": []},
-                {"id": "bosses", "title": "Враги и рейд-боссы", "hint": "Портреты врагов и боссов для карточек этапов и рейдов. Квадрат 512×512.", "slots": []},
-                {"id": "icons", "title": "Иконки", "hint": "Иконки валют, разделов и кнопок. Квадрат 256×256, прозрачный фон, крупный читаемый силуэт.", "slots": []},
-                {"id": "chat", "title": "Оформление чата", "hint": "Элементы экрана чата. Рамки и кнопки растягиваются (9-slice), поэтому края и углы должны быть цельными.", "slots": []},
-                {"id": "guild", "title": "Гильдия", "hint": "Знамёна гильдий (выбираются в «Управление гильдией» → «Флаг»). Вертикальное знамя на перекладине, прозрачный фон.", "slots": []},
-                {"id": "screens", "title": "Экраны и фоны", "hint": "Стартовый экран и логотип.", "slots": []}]
-    by = {s["id"]: s for s in sections}
+    """Every replaceable graphic element of the client, grouped. Each path is read by the client (UI.art)."""
+    sec = [
+        ("screens", "Экраны и фоны", "Полноэкранные фоны и логотип. Важное держите в центре: на разных телефонах края обрезаются."),
+        ("shell", "Верхняя панель и меню", "Фон верхней панели, фон нижнего меню и круглая подложка иконок меню."),
+        ("buttons", "Кнопки", "Кнопки растягиваются по ширине текста (9-slice): углы и края должны быть цельными, середина — ровной, без надписей. Углы — 40 px при ширине 360."),
+        ("panels", "Панели и карточки", "Окна, карточки и плитки растягиваются (9-slice): орнамент только в углах и по краю, середина спокойная."),
+        ("currency", "Иконки валют", "Иконки ресурсов в верхней панели, наградах и инвентаре. 256×256, прозрачный фон."),
+        ("icons", "Иконки разделов", "Иконки меню, разделов и кнопок. 256×256, прозрачный фон, крупный силуэт."),
+        ("factions", "Эмблемы фракций", "Эмблемы на карточках героев, вкладках и в бою. 256×256, прозрачный фон."),
+        ("cards", "Рамки карточек героев", "Рамка поверх портрета героя по редкости. Центр полностью прозрачный, внизу место под имя."),
+        ("heroes", "Портреты героев", "Портреты используются в чате, на карточках героев, в бою и в профиле. Квадрат 512×512, герой по пояс, лицо в верхней трети."),
+        ("bosses", "Враги и рейд-боссы", "Портреты врагов и боссов для карточек этапов и рейдов. Квадрат 512×512."),
+        ("regions", "Регионы похода", "Баннеры глав на экране «Мир». Широкий кадр 1024×320, справа и слева можно обрезать, текст ложится сверху слева."),
+        ("battle", "Бой", "Заголовки экрана результата боя."),
+        ("story", "Сюжет и обучение", "Портрет рассказчика в сюжетных диалогах."),
+        ("chat", "Оформление чата", "Элементы экрана чата. Рамки и кнопки растягиваются (9-slice), поэтому края и углы должны быть цельными."),
+        ("guild", "Знамёна гильдий", "Знамёна гильдий (выбираются в «Управление гильдией» → «Флаг»). Вертикальное знамя на перекладине, прозрачный фон."),
+    ]
+    sections = [{"id": i, "title": t, "hint": h, "slots": []} for i, t, h in sec]
+    by = {x["id"]: x for x in sections}
+
+    # screens
+    by["screens"]["slots"] += [
+        _slot("ui/boot_bg.png", "Фон стартового экрана", "1080×1920", "экран загрузки и входа",
+              "Ключевой арт игры. Верх спокойнее — там логотип, низ закрыт окном входа.",
+              build_prompt("Epic vertical key art: Ural mountains at dawn, Toratau shikhan, an ancient fortress, heroic silhouettes, cinematic light",
+                           "1080×1920", "vertical poster, main subject in the middle third, top quarter calmer for the logo, bottom third darker for the login window",
+                           "full illustration, no transparency"), False),
+        _slot("ui/logo.png", "Логотип «Уралия»", "1024×512", "стартовый экран",
+              "Табличка под название игры (сам текст можно встроить в картинку).",
+              build_prompt("Game logo plate for the title URALIA, golden ornate frame with mountain silhouettes and turquoise gems",
+                           "1024×512", "wide plate centered with empty middle space for the title text", TRANSPARENT), True),
+        _slot("ui/app_bg.png", "Фон меню", "1080×1920", "фон всех экранов без 3D: Главная, Мир, Ещё, Задания, Настройки, гильдия, чат",
+              "Очень тёмный и малоконтрастный: поверх него идут карточки и текст.",
+              build_prompt("Dark atmospheric background: night Ural mountains silhouettes, faint Bashkir ornament pattern, subtle turquoise mist",
+                           "1080×1920", "uniform vertical background without a focal point, darkest in the middle, very low contrast so cards and text stay readable",
+                           "full illustration, no transparency"), False),
+    ]
+    # shell
+    by["shell"]["slots"] += [
+        _slot("ui/topbar.png", "Фон верхней панели", "1080×214", "верх каждого экрана: профиль, ресурсы, колокольчик",
+              "Растягивается по ширине экрана целиком. Нижний край — тонкая золотая линия.",
+              build_prompt("Top bar background strip for a mobile game HUD: dark graphite-teal with a faint ornament, thin polished gold line along the bottom edge",
+                           "1080×214", "horizontal strip, evenly dark across the whole width (profile, resource counters and a bell are drawn over it), ornament only along the bottom edge",
+                           "opaque, no transparency"), False),
+        _slot("ui/navbar.png", "Фон нижнего меню", "1040×180", "нижнее меню из 6 разделов",
+              "9-slice, углы 72 px. Шесть кнопок меню рисуются поверх — середина ровная.",
+              build_prompt("Bottom navigation bar plate: rounded dark teal glass slab, gold border with small ornaments in the corners",
+                           "1040×180", NINE_SLICE, TRANSPARENT), True),
+        _slot("ui/nav/bubble.png", "Подложка иконки меню", "256×256", "круг под каждой иконкой нижнего меню",
+              "Круглая подложка, центр тёмный и пустой — иконка рисуется поверх.",
+              build_prompt("Round medallion socket for a menu icon: dark teal glass disc with a thin gold ring and tiny ornament",
+                           "256×256", "circle centered, filling 96% of the canvas, empty dark centre", TRANSPARENT), True),
+    ]
+    # buttons
+    for kind, (title, look, where, text_note) in BUTTONS.items():
+        by["buttons"]["slots"].append(_slot(
+            f"ui/buttons/{kind}.png", title, "360×120", where,
+            "9-slice, углы 40 px. Без текста: подпись кнопки игра рисует сама.",
+            build_prompt(f"Mobile game button plate, {look}, rounded rectangle with a subtle bevel and Bashkir ornament in the corners",
+                         "360×120", f"{NINE_SLICE}; {text_note}; no text", TRANSPARENT), True))
+    # panels
+    for code, (title, size, margin, look, where) in PANELS.items():
+        by["panels"]["slots"].append(_slot(
+            f"ui/panels/{code}.png", title, size, where, f"9-slice, углы {margin} px.",
+            build_prompt(_cap(look), size, NINE_SLICE, TRANSPARENT), True))
+    # icons
+    for kind, (name, look) in CURRENCY_ICONS.items():
+        by["currency"]["slots"].append(_icon(f"icons/{kind}.png", name, look, "верхняя панель, награды, инвентарь, магазин"))
+    for kind, (name, look) in SECTION_ICONS.items():
+        by["icons"]["slots"].append(_icon(f"icons/{kind}.png", name, look, "меню, плитки разделов, кнопки"))
+    for kind, (name, look) in FACTION_ICONS.items():
+        by["factions"]["slots"].append(_icon(f"icons/{kind}.png", f"Эмблема «{name}»", look, "карточки героев, вкладки фракций, бой"))
+    # hero card frames
+    for r, (name, look) in RARITY_NAMES.items():
+        by["cards"]["slots"].append(_slot(
+            f"ui/cards/frame_r{r}.png", f"Рамка: {name}", "460×600", "карточки героев в коллекции, формации, призыве",
+            "Растягивается на карточку 230×300 (в 2 раза меньше). Центр прозрачный, нижние 80 px — плашка под имя.",
+            build_prompt(f"Ornate hero card frame, {look}, thin border with decorated corners, a small plate along the bottom for the name",
+                         "460×600", "frame only along the edges (border about 6% of the width), the whole centre fully transparent so the portrait shows through, "
+                         "a dark nameplate band across the bottom 13%", TRANSPARENT), True))
+    # heroes / bosses
     for h in D.HEROES:
         enemy = h.get("is_enemy")
-        sec = by["bosses" if enemy else "heroes"]
         extra = h.get("extra") or {}
         lore = (h.get("lore") or h.get("title") or "")[:160]
         looks = extra.get("appearance", "")
@@ -105,15 +254,33 @@ def catalog() -> list[dict]:
                               "bust shot (head and shoulders to waist), character centered, face in the upper third, looking at the viewer, "
                               "nothing important cut by the edges, readable even when shown as a small round avatar",
                               "dark teal gradient with soft gold particles and a subtle rim light, no text")
-        sec["slots"].append({"path": f"heroes/{h['code']}.png", "title": h["name"], "size": "512×512",
-                             "advice": f"Портрет «{h['name']}». {lore}".strip(), "prompt": prompt})
-    for kind, name in ICON_KINDS.items():
-        subject = f"Game icon representing \"{name}\" ({kind.replace('_', ' ')}), a single bold object, gold and turquoise, soft magical glow"
-        prompt = build_prompt(subject, "256×256",
-                              "object centered and filling about 80% of the canvas with even padding, strong silhouette readable at 48x48 px, "
-                              "no frame, no letters or numbers", TRANSPARENT)
-        by["icons"]["slots"].append({"path": f"icons/{kind}.png", "title": name, "size": "256×256",
-                                     "advice": f"Иконка «{name}». Должна читаться в размере 48 px.", "prompt": prompt})
+        by["bosses" if enemy else "heroes"]["slots"].append(_slot(
+            f"heroes/{h['code']}.png", h["name"], "512×512", "карточки, чат, бой, профиль, диалоги",
+            f"Портрет «{h['name']}». {lore}".strip(), prompt, False))
+    # regions
+    for r in D.REGIONS:
+        look = REGION_LOOKS.get(r["code"], f"landscape of {r['name']} in the Southern Urals")
+        by["regions"]["slots"].append(_slot(
+            f"regions/{r['code']}.png", r["name"], "1024×320", "экран «Мир» → список регионов (фон карточки главы)",
+            f"Глава «{r['name']}» ({r.get('real_place', '')}). Картинка показывается приглушённой под текстом.",
+            build_prompt(f"Wide landscape banner: {look}, Southern Urals, Bashkortostan", "1024×320",
+                         "panoramic, horizon in the lower half, the top-left area calmer and darker for the chapter title, important details away from the left and right edges",
+                         "full illustration, no transparency"), False))
+    # battle
+    for code, name, look in (("victory", "Заголовок «ПОБЕДА»", "the word ПОБЕДА in Cyrillic, carved gold letters with turquoise glow, laurel wings and a crest"),
+                             ("defeat", "Заголовок «ПОРАЖЕНИЕ»", "the word ПОРАЖЕНИЕ in Cyrillic, cracked dark bronze letters with faint red embers, broken sabers")):
+        by["battle"]["slots"].append(_slot(
+            f"ui/battle/{code}.png", name, "1024×256", "экран результата боя (вместо текстового заголовка)",
+            "Надпись должна быть внутри картинки; проверьте, что буквы написаны правильно.",
+            build_prompt(f"Game result title banner: {look}", "1024×256", "wide banner, lettering centered and filling 80% of the width",
+                         TRANSPARENT, lettering=True), True))
+    # story
+    by["story"]["slots"].append(_slot(
+        "ui/story/narrator.png", "Летописец (рассказчик)", "512×512", "сюжетные диалоги и обучение",
+        "Портрет старого мудреца-сказителя, по пояс, смотрит в кадр.",
+        build_prompt("Fantasy portrait of an old Bashkir storyteller-chronicler (sesen) with a long grey beard, fur hat, holding a kurai flute and an old book",
+                     "512×512", "bust shot, face in the upper third, looking at the viewer", TRANSPARENT), True))
+    # chat
     for f, title, size, p in CHAT_UI:
         nine = f in ("panel.png", "title_plaque.png", "tab.png", "tab_active.png", "bubble.png", "bubble_mine.png")
         opaque = f.startswith("event_") or f == "background.png"
@@ -122,7 +289,8 @@ def catalog() -> list[dict]:
                                         else "vertical scene, no focal object in the middle, very low contrast so text stays readable")
         prompt = build_prompt(_cap(p.split(", transparent background")[0]), size, comp,
                               "dark, no transparency" if opaque else TRANSPARENT)
-        by["chat"]["slots"].append({"path": f"ui/chat/{f}", "title": title, "size": size, "advice": f"{title}, {size}.", "prompt": prompt})
+        by["chat"]["slots"].append(_slot(f"ui/chat/{f}", title, size, "экран чата", f"{title}, {size}.", prompt, not opaque))
+    # guild banners
     banners = {"wolf": ("Волк", "teal cloth, a howling wolf head emblem"), "bear": ("Медведь", "crimson cloth, a roaring bear emblem"),
                "eagle": ("Орёл", "royal blue cloth, a golden eagle with spread wings"), "tree": ("Древо", "purple cloth, a sacred tree of life"),
                "horse": ("Конь", "green cloth, a proud horse head (tulpar)"), "stone": ("Гора", "graphite cloth, mountain peaks of the Urals")}
@@ -130,15 +298,17 @@ def catalog() -> list[dict]:
         prompt = build_prompt(f"Vertical guild war banner on a golden crossbar with finials, {look}, gold trim and Bashkir ornament, "
                               f"swallowtail bottom edge with a small turquoise gem", "512×768",
                               "banner centered, crossbar at the very top, the whole banner visible with even padding", TRANSPARENT)
-        by["guild"]["slots"].append({"path": f"guild/banner_{code}.png", "title": f"Знамя «{name}»", "size": "512×768",
-                                     "advice": f"Знамя гильдии «{name}».", "prompt": prompt})
-    for f, title, size, p in SCREENS:
-        comp = ("vertical poster, main subject in the lower two thirds, top area calmer for the game logo"
-                if f == "boot_bg.png" else "wide plate centered with empty middle space for the title text")
-        prompt = build_prompt(_cap(p.split(", transparent background")[0]), size, comp,
-                              TRANSPARENT if f == "logo.png" else "full illustration, no transparency")
-        by["screens"]["slots"].append({"path": f"ui/{f}", "title": title, "size": size, "advice": f"{title}, {size}.", "prompt": prompt})
+        by["guild"]["slots"].append(_slot(f"guild/banner_{code}.png", f"Знамя «{name}»", "512×768", "экран гильдии, список гильдий",
+                                          f"Знамя гильдии «{name}».", prompt, True))
     return sections
+
+
+def slot_info(path: str) -> dict | None:
+    for sec in catalog():
+        for s in sec["slots"]:
+            if s["path"] == path:
+                return s
+    return None
 
 
 def slot_paths() -> set[str]:
@@ -195,21 +365,24 @@ def image_size(data: bytes) -> tuple[str, int, int] | None:
 
 
 def stage(path: str, data: bytes) -> dict:
-    if path not in slot_paths():
+    info_slot = slot_info(path)
+    if info_slot is None:
         raise ValueError("Неизвестный слот графики")
     if len(data) > MAX_BYTES:
         raise ValueError("Файл больше 8 МБ")
     info = image_size(data)
     if info is None:
-        raise ValueError("Нужен PNG, JPG или WEBP")
+        raise ValueError("Нужен PNG или JPEG")
     fmt, w, h = info
-    if fmt != "png":
-        raise ValueError("Загрузите PNG (для прозрачности и надёжной загрузки в игре)")
+    if fmt == "webp":
+        raise ValueError("WEBP не поддерживается: сохраните картинку как PNG или JPEG")
+    if fmt == "jpg" and info_slot["alpha"]:
+        raise ValueError("Этому элементу нужен прозрачный фон — загрузите PNG (JPEG не хранит прозрачность)")
     dst = staging() / path
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_bytes(data)
     idx = index()
-    idx["files"][path] = {"size": len(data), "width": w, "height": h, "uploaded_at": utcnow().isoformat(), "published": False}
+    idx["files"][path] = {"size": len(data), "width": w, "height": h, "format": fmt, "uploaded_at": utcnow().isoformat(), "published": False}
     _save_index(idx)
     return idx["files"][path]
 
