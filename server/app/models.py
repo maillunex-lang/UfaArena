@@ -1271,3 +1271,93 @@ class AiBiography(Base):
     persona_id: Mapped[str] = mapped_column(ForeignKey("ai_personas.id", ondelete="CASCADE"), primary_key=True)
     entries: Mapped[list] = mapped_column(JSON, default=list)      # [{at, kind, text}]
     updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+# ---------------------------------------------------------------- Living World AI phase 4: social system, guilds
+class AiRelationship(Base):
+    """How one AI persona feels about another persona or a real player (stage 6). Kept between sessions."""
+    __tablename__ = "ai_relationships"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    subject_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)  # the AI persona's user
+    object_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)   # AI or real player
+    sympathy: Mapped[float] = mapped_column(Float, default=0.0)   # -1 … 1
+    trust: Mapped[float] = mapped_column(Float, default=0.0)      # 0 … 1
+    rivalry: Mapped[float] = mapped_column(Float, default=0.0)    # 0 … 1
+    dislike: Mapped[float] = mapped_column(Float, default=0.0)    # 0 … 1
+    interactions: Mapped[int] = mapped_column(Integer, default=0)
+    history: Mapped[list] = mapped_column(JSON, default=list)     # last events [{at, kind}]
+    last_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    __table_args__ = (UniqueConstraint("subject_id", "object_id", name="uq_ai_relationship_pair"),)
+
+
+class AiSocialGroup(Base):
+    """Informal groups (circles of friends, clubs, rival bands) of AI personas; real players may be members."""
+    __tablename__ = "ai_social_groups"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(64))
+    kind: Mapped[str] = mapped_column(String(16), default="friends")   # friends | club | rivals
+    founder_id: Mapped[str | None] = mapped_column(String(36))
+    topic: Mapped[str] = mapped_column(String(32), default="")         # arena | raid | story | chat …
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AiSocialGroupMember(Base):
+    __tablename__ = "ai_social_group_members"
+    group_id: Mapped[str] = mapped_column(ForeignKey("ai_social_groups.id", ondelete="CASCADE"), primary_key=True)
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True, index=True)
+    role: Mapped[str] = mapped_column(String(16), default="member")
+    joined_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class AiGuildState(Base):
+    """AI side of a guild (stage 9): reputation, traditions, relations with other guilds, elections and decisions."""
+    __tablename__ = "ai_guild_state"
+    guild_id: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), primary_key=True)
+    reputation: Mapped[float] = mapped_column(Float, default=0.0)
+    traditions: Mapped[list] = mapped_column(JSON, default=list)
+    relations: Mapped[dict] = mapped_column(JSON, default=dict)      # other guild id -> -1 … 1
+    history: Mapped[list] = mapped_column(JSON, default=list)        # elections, alliances, wars, decisions
+    next_election_at: Mapped[datetime | None] = mapped_column(TS)
+    updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class AiPlayerWatch(Base):
+    """What the AI residents noticed about a real player (stage 16): level/power for congratulations, absence,
+    and the contact limits (messages per day, invitations per week)."""
+    __tablename__ = "ai_player_watch"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    level: Mapped[int] = mapped_column(Integer, default=0)
+    seen_at: Mapped[datetime | None] = mapped_column(TS)
+    contacted_at: Mapped[datetime | None] = mapped_column(TS)
+    day: Mapped[str] = mapped_column(String(10), default="")
+    contacts_today: Mapped[int] = mapped_column(Integer, default=0)
+    week: Mapped[str] = mapped_column(String(10), default="")
+    invites_week: Mapped[int] = mapped_column(Integer, default=0)
+    flags: Mapped[dict] = mapped_column(JSON, default=dict)          # one-time things already done (greeted, helped…)
+
+
+class GuildAlliance(Base):
+    """Guild alliances (decision D-12): up to 3 guilds, shared alliance chat, allies are never matched in wars."""
+    __tablename__ = "guild_alliances"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(48))
+    founder_guild_id: Mapped[str | None] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class GuildAllianceMember(Base):
+    __tablename__ = "guild_alliance_members"
+    guild_id: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), primary_key=True)
+    alliance_id: Mapped[str] = mapped_column(ForeignKey("guild_alliances.id", ondelete="CASCADE"), index=True)
+    joined_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class GuildAllianceProposal(Base):
+    __tablename__ = "guild_alliance_proposals"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    from_guild_id: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), index=True)
+    to_guild_id: Mapped[str] = mapped_column(ForeignKey("guilds.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String(16), default="pending")  # pending | accepted | declined | cancelled
+    proposed_by: Mapped[str | None] = mapped_column(String(36))
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)

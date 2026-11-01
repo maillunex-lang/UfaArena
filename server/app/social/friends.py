@@ -338,6 +338,10 @@ def _send(db: Session, me: str, to: str, kind: str) -> FriendGift:
     db.add(g)
     db.flush()
     P.on(db, me, "gift_sent" if kind == "gift" else "help", ref=to)
+    tp = db.get(PlayerProfile, to)
+    if tp is not None and tp.is_ai:  # an AI resident appreciates a gift from a player (stage 16)
+        from ..ai import social as SOC
+        SOC.relate(db, to, me, "gift")
     return g
 
 

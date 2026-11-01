@@ -201,7 +201,13 @@ from . import personality as PERS  # noqa: E402
 from . import speech as SP  # noqa: E402
 from . import tiers as TR  # noqa: E402
 
-SECTIONS = {"speech": SP.SECTION, "memory": MEM.SECTION, "tiers": TR.SECTION}
+from ..social import channels as CHN  # noqa: E402
+from . import guild_ai as GAI  # noqa: E402
+from . import outreach as OUT  # noqa: E402
+from . import social as SOC  # noqa: E402
+
+SECTIONS = {"speech": SP.SECTION, "memory": MEM.SECTION, "tiers": TR.SECTION, "channels": CHN.SECTION,
+            "guilds": GAI.SECTION, "outreach": OUT.SECTION}
 
 
 def _section(name: str):
@@ -324,6 +330,8 @@ def character(persona_id: str, who: str = Depends(admin), db: Session = Depends(
             "snapshots": [{"id": s.id, "version": s.version, "reason": s.reason, "by": s.created_by,
                            "at": as_utc(s.created_at).isoformat()} for s in snaps],
             "archive": [{"period": a.period, "stats": a.stats, "notes": a.notes[-10:]} for a in arch],
+            "relationships": _rels(db, p.user_id, 12), "reputation": SOC.reputation(db, p.user_id),
+            "group": (lambda g: {"id": g.id, "name": g.name} if g else None)(SOC.group_of(db, p.user_id)),
             "dict": {"traits": PERS.TRAITS, "ambitions": PERS.AMBITIONS, "habits": PERS.HABITS, "tiers":
                      {k: v["name"] for k, v in TR.TIERS.items()}, "kinds": MEM.KINDS, "bio": MEM.BIO_KINDS}}
 
@@ -513,3 +521,182 @@ def llm_model_set(body: LlmModelIn, who: str = Depends(admin), db: Session = Dep
         raise GameError("bad_model", str(e), 400)
     db.commit()
     return {"ok": True}
+# ------------------------------------------------------------------ phase 4: social system, guilds, players
+def _rels(db: Session, subject_id: str, limit: int = 20) -> list[dict]:
+    from ..models import AiRelationship
+    rows = db.scalars(select(AiRelationship).where(AiRelationship.subject_id == subject_id)
+                      .order_by((func.abs(AiRelationship.sympathy) + AiRelationship.rivalry + AiRelationship.dislike).desc())
+                      .limit(limit)).all()
+    out = []
+    for r in rows:
+        op = db.get(PlayerProfile, r.object_id)
+        out.append({"user_id": r.object_id, "nickname": op.nickname if op else "?", "is_ai": op.is_ai if op else None,
+                    "label": SOC.label(r), "sympathy": r.sympathy, "trust": r.trust, "rivalry": r.rivalry,
+                    "dislike": r.dislike, "interactions": r.interactions, "last_at": as_utc(r.last_at).isoformat()})
+    return out
+
+
+@router.get("/social/overview")
+def social_overview(who: str = Depends(admin), db: Session = Depends(get_db)):
+    from ..models import AiRelationship, AiSocialGroup, AiSocialGroupMember, GuildAlliance
+    c = lambda q: db.scalar(q) or 0  # noqa: E731
+    strong = list(db.scalars(select(AiRelationship).order_by((AiRelationship.sympathy + AiRelationship.trust).desc()).limit(15)))
+    rivals = list(db.scalars(select(AiRelationship).order_by(AiRelationship.rivalry.desc()).limit(10)))
+    def pair(r):
+        a, b = db.get(PlayerProfile, r.subject_id), db.get(PlayerProfile, r.object_id)
+        return {"a": a.nickname if a else "?", "b": b.nickname if b else "?", "b_is_ai": b.is_ai if b else None,
+                "label": SOC.label(r), "sympathy": r.sympathy, "trust": r.trust, "rivalry": r.rivalry}
+    groups = []
+    for g in db.scalars(select(AiSocialGroup).order_by(AiSocialGroup.created_at.desc()).limit(40)):
+        ids = SOC.members(db, g.id)
+        mem = [(pp.nickname, pp.is_ai) for pp in db.scalars(select(PlayerProfile).where(PlayerProfile.user_id.in_(ids)))]
+        groups.append({"id": g.id, "name": g.name, "kind": g.kind, "topic": g.topic, "active": g.active,
+                       "members": [{"nickname": n, "is_ai": a} for n, a in mem], "real": sum(1 for _, a in mem if not a)})
+    return {"relationships": c(select(func.count()).select_from(AiRelationship)),
+            "with_players": c(select(func.count()).select_from(AiRelationship).join(PlayerProfile, PlayerProfile.user_id == AiRelationship.object_id)
+                              .where(PlayerProfile.is_ai.is_(False))),
+            "groups": c(select(func.count()).select_from(AiSocialGroup).where(AiSocialGroup.active.is_(True))),
+            "group_members_real": c(select(func.count()).select_from(AiSocialGroupMember).join(PlayerProfile, PlayerProfile.user_id == AiSocialGroupMember.user_id)
+                                    .where(PlayerProfile.is_ai.is_(False))),
+            "alliances": c(select(func.count()).select_from(GuildAlliance)),
+            "strongest": [pair(r) for r in strong], "rivalries": [pair(r) for r in rivals if r.rivalry > 0],
+            "group_list": groups}
+
+
+@router.post("/groups/{group_id}/active")
+def group_active(group_id: str, body: dict, who: str = Depends(admin), db: Session = Depends(get_db)):
+    from ..models import AiSocialGroup
+    g = db.get(AiSocialGroup, group_id)
+    if g is None:
+        raise GameError("not_found", "Группа не найдена", 404)
+    g.active = bool(body.get("active"))
+    db.add(AdminAction(admin=who, action="ai_group_active", details={"group": group_id, "active": g.active}))
+    db.commit()
+    return {"ok": True, "active": g.active}
+
+
+@router.get("/guilds")
+def ai_guilds(who: str = Depends(admin), db: Session = Depends(get_db)):
+    from ..models import Guild, GuildMember
+    from ..social import alliances as AL
+    out = []
+    for g in db.scalars(select(Guild).order_by(Guild.is_ai.desc(), Guild.name)):
+        st = GAI.state(db, g)
+        ids = list(db.scalars(select(GuildMember.user_id).where(GuildMember.guild_id == g.id)))
+        real = db.scalar(select(func.count()).select_from(PlayerProfile).where(PlayerProfile.user_id.in_(ids),
+                                                                                PlayerProfile.is_ai.is_(False))) or 0 if ids else 0
+        leader = db.get(PlayerProfile, g.leader_id) if g.leader_id else None
+        a = AL.alliance_of(db, g.id)
+        rel = []
+        for oid, v in sorted((st.relations or {}).items(), key=lambda kv: -abs(kv[1]))[:5]:
+            og = db.get(Guild, oid)
+            if og:
+                rel.append({"guild": og.name, "value": v})
+        out.append({"id": g.id, "name": g.name, "tag": g.tag, "is_ai": g.is_ai, "members": len(ids), "real_members": real,
+                    "leader": leader.nickname if leader else None, "leader_is_ai": leader.is_ai if leader else None,
+                    "reputation": st.reputation, "traditions": [{"code": t, "name": GAI.TRADITIONS.get(t, t)} for t in st.traditions or []],
+                    "next_election_at": as_utc(st.next_election_at).isoformat() if st.next_election_at else None,
+                    "alliance": a.name if a else None, "relations": rel, "history": list(st.history or [])[-8:]})
+    db.commit()
+    return {"items": out, "traditions": GAI.TRADITIONS}
+
+
+@router.post("/guilds/{guild_id}/election")
+def election_now(guild_id: str, who: str = Depends(admin), db: Session = Depends(get_db)):
+    import random as _r
+    from ..models import Guild
+    g = db.get(Guild, guild_id)
+    if g is None or not g.is_ai:
+        raise GameError("bad_guild", "Выборы проводятся только в ИИ-гильдиях", 400)
+    st = GAI.state(db, g)
+    st.next_election_at = utcnow()
+    r = GAI.run_election(db, g, _r.Random(), GAI.SECTION.get(db))
+    db.add(AdminAction(admin=who, action="ai_guild_election", details={"guild": guild_id}))
+    db.commit()
+    return {"result": r}
+
+
+@router.put("/guilds/{guild_id}/traditions")
+def guild_traditions(guild_id: str, body: dict, who: str = Depends(admin), db: Session = Depends(get_db)):
+    from ..models import Guild
+    g = db.get(Guild, guild_id)
+    if g is None:
+        raise GameError("not_found", "Гильдия не найдена", 404)
+    trad = [t for t in (body.get("traditions") or []) if t in GAI.TRADITIONS][:4]
+    GAI.state(db, g).traditions = trad
+    db.add(AdminAction(admin=who, action="ai_guild_traditions", details={"guild": guild_id, "traditions": trad}))
+    db.commit()
+    return {"traditions": trad}
+
+
+@router.post("/guilds/found-now")
+def found_now(who: str = Depends(admin), db: Session = Depends(get_db)):
+    import random as _r
+    g = GAI.found_guild(db, _r.Random(), GAI.SECTION.get(db))
+    db.add(AdminAction(admin=who, action="ai_guild_found", details={"guild": g.name if g else None}))
+    db.commit()
+    return {"guild": g.name if g else None,
+            "note": None if g else "Не хватает ИИ без гильдии или достигнут предел ИИ-гильдий"}
+
+
+@router.get("/outreach/exceptions")
+def outreach_exceptions(who: str = Depends(admin), db: Session = Depends(get_db)):
+    ex = OUT.exceptions(db)
+    players = [{"user_id": p.user_id, "nickname": p.nickname, "uralia_id": p.uralia_id}
+               for p in db.scalars(select(PlayerProfile).where(PlayerProfile.user_id.in_(ex["players"])))] if ex["players"] else []
+    personas = [{"id": a.id, "nickname": n} for a, n in db.execute(
+        select(AiPersona, PlayerProfile.nickname).join(PlayerProfile, PlayerProfile.user_id == AiPersona.user_id)
+        .where(AiPersona.id.in_(ex["personas"]))).all()] if ex["personas"] else []
+    return {"players": players, "personas": personas}
+
+
+class ExceptionIn(BaseModel):
+    uralia_id: str | None = Field(None, max_length=16)
+    persona_id: str | None = Field(None, max_length=36)
+    add: bool = True
+
+
+@router.post("/outreach/exceptions")
+def outreach_exception_set(body: ExceptionIn, who: str = Depends(admin), db: Session = Depends(get_db)):
+    ex = OUT.exceptions(db)
+    if body.uralia_id:
+        p = db.scalar(select(PlayerProfile).where(PlayerProfile.uralia_id == body.uralia_id.strip().upper()))
+        if p is None or p.is_ai:
+            raise GameError("not_found", "Игрок не найден", 404)
+        s = set(ex["players"])
+        (s.add if body.add else s.discard)(p.user_id)
+        OUT.set_exceptions(db, list(s), None)
+    elif body.persona_id:
+        if db.get(AiPersona, body.persona_id) is None:
+            raise GameError("not_found", "ИИ-персонаж не найден", 404)
+        s = set(ex["personas"])
+        (s.add if body.add else s.discard)(body.persona_id)
+        OUT.set_exceptions(db, None, list(s))
+    else:
+        raise GameError("bad_request", "Укажите игрока или ИИ-персонажа", 400)
+    db.add(AdminAction(admin=who, action="ai_outreach_exception", details=body.model_dump()))
+    db.commit()
+    return outreach_exceptions(who, db)
+
+
+@router.get("/players/{uralia_id}")
+def player_ai_view(uralia_id: str, who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Everything AI residents know and did with one real player: privacy, limits, relationships, messages."""
+    from ..models import AiPlayerWatch, AiRelationship
+    from ..social.ai.control import player_prefs
+    p = db.scalar(select(PlayerProfile).where(PlayerProfile.uralia_id == uralia_id.strip().upper()))
+    if p is None or p.is_ai:
+        raise GameError("not_found", "Игрок не найден", 404)
+    w = db.get(AiPlayerWatch, p.user_id)
+    rels = []
+    for r in db.scalars(select(AiRelationship).where(AiRelationship.object_id == p.user_id)
+                        .order_by((AiRelationship.sympathy + AiRelationship.rivalry).desc()).limit(20)):
+        ap = db.get(PlayerProfile, r.subject_id)
+        rels.append({"ai": ap.nickname if ap else "?", "label": SOC.label(r), "sympathy": r.sympathy, "trust": r.trust,
+                     "rivalry": r.rivalry, "dislike": r.dislike, "interactions": r.interactions})
+    g = SOC.group_of(db, p.user_id)
+    return {"nickname": p.nickname, "uralia_id": p.uralia_id, "level": p.level, "prefs": player_prefs(p),
+            "excluded": p.user_id in OUT.exceptions(db)["players"], "reputation": SOC.reputation(db, p.user_id),
+            "watch": {"contacts_today": w.contacts_today, "invites_week": w.invites_week, "flags": w.flags,
+                      "contacted_at": as_utc(w.contacted_at).isoformat() if w.contacted_at else None} if w else None,
+            "relationships": rels, "group": g.name if g else None, "messages": OUT.history(db, p.user_id)}

@@ -98,7 +98,8 @@ def can_read(db: Session, user_id: str, channel: str) -> bool:
         return m is not None and channel == f"guild:{m.guild_id}"
     if channel.startswith("dm:"):
         return user_id in channel.split(":")[1:]
-    return False
+    from .channels import can_read as extra_can_read
+    return extra_can_read(db, user_id, channel)  # region / event / alliance / group / news (Living World AI stage 8)
 
 
 def active_sanction(db: Session, user_id: str, kinds: tuple[str, ...]) -> Sanction | None:
@@ -212,6 +213,8 @@ def channels(user: CurrentUser = Depends(player), db: Session = Depends(get_db))
         if other:
             c = card(db, other[0], user.id)
             chans.append({"channel": ch, "name": c["nickname"], "is_ai": c["is_ai"], "user_id": other[0]})
+    from .channels import extra_channels
+    chans.extend(extra_channels(db, user.id))
     for c in chans:
         r = db.get(ChatRead, (user.id, c["channel"]))
         last = r.last_id if r else 0
@@ -240,7 +243,8 @@ def messages(channel: str = Query(max_length=80), after: int = Query(0, ge=0), b
             stmt = stmt.where(ChatMessage.id < before)
         rows = list(reversed(db.scalars(stmt.order_by(ChatMessage.id.desc()).limit(C()["page"])).all()))
     from .ai.control import player_prefs
-    hide_ai = channel == "global" and not player_prefs(db.get(PlayerProfile, user.id)).get("show_ai_chat", True)
+    hide_ai = (channel == "global" or channel.startswith(("region:", "event:"))) and \
+        not player_prefs(db.get(PlayerProfile, user.id)).get("show_ai_chat", True)
     rows = [m for m in rows if m.user_id not in hide and not (hide_ai and m.is_ai)]
     cards: dict = {}
     out = [view(db, m, user.id, cards) for m in rows]
@@ -278,6 +282,8 @@ def send(body: SendIn, user: CurrentUser = Depends(player), db: Session = Depend
         channel = dm_channel(user.id, body.to_user)
     if not channel or not can_read(db, user.id, channel):
         raise GameError("forbidden", "Нет доступа к каналу", 403)
+    if channel == "news":
+        raise GameError("read_only", "В канал «Объявления» пишет только администрация", 403)
     flood_check(user.id)
     msg = post(db, user.id, channel, body.text)
     db.commit()
@@ -287,7 +293,7 @@ def send(body: SendIn, user: CurrentUser = Depends(player), db: Session = Depend
             from .ai.population import queue_reply
             queue_reply(db, other[0], user.id, channel, msg.text)
             db.commit()
-    elif channel == "global" or channel.startswith("guild:"):
+    elif channel == "global" or channel.startswith(("guild:", "region:", "event:", "alliance:", "group:")):
         from .ai.population import queue_mention
         queue_mention(db, channel, user.id, msg.text)
         db.commit()

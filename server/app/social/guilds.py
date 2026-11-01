@@ -154,6 +154,12 @@ def join(db: Session, g: Guild, user_id: str, actor: str | None, how: str) -> Gu
     if gsettings(g).get("notify_chat", True):
         from .chat import system_message
         system_message(db, f"guild:{g.id}", f"{profile(db, user_id).nickname} вступает в гильдию.")
+    try:  # Living World AI: AI members greet a real newcomer (guild tradition), paced like the chat
+        from ..ai.guild_ai import welcome
+        with db.begin_nested():
+            welcome(db, g, user_id)
+    except Exception:
+        pass
     return m
 
 
@@ -808,7 +814,9 @@ def war_start(user: CurrentUser = Depends(player), db: Session = Depends(get_db)
         busy |= {w.guild_a, w.guild_b}
     if g.id in busy:
         raise GameError("busy", "Гильдия уже воюет", 409)
-    cands = [x for x in db.scalars(select(Guild).where(Guild.id != g.id)) if x.id not in busy
+    from .alliances import allies
+    friends_ = set(allies(db, g.id))  # allies are never matched against each other (D-12)
+    cands = [x for x in db.scalars(select(Guild).where(Guild.id != g.id)) if x.id not in busy and x.id not in friends_
              and member_count(db, x.id) >= G()["war"]["min_members"]]
     if not cands:
         raise GameError("no_opponent", "Сейчас нет свободного соперника, попробуйте позже", 409)

@@ -15,7 +15,7 @@ from ...models import AdminAction, Guild, PlayerProfile, ServerSetting
 
 GLOBAL_DEFAULT = {"chat": True, "raids": True, "guild_help": True, "arena": True, "guild_wars": True, "arena_rated": False}
 GUILD_DEFAULT = {"recruit": True, "management": False, "raids": True, "wars": True}
-PLAYER_DEFAULT = {"arena_defense": True, "show_ai_chat": True}
+PLAYER_DEFAULT = {"arena_defense": True, "show_ai_chat": True, "ai_contact": True}
 
 GLOBAL_NAMES = {"chat": "ИИ общаются в чатах", "raids": "ИИ атакуют рейд-боссов", "guild_help": "ИИ помогают гильдиям",
                 "arena": "ИИ сражаются на арене", "guild_wars": "ИИ участвуют в войнах гильдий",
@@ -23,7 +23,8 @@ GLOBAL_NAMES = {"chat": "ИИ общаются в чатах", "raids": "ИИ а
 GUILD_NAMES = {"recruit": "Принимать ИИ-жителей в гильдию", "management": "ИИ-офицеры помогают управлять (заявки, постройки)",
                "raids": "ИИ-участники бьют босса гильдии", "wars": "ИИ-участники воюют за гильдию"}
 PLAYER_NAMES = {"arena_defense": "ИИ могут атаковать мою защиту на арене (тренировочно)",
-                "show_ai_chat": "Показывать сообщения ИИ в общем чате"}
+                "show_ai_chat": "Показывать сообщения ИИ в общем чате",
+                "ai_contact": "ИИ-персонажи могут писать мне первыми и приглашать (гильдии, события)"}
 
 router = APIRouter(tags=["ai-control"])
 
@@ -69,6 +70,7 @@ def get_prefs(user: CurrentUser = Depends(player), db: Session = Depends(get_db)
 class PrefsIn(BaseModel):
     arena_defense: bool | None = None
     show_ai_chat: bool | None = None
+    ai_contact: bool | None = None
 
 
 @router.post("/social/ai-prefs")

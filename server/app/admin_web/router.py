@@ -251,7 +251,14 @@ def chat_recent(channel: str = Query("global", max_length=80), who: str = Depend
         out.append({"id": m.id, "author": p.nickname if p else "Система", "uralia_id": p.uralia_id if p else None,
                     "is_ai": m.is_ai, "text": m.text, "hidden": m.hidden, "at": as_utc(m.created_at).isoformat()})
     guilds = [{"channel": f"guild:{g.id}", "name": f"[{g.tag}] {g.name}"} for g in db.scalars(select(Guild).order_by(Guild.name))]
-    return {"messages": out, "guilds": guilds}
+    from ..game import data as GD
+    extra = [{"channel": "news", "name": "📣 Объявления"}] + [{"channel": f"region:{r['code']}", "name": "Регион: " + r["name"]}
+                                                            for r in GD.REGIONS if r["code"] in {a for a, _ in GD.ROADS} | {b for _, b in GD.ROADS}]
+    from ..social.channels import active_event
+    ev = active_event(db)
+    if ev is not None:
+        extra.append({"channel": f"event:{ev.id}", "name": "Событие: " + ev.name})
+    return {"messages": out, "guilds": extra + guilds}
 
 
 class AdminChatIn(BaseModel):
@@ -261,8 +268,9 @@ class AdminChatIn(BaseModel):
 
 @router.post("/chat")
 def chat_send(body: AdminChatIn, who: str = Depends(admin), db: Session = Depends(get_db)):
-    if not (body.channel == "global" or re.match(r"^guild:[0-9a-f\-]{36}$", body.channel)):
-        raise GameError("bad_channel", "Можно писать в общий чат или чат гильдии")
+    if not (body.channel in ("global", "news") or re.match(r"^(guild|event|alliance|group):[0-9a-f\-]{36}$", body.channel)
+            or re.match(r"^region:[a-z0-9_]{2,32}$", body.channel)):
+        raise GameError("bad_channel", "Неизвестный канал")
     m = ChatMessage(channel=body.channel, user_id=None, text=(ADMIN_PREFIX + body.text.strip())[:400], reactions={})
     db.add(m)
     _log(db, who, "chat_send", channel=body.channel, text=body.text[:200])

@@ -47,6 +47,7 @@ class Director:
         self.last_compact = 0.0
         self.last_archive = 0.0
         self.sleeping = False
+        self.last_social = {"outreach": 0.0, "guilds": 0.0, "groups": 0.0}
         self.slow_ticks = 0
 
     # ------------------------------------------------------------------ one tick
@@ -98,6 +99,8 @@ class Director:
                 out["chat_posted"] = banter.flush(db)
                 db.commit()
 
+        if live and int(s.get("social_life", 0)):
+            out.update(self._social(db, s, now_mono))
         ms_set = MEM.SECTION.get(db)
         if acting and now_mono - self.last_archive >= ms_set["archive_every_min"] * 60:
             self.last_archive = now_mono
@@ -121,6 +124,43 @@ class Director:
         return out
 
     # ------------------------------------------------------------------ steps
+    def _social(self, db: Session, s: dict, now_mono: float) -> dict:
+        """Phase 4: reaching out to real players, guild life, informal groups — each on its own cadence, isolated so a
+        failure in one never breaks the tick."""
+        from . import guild_ai as GAI
+        from . import outreach as OUT
+        out = {}
+        for key, every, fn in (("outreach", s["outreach_every_s"], lambda: OUT.run(db, _rng)),
+                               ("guilds", s["guilds_every_s"], lambda: GAI.run(db, _rng)),
+                               ("groups", s["groups_every_s"], lambda: self._groups(db))):
+            if now_mono - self.last_social[key] < every:
+                continue
+            self.last_social[key] = now_mono
+            try:
+                with db.begin_nested():
+                    out[key] = fn()
+                db.commit()
+            except Exception as e:  # noqa: BLE001
+                db.rollback()
+                log.warning("social step %s failed: %s", key, e)
+                out[key] = {"error": str(e)[:120]}
+        return out
+
+    def _groups(self, db: Session) -> dict:
+        from datetime import timedelta as _td
+        from ..models import PlayerProfile
+        from . import social as SOC
+        made = SOC.form_groups(db, _rng)
+        joined = 0
+        since = utcnow() - _td(minutes=15)
+        for p in db.scalars(select(PlayerProfile).where(PlayerProfile.is_ai.is_(False), PlayerProfile.last_seen_at >= since).limit(30)):
+            for r in SOC.who_likes(db, p.user_id, 0.3, 3):
+                g = SOC.group_of(db, r.subject_id)
+                if g is not None and SOC.maybe_add_real_player(db, g, p.user_id):
+                    joined += 1
+                    break
+        return {"formed": made, "players_joined": joined}
+
     def _wake_up(self, db: Session) -> None:
         """The first real player came online: the chat may talk again right away and a few residents act soon."""
         from ..models import ServerSetting

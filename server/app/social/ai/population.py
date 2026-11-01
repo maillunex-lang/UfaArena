@@ -212,7 +212,9 @@ def ai_consider_friend(db: Session, ai_user_id: str, from_user: str) -> bool:
     if ok:
         remember(db, persona, from_user, "Подружились", kind="relationship")
         from ...ai import personality as PERS
+        from ...ai import social as SOC
         PERS.evolve(db, persona, "friend")
+        SOC.relate(db, persona.user_id, from_user, "friend")
         queue_reply(db, ai_user_id, from_user, None, "__welcome__")
     return ok
 
@@ -288,7 +290,9 @@ def handle_dm(db: Session, ai_uid: str, to_user: str, channel: str | None, text:
     _say(db, persona, channel or dm_channel(ai_uid, to_user), reply)
     remember(db, persona, to_user, f"Говорили: {kind}")
     from ...ai import personality as PERS
+    from ...ai import social as SOC
     PERS.evolve(db, persona, "chat")
+    SOC.relate(db, persona.user_id, to_user, "dm")
     log(db, persona, "reply", to=to_user, intent=kind, source=source)
     return True
 
@@ -349,10 +353,15 @@ def _chat_allowed(db: Session) -> bool:
 
 
 def _pick_speaker(db: Session, channel: str) -> AiPersona | None:
-    if channel.startswith("guild:"):
-        gid = channel.split(":", 1)[1]
-        ids = [m.user_id for m in db.scalars(select(GuildMember).where(GuildMember.guild_id == gid))]
-        cands = db.scalars(select(AiPersona).where(AiPersona.user_id.in_(ids), AiPersona.active.is_(True))).all()
+    from .. import channels as CHN
+    if not CHN.ai_may_post(db, channel):
+        return None
+    ids = CHN.ai_member_ids(db, channel)
+    if ids is not None:
+        cands = db.scalars(select(AiPersona).where(AiPersona.user_id.in_(ids), AiPersona.active.is_(True)).limit(80)).all()
+    elif channel.startswith("region:"):
+        code = channel.split(":", 1)[1]
+        cands = [p for p in db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).limit(200)) if CHN.ai_region(p) == code]
     else:
         cands = db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).limit(80)).all()
     cands = [c for c in cands if _awake(c)] or cands
@@ -561,6 +570,13 @@ def _arena_experience(db: Session, persona: AiPersona, target: ArenaProfile, won
     from ...ai import memory as MEM
     from ...ai import personality as PERS
     name = (db.get(PlayerProfile, target.user_id).nickname if db.get(PlayerProfile, target.user_id) else "соперник")
+    from ...ai import social as SOC
+    SOC.relate(db, persona.user_id, target.user_id, "arena_win" if won else "arena_loss")
+    if target.is_ai:
+        SOC.relate(db, target.user_id, persona.user_id, "arena_loss" if won else "arena_win")
+    else:  # a training fight against a real player's defense: maybe a friendly rivalry message (stage 16)
+        from ...ai import outreach as OUT
+        OUT.after_arena(db, persona, target.user_id, won, _rng)
     if won:
         row = PERS.count(persona, "wins_row", reset=("losses_row",))
         total = PERS.count(persona, "arena_wins")
@@ -645,6 +661,10 @@ def act_guild(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
 def _guild_joined(db: Session, persona: AiPersona, g: Guild) -> None:
     from ...ai import memory as MEM
     from ...ai import personality as PERS
+    from ...ai import social as SOC
+    for mate in db.scalars(select(GuildMember.user_id).where(GuildMember.guild_id == g.id, GuildMember.user_id != persona.user_id)
+                           .limit(5)):
+        SOC.mutual(db, persona.user_id, mate, "guild_mate")
     MEM.add(db, persona, "decision", f"Вступил в гильдию «{g.name}»", importance=3)
     MEM.bio_add(db, persona, "guild", f"Вступил в гильдию «{g.name}»")
     PERS.evolve(db, persona, "guild_join")
@@ -685,7 +705,9 @@ def act_friend(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
         make_friends(db, persona.user_id, r.from_id, r.source)
         remember(db, persona, r.from_id, "Подружились", kind="relationship")
         from ...ai import personality as PERS
+        from ...ai import social as SOC
         PERS.evolve(db, persona, "friend")
+        SOC.mutual(db, persona.user_id, r.from_id, "friend")
     friends = list(db.scalars(select(Friendship.friend_id).where(Friendship.user_id == persona.user_id)))
     real = [f for f in friends if not db.get(PlayerProfile, f).is_ai]
     if real and (persona.temperament or {}).get("helpful", 0.5) > _rng.random():
@@ -695,7 +717,9 @@ def act_friend(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
             db.add(FriendGift(from_id=persona.user_id, to_id=to, day=day(), kind="gift",
                               contents=dict(cfg()["friends"]["gift_contents"])))
             from ...ai import personality as PERS
+            from ...ai import social as SOC
             PERS.evolve(db, persona, "gift")
+            SOC.relate(db, persona.user_id, to, "gift")
             log(db, persona, "gift", to=to)
 
 
@@ -731,6 +755,12 @@ def act_raid(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
         inst.status, inst.loot_done = "defeated", True
     from ...ai import personality as PERS
     PERS.evolve(db, persona, "raid")
+    if m is not None:
+        from ...ai import social as SOC
+        mate = db.scalar(select(GuildMember.user_id).where(GuildMember.guild_id == m.guild_id,
+                                                           GuildMember.user_id != persona.user_id).order_by(func.random()).limit(1))
+        if mate:
+            SOC.relate(db, persona.user_id, mate, "raid_together")
     log(db, persona, "raid", kind=kind, damage=dmg)
 
 

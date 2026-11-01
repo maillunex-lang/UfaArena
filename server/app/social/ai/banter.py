@@ -281,6 +281,11 @@ def start_conversation(db: Session, channel: str = "global", candidates: list[Ai
     if cast is None:
         return 0
     names = {r: db.get(PlayerProfile, p.user_id).nickname for r, p in cast.items()}
+    from ...ai import social as SOC
+    people = [p.user_id for p in cast.values()]
+    for i, a_ in enumerate(people):  # talking together builds relationships (stage 6)
+        for b_ in people[i + 1:]:
+            SOC.mutual(db, a_, b_, "chat")
     ctx = _ctx(db)
     due = time.monotonic() + _rng.uniform(1, 8)
     n = 0
@@ -386,7 +391,9 @@ def keep_alive(db: Session, cfg: dict) -> dict:
     pending = len(_queue)
     from ...ai import speech as SP
     freq = SP.frequency(db)  # admin "chat frequency" scales the hourly AI chat budget
-    if pending == 0 and freq > 0 and ai_messages_last_hour(db) < cfg.get("chat_ai_per_hour", 45) * freq:
+    from .. import channels as _CHN
+    if pending == 0 and freq > 0 and _CHN.ai_may_post(db, "global") and \
+            ai_messages_last_hour(db) < cfg.get("chat_ai_per_hour", 45) * freq:
         quiet = minutes_since_last(db) >= cfg.get("quiet_minutes", 3)
         since_start = time.monotonic() - _last_start
         if quiet or since_start > cfg.get("conversation_every_s", 200) or _rng.random() < 0.2:
@@ -397,8 +404,12 @@ def keep_alive(db: Session, cfg: dict) -> dict:
                 if p and ambient(db, p):
                     stats["started"] = 1
             _last_start = time.monotonic()
+    from .. import channels as CHN
+    # regional, event, alliance and group channels where a real player can read (Living World AI stage 8)
+    if pending == 0 and freq > 0 and _rng.random() < cfg.get("extra_chat_chance", 0.3):
+        stats["started"] += _extra_channel_talk(db)
     # guild chats: only guilds where real players can read; at most one conversation in progress overall
-    if pending == 0 and _rng.random() < cfg.get("guild_chat_chance", 0.25):
+    if pending == 0 and _CHN.ai_may_post(db, "guild:x") and _rng.random() < cfg.get("guild_chat_chance", 0.25):
         from ...models import Guild
         humans = db.execute(select(GuildMember.guild_id).join(PlayerProfile, PlayerProfile.user_id == GuildMember.user_id)
                             .where(PlayerProfile.is_ai.is_(False))).scalars().all()
@@ -412,6 +423,49 @@ def keep_alive(db: Session, cfg: dict) -> dict:
                 stats["started"] += start_conversation(db, f"guild:{gid}", list(members))
                 break
     return stats
+
+
+def _extra_channel_talk(db: Session) -> int:
+    from .. import channels as CHN
+    from ...models import WorldEvent  # noqa: F401
+    opts: list[tuple[str, list[AiPersona]]] = []
+    st = CHN.SECTION.get(db)
+    ev = CHN.active_event(db)
+    if ev is not None and st["event_enabled"] and st["ai_event"]:
+        ch = f"event:{ev.id}"
+        if not in_pause(db, ch) and CHN.readers_online(db, ch):
+            opts.append((ch, list(db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).order_by(func.random()).limit(30)))))
+    if st["region_enabled"] and st["ai_region"]:
+        from ...models import PlayerCaravan
+        from datetime import timedelta
+        since = utcnow() - timedelta(minutes=15)
+        locs = set(db.scalars(select(PlayerCaravan.location).join(PlayerProfile, PlayerProfile.user_id == PlayerCaravan.user_id)
+                              .where(PlayerProfile.is_ai.is_(False), PlayerProfile.last_seen_at >= since)))
+        for code in locs:
+            ch = f"region:{code}"
+            if in_pause(db, ch):
+                continue
+            locals_ = [p for p in db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).limit(300)) if CHN.ai_region(p) == code]
+            if len(locals_) >= 2:
+                opts.append((ch, locals_))
+    for kind in ("alliance", "group"):
+        if not (st[f"{kind}_enabled"] and st[f"ai_{kind}"]):
+            continue
+        from ...models import AiSocialGroup, GuildAlliance
+        rows = db.scalars(select(GuildAlliance).limit(20)) if kind == "alliance" else \
+            db.scalars(select(AiSocialGroup).where(AiSocialGroup.active.is_(True)).limit(30))
+        for r in rows:
+            ch = f"{kind}:{r.id}"
+            if in_pause(db, ch) or not CHN.readers_online(db, ch):
+                continue
+            ids = CHN.ai_member_ids(db, ch) or []
+            ps = list(db.scalars(select(AiPersona).where(AiPersona.user_id.in_(ids), AiPersona.active.is_(True))))
+            if len(ps) >= 2:
+                opts.append((ch, ps))
+    if not opts:
+        return 0
+    ch, cands = _rng.choice(opts)
+    return start_conversation(db, ch, cands)
 
 
 def react_sometimes(db: Session) -> int:

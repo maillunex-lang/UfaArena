@@ -222,6 +222,9 @@ def fight(body: FightIn, user: CurrentUser = Depends(player), key: str = Depends
         db.flush()
         from .anticheat import check_pvp
         check_pvp(db, user.id, att, opp.defense, won)
+        if opp.is_ai:  # the AI resident remembers who beat it (or lost to it): rivalry and respect (stage 16)
+            from ..ai import social as SOC
+            SOC.relate(db, opp.user_id, user.id, "arena_loss" if won else "arena_win")
         return {"simulation": sim, "match_id": m.id, "won": won, "delta": d_att, "rating": me.rating,
                 "league": league_of(me.rating), "reward": reward, "wallet": wallet_dict(db, user.id),
                 "summary": summary(sim)}
