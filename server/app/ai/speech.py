@@ -14,22 +14,29 @@ from .sections import Section
 
 SECTION = Section("ai_speech",
                   {"intelligence": 3, "length": "medium", "chat_frequency": 100, "context_depth": 5, "emotions": True,
-                   "voice": True, "llm_enabled": False, "llm_url": "http://127.0.0.1:11434/v1", "llm_model": "qwen2.5:1.5b",
+                   "voice": True, "llm_enabled": False, "llm_provider": "local", "llm_url": "http://127.0.0.1:11434/v1",
+                   "llm_model": "", "llm_cloudflare_account": "", "llm_for_mentions": False,
                    "llm_timeout_s": 4, "llm_max_per_hour": 30, "llm_min_free_mb": 8192, "llm_max_tokens": 80,
                    "chat_min_gap_s": 10, "chat_pause_min": 5, "chat_pause_max": 15},
                   {"intelligence": ("int", 1, 5), "length": ("choice", ["short", "medium", "long"]),
                    "chat_frequency": ("int", 0, 300), "context_depth": ("int", 0, 20), "emotions": ("bool",),
-                   "voice": ("bool",), "llm_enabled": ("bool",), "llm_url": ("url", 200), "llm_model": ("str", 80),
+                   "voice": ("bool",), "llm_enabled": ("bool",),
+                   "llm_provider": ("choice", ["local", "groq", "google", "openrouter", "cloudflare", "huggingface"]),
+                   "llm_url": ("url", 200), "llm_model": ("str", 120), "llm_cloudflare_account": ("str", 64),
+                   "llm_for_mentions": ("bool",),
                    "llm_timeout_s": ("int", 1, 30), "llm_max_per_hour": ("int", 0, 2000), "llm_min_free_mb": ("int", 512, 262144),
                    "llm_max_tokens": ("int", 16, 400), "chat_min_gap_s": ("int", 3, 600),
                    "chat_pause_min": ("int", 0, 240), "chat_pause_max": ("int", 0, 480)},
                   {"intelligence": "Интеллект (1 — просто шаблоны, 5 — память, контекст и локальная модель)",
                    "length": "Длина сообщений", "chat_frequency": "Частота общения, % от обычной",
                    "context_depth": "Глубина контекста (сколько воспоминаний учитывать)", "emotions": "Эмоциональные реакции",
-                   "voice": "Индивидуальная манера речи", "llm_enabled": "Локальная языковая модель (необязательно)",
-                   "llm_url": "Адрес локальной модели (OpenAI-совместимый: llama.cpp / Ollama)", "llm_model": "Модель",
+                   "voice": "Индивидуальная манера речи", "llm_enabled": "Языковая модель для ответов игрокам (необязательно)",
+                   "llm_provider": "Поставщик модели", "llm_url": "Адрес локальной модели (только для «Локальная»)",
+                   "llm_model": "Модель (пусто — рекомендуемая для поставщика)",
+                   "llm_cloudflare_account": "ID аккаунта Cloudflare (только для Cloudflare)",
+                   "llm_for_mentions": "Модель отвечает и на упоминания в общем чате (иначе только в личных сообщениях)",
                    "llm_timeout_s": "Ожидание ответа модели, секунд", "llm_max_per_hour": "Запросов к модели в час, максимум",
-                   "llm_min_free_mb": "Минимум свободной памяти сервера для модели, МБ", "llm_max_tokens": "Длина ответа модели, токенов",
+                   "llm_min_free_mb": "Минимум свободной памяти для локальной модели, МБ", "llm_max_tokens": "Длина ответа модели, токенов",
                    "chat_min_gap_s": "Пауза между сообщениями ИИ в одном канале, секунд (минимум)",
                    "chat_pause_min": "Тишина после обсуждения: от, минут", "chat_pause_max": "Тишина после обсуждения: до, минут"})
 
@@ -108,12 +115,15 @@ def context_line(db: Session, rng: random.Random, persona: AiPersona, to_user: s
 
 
 def compose(db: Session, rng: random.Random, persona: AiPersona, base: str, to_user: str | None = None,
-            user_text: str | None = None, kind: str = "") -> tuple[str, str]:
+            user_text: str | None = None, kind: str = "", public: bool = False) -> tuple[str, str]:
     """Final text of a persona's message. Returns (text, source) where source is "template" or "llm"."""
     s = SECTION.get(db)
-    if user_text and kind not in ("who",) and int(s["intelligence"]) >= 5 and s.get("llm_enabled"):
+    use_llm = user_text and kind not in ("who",) and int(s["intelligence"]) >= 5 and s.get("llm_enabled")
+    if use_llm and public and not s.get("llm_for_mentions"):
+        use_llm = False
+    if use_llm:
         from . import llm
-        reply = llm.reply(db, persona, user_text, s, context=context_line(db, rng, persona, to_user, s))
+        reply = llm.reply(db, persona, user_text, s, context=context_line(db, rng, persona, to_user, s), to_user=to_user)
         if reply:
             return reply, "llm"
     extra = context_line(db, rng, persona, to_user, s) if int(s["intelligence"]) >= 3 else ""

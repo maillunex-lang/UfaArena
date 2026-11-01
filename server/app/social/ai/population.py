@@ -304,7 +304,8 @@ def handle_mention(db: Session, channel: str, user_id: str, text: str) -> bool:
         return False
     base = DLG.line(_rng, kind, persona.style, _context(db, persona, user_id))
     from . import banter
-    banter.say_reply(db, persona, channel, SP.compose(db, _rng, persona, base, to_user=user_id)[0])  # paced like the chat
+    banter.say_reply(db, persona, channel, SP.compose(db, _rng, persona, base, to_user=user_id, user_text=text,
+                                                      kind=kind, public=True)[0])  # paced like the chat
     log(db, persona, "chat_reply", channel=channel, intent=kind)
     return True
 

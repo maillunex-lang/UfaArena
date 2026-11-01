@@ -26,6 +26,12 @@ services:
       URALIA_JWT_SECRET: ${URALIA_JWT_SECRET:?set URALIA_JWT_SECRET}
       URALIA_ADMIN_TOKEN: ${URALIA_ADMIN_TOKEN:-}            # empty = admin panel disabled
       URALIA_PAYMENTS_COMMERCIAL_ALLOWED: "${URALIA_PAYMENTS_COMMERCIAL_ALLOWED:-0}"  # real payments OFF
+      URALIA_LLM_GROQ_KEY: ${URALIA_LLM_GROQ_KEY:-}          # optional language model keys (can also be set in the admin panel)
+      URALIA_LLM_GOOGLE_KEY: ${URALIA_LLM_GOOGLE_KEY:-}
+      URALIA_LLM_OPENROUTER_KEY: ${URALIA_LLM_OPENROUTER_KEY:-}
+      URALIA_LLM_CLOUDFLARE_KEY: ${URALIA_LLM_CLOUDFLARE_KEY:-}
+      URALIA_LLM_CLOUDFLARE_ACCOUNT: ${URALIA_LLM_CLOUDFLARE_ACCOUNT:-}
+      URALIA_LLM_HUGGINGFACE_KEY: ${URALIA_LLM_HUGGINGFACE_KEY:-}
     volumes:
       - apikeys:/srv/keys
       - contentstore:/srv/var/content_store     # published content packages (by SHA-256)
@@ -50,6 +56,12 @@ services:
       URALIA_REDIS_URL: redis://redis:6379/0
       URALIA_JWT_SECRET: ${URALIA_JWT_SECRET:?set URALIA_JWT_SECRET}
       URALIA_SCHEDULER: "off"             # the Director never runs the API's job loop
+      URALIA_LLM_GROQ_KEY: ${URALIA_LLM_GROQ_KEY:-}          # optional language model keys (can also be set in the admin panel)
+      URALIA_LLM_GOOGLE_KEY: ${URALIA_LLM_GOOGLE_KEY:-}
+      URALIA_LLM_OPENROUTER_KEY: ${URALIA_LLM_OPENROUTER_KEY:-}
+      URALIA_LLM_CLOUDFLARE_KEY: ${URALIA_LLM_CLOUDFLARE_KEY:-}
+      URALIA_LLM_CLOUDFLARE_ACCOUNT: ${URALIA_LLM_CLOUDFLARE_ACCOUNT:-}
+      URALIA_LLM_HUGGINGFACE_KEY: ${URALIA_LLM_HUGGINGFACE_KEY:-}
     volumes:
       - contentstore:/srv/var/content_store
     mem_limit: 200m                       # VPS audit: 1 vCPU, 2 GB RAM shared with other projects

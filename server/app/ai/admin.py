@@ -214,7 +214,9 @@ def _section(name: str):
 def get_section(name: str, who: str = Depends(admin), db: Session = Depends(get_db)):
     out = _section(name).describe(db)
     if name == "speech":
-        out["llm"] = LLM.status(out["settings"])
+        out["llm"] = LLM.status(out["settings"], db)
+        out["providers"] = LLM.PROVIDERS
+        out["keys"] = LLM.masked_keys(db)
     if name == "tiers":
         out["tiers"] = {k: {**{x: v[x] for x in ("name", "desc", "pace", "strategies")}, "levels": TR.tier_range(k),
                             "heroes": v["heroes"], "stars": v["stars"]} for k, v in TR.TIERS.items()}
@@ -456,3 +458,32 @@ def memory_stats(who: str = Depends(admin), db: Session = Depends(get_db)):
     return {"memories": c(AiMemory), "activity_log": c(AiActivityLog), "archive_rows": c(AiMemoryArchive),
             "biographies": c(AiBiography), "snapshots": c(AiPersonaSnapshot),
             "by_kind": dict(db.execute(select(AiMemory.kind, func.count()).group_by(AiMemory.kind)).all())}
+
+
+class LlmKeyIn(BaseModel):
+    provider: str = Field(max_length=16)
+    key: str = Field("", max_length=300)
+
+
+@router.post("/llm/key")
+def llm_key(body: LlmKeyIn, who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Store (or clear with an empty key) a provider's API key on the server. Never returned in full or logged."""
+    try:
+        LLM.set_key(db, body.provider, body.key, who)
+    except ValueError as e:
+        raise GameError("bad_key", str(e), 400)
+    db.commit()
+    return {"keys": LLM.masked_keys(db)}
+
+
+@router.post("/llm/test")
+def llm_test(body: dict | None = None, who: str = Depends(admin), db: Session = Depends(get_db)):
+    """One sample request to the selected (or given) provider: shows whether it works from this server."""
+    provider = (body or {}).get("provider")
+    if provider is not None and provider not in LLM.PROVIDERS:
+        raise GameError("bad_provider", "Неизвестный поставщик", 400)
+    r = LLM.test(db, SP.SECTION.get(db), provider)
+    db.add(AdminAction(admin=who, action="ai_llm_test", details={"provider": provider or SP.SECTION.get(db)["llm_provider"],
+                                                                 "ok": r.get("ok")}))
+    db.commit()
+    return r

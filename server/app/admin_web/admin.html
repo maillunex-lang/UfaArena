@@ -185,7 +185,7 @@ const AI_SET={tick_seconds:['Такт, секунд','Как часто Director
  sleep_when_empty:['Спать, когда нет живых игроков (1 — да, 0 — нет)','ИИ не тратят ресурсы, пока никого нет; первый вошедший игрок их будит'],wake_grace_min:['Не засыпать ещё, минут','Сколько ИИ остаются активными после ухода последнего игрока']};
 const AI_TIER={newbie:'Новичок',regular:'Обычный',experienced:'Опытный',veteran:'Ветеран',elite:'Элита'};
 const AI_STRAT={balanced:'сбалансированная',aggressive:'атакующая',defensive:'оборонительная'};
-const AI_CHOICE={short:'Короткие',medium:'Обычные',long:'Развёрнутые'};
+const AI_CHOICE={short:'Короткие',medium:'Обычные',long:'Развёрнутые',local:'Локальная (свой сервер)',groq:'Groq Cloud',google:'Google AI Studio (Gemini)',openrouter:'OpenRouter',cloudflare:'Cloudflare Workers AI',huggingface:'Hugging Face'};
 const moodTxt=m=>m==null?'—':m>0.45?'😊 радостное':m<-0.45?'😣 расстроенное':m>0.15?'🙂 хорошее':m<-0.15?'😕 так себе':'😐 спокойное';
 const AI_TASK={pending:'ожидает',running:'выполняется',done:'выполнена',failed:'ошибка',simulated:'тест (не выполнялась)',cancelled:'отменена'};
 const AI_ARCH={competitor:'Соперник',collector:'Коллекционер',socializer:'Душа компании',strategist:'Стратег',explorer:'Исследователь',newbie:'Новичок',veteran:'Ветеран'};
@@ -283,8 +283,21 @@ async section(box,name,title,note,extra){const d=await api('/ai/settings/'+name)
  $('#srb').onclick=async()=>{if(!confirm('Вернуть предыдущую версию настроек?'))return;await api('/ai/settings/'+name+'/rollback','POST',{});toast('Откат выполнен');AI[aiSec](box)};
  return d},
 
-async speech(box){await AI.section(box,'speech','Речь и интеллект ИИ','Основа — локальные шаблоны и сценарии, работают всегда. Каждый ИИ говорит в своей манере, настроение окрашивает речь, при интеллекте 3+ ИИ вспоминают прошлые разговоры. Локальная модель необязательна: включается только при достаточной памяти сервера (на текущем VPS — нет), без неё всё работает на шаблонах. Платные внешние сервисы не используются.',
- d=>`<p class="small">Локальная модель: <b>${d.llm.enabled?(d.llm.available?'<span class="ok">готова</span>':'<span class="bad">недоступна</span>'):'выключена'}</b> — ${esc(d.llm.reason)}${d.llm.last_error?' · последняя ошибка: '+esc(d.llm.last_error):''} · запросов за час ${d.llm.calls_hour||0}</p>`)},
+async speech(box){await AI.section(box,'speech','Речь и интеллект ИИ','Основа — локальные шаблоны и сценарии, работают всегда. Каждый ИИ говорит в своей манере, настроение окрашивает речь, при интеллекте 3+ ИИ вспоминают прошлые разговоры. Языковая модель необязательна и отвечает только живым игрокам при интеллекте 5; беседы ИИ между собой всегда на шаблонах. При любой ошибке модели — шаблоны.',
+ d=>`<p class="small">Модель: <b>${d.llm.enabled?(d.llm.available?'<span class="ok">готова</span>':'<span class="bad">недоступна</span>'):'выключена'}</b> · ${esc(d.llm.provider_name||'')} — ${esc(d.llm.reason)}${d.llm.last_error?' · последняя ошибка: '+esc(d.llm.last_error):''}${d.llm.last_latency_ms!=null?' · ответ за '+d.llm.last_latency_ms+' мс':''} · запросов за час ${d.llm.calls_hour||0}</p>`);
+ const d=await api('/ai/settings/speech');const sx=$('#sx');
+ sx.innerHTML=`<div class="card"><h2>Поставщики языковой модели</h2>
+ <p class="small muted">Выберите поставщика в поле «Поставщик модели» выше, включите «Языковая модель…», поставьте «Интеллект» = 5 и сохраните. Ключ API хранится только на сервере: в журнал не пишется, обратно не показывается (видны последние 4 символа), в приложение не попадает. Ключ из файла .env (URALIA_LLM_GROQ_KEY и т. п.) важнее ключа из админки.</p>
+ <p class="small bad">Внешние сервисы получают текст сообщения игрока (ник игрока заменяется на «собеседник») и описание ИИ-персонажа. Включая внешний сервис, укажите это в политике конфиденциальности игры. Бесплатные тарифы могут менять лимиты и использовать данные для обучения.</p>
+ <table>${Object.entries(d.providers).map(([k,p])=>`<tr><td><b>${esc(p.name)}</b>${k===d.settings.llm_provider?' <span class="tag g">выбран</span>':''}<div class="small muted">${esc(p.hint)}</div><div class="small muted">Модель по умолчанию: ${esc(p.model)}</div></td>
+  <td class="small">${p.key?(d.keys[k]?.configured?`<span class="ok">ключ есть</span> ${esc(d.keys[k].mask)}${d.keys[k].source==='env'?' (из .env)':''}`:'<span class="muted">ключа нет</span>'):'ключ не нужен'}</td>
+  <td>${p.key?`<div class="row" style="flex-wrap:nowrap"><input type="password" data-key="${k}" placeholder="Вставьте ключ" autocomplete="off"><button class="small" data-ksave="${k}">Сохранить</button>${d.keys[k]?.source==='admin'?`<button class="small danger" data-kdel="${k}">Удалить</button>`:''}</div>`:''}
+  <button class="small copy" data-ltest="${k}" style="margin-top:4px">Проверить связь</button><div class="small" data-lres="${k}"></div></td></tr>`).join('')}</table></div>`;
+ sx.querySelectorAll('[data-ksave]').forEach(b=>b.onclick=async()=>{const k=b.dataset.ksave,v=sx.querySelector(`[data-key="${k}"]`).value.trim();if(!v)return toast('Вставьте ключ',true);
+  await api('/ai/llm/key','POST',{provider:k,key:v});toast('Ключ сохранён на сервере');AI.speech(box)});
+ sx.querySelectorAll('[data-kdel]').forEach(b=>b.onclick=async()=>{if(!confirm('Удалить ключ этого поставщика?'))return;await api('/ai/llm/key','POST',{provider:b.dataset.kdel,key:''});toast('Ключ удалён');AI.speech(box)});
+ sx.querySelectorAll('[data-ltest]').forEach(b=>b.onclick=async()=>{const k=b.dataset.ltest,out=sx.querySelector(`[data-lres="${k}"]`);out.textContent='Проверяю…';b.disabled=true;
+  try{const r=await api('/ai/llm/test','POST',{provider:k});out.innerHTML=r.ok?`<span class="ok">Работает</span> за ${r.latency_ms} мс (${esc(r.model)}): «${esc(r.text)}»`:`<span class="bad">Не работает:</span> ${esc(r.error)}`}finally{b.disabled=false}})},
 
 async archetypes(box){const [a,t]=await Promise.all([api('/ai/archetypes'),api('/ai/settings/tiers')]);
  const bias=b=>Object.entries(b||{}).map(([k,v])=>`${k}:${v}`).join(', ');

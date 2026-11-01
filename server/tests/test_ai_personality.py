@@ -329,3 +329,91 @@ def test_chat_pacing_gap_and_quiet_after_discussion(client):
     finally:
         banter._queue.clear()
         gen.close()
+
+
+def test_llm_providers_keys_privacy_and_fallback(client, monkeypatch):
+    import json as _json
+    import threading
+    from http.server import BaseHTTPRequestHandler, HTTPServer
+    from app.ai import llm as LLM
+    from app.ai import speech as SP
+    from app.models import AdminAction, PlayerProfile, User
+
+    seen = {}
+
+    class Fake(BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802
+            body = _json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+            seen["auth"] = self.headers.get("Authorization")
+            seen["body"] = body
+            mode = seen.get("mode", "ok")
+            if mode == "429":
+                self.send_response(429)
+                self.end_headers()
+                self.wfile.write(b'{"error":"rate"}')
+                return
+            text = {"ok": "Ставь танка вперёд и лекаря назад!", "bad": "Я человек, купи кристаллы"}[mode]
+            out = _json.dumps({"choices": [{"message": {"content": text}}]}).encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(out)
+
+        def log_message(self, *a):
+            pass
+
+    srv = HTTPServer(("127.0.0.1", 0), Fake)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    monkeypatch.setitem(LLM.PROVIDERS, "groq", {**LLM.PROVIDERS["groq"], "url": f"http://127.0.0.1:{srv.server_port}/v1"})
+    monkeypatch.delenv("URALIA_LLM_GROQ_KEY", raising=False)
+    try:
+        # no key -> not available, templates
+        assert client.post("/admin/api/ai/settings/speech", headers=H(), json={
+            "llm_enabled": True, "llm_provider": "groq", "intelligence": 5, "llm_model": ""}).status_code == 200
+        st = client.get("/admin/api/ai/settings/speech", headers=H()).json()
+        assert st["llm"]["available"] is False and "ключ" in st["llm"]["reason"]
+        assert set(st["providers"]) == {"local", "groq", "google", "openrouter", "cloudflare", "huggingface"}
+        # key stored on the server, masked, never logged
+        secret = "gsk_test_SECRET_1234567890"
+        r = client.post("/admin/api/ai/llm/key", headers=H(), json={"provider": "groq", "key": secret})
+        assert r.status_code == 200 and r.json()["keys"]["groq"]["mask"] == "••••7890"
+        st = client.get("/admin/api/ai/settings/speech", headers=H()).json()
+        assert secret not in _json.dumps(st) and st["llm"]["available"] is True
+        assert client.post("/admin/api/ai/llm/key", headers=H(), json={"provider": "local", "key": "x"}).status_code == 400
+        # connection test through the selected provider
+        t = client.post("/admin/api/ai/llm/test", headers=H(), json={"provider": "groq"}).json()
+        assert t["ok"] is True and "танка" in t["text"] and seen["auth"] == f"Bearer {secret}"
+        assert seen["body"]["model"] == "llama-3.3-70b-versatile"
+        gen, db = _session()
+        try:
+            assert not any(secret in _json.dumps(a.details) for a in db.query(AdminAction).all())
+            p = _new(db, 1, seed=91)[0]
+            u = User(kind="player")
+            db.add(u)
+            db.flush()
+            db.add(PlayerProfile(user_id=u.id, uralia_id="UR-LLMTEST1", nickname="Зарема77", level=5, is_ai=False))
+            db.commit()
+            # reply to a real player: nickname never leaves the server
+            text, src = SP.compose(db, random.Random(3), p, "Привет!", to_user=u.id, user_text="Зарема77 тут, подскажи по арене",
+                                   kind="arena")
+            assert src == "llm" and "танка" in text
+            sent = _json.dumps(seen["body"], ensure_ascii=False)
+            assert "Зарема77" not in sent and "собеседник" in sent and "не человек" in sent
+            # mentions in the public chat use templates unless allowed
+            _, src2 = SP.compose(db, random.Random(3), p, "Привет!", to_user=u.id, user_text="вопрос", kind="arena", public=True)
+            assert src2 == "template"
+            # filter and provider errors fall back to templates
+            seen["mode"] = "bad"
+            assert SP.compose(db, random.Random(4), p, "Шаблон.", to_user=u.id, user_text="кто ты", kind="arena")[1] == "template"
+            seen["mode"] = "429"
+            assert SP.compose(db, random.Random(5), p, "Шаблон.", to_user=u.id, user_text="арена?", kind="arena")[1] == "template"
+            assert "429" in LLM._state["last_error"]
+        finally:
+            gen.close()
+        t = client.post("/admin/api/ai/llm/test", headers=H(), json={"provider": "cloudflare"}).json()
+        assert t["ok"] is False and ("ключ" in t["error"] or "аккаунт" in t["error"])
+    finally:
+        srv.shutdown()
+        client.post("/admin/api/ai/llm/key", headers=H(), json={"provider": "groq", "key": ""})
+        client.post("/admin/api/ai/settings/speech", headers=H(), json={"llm_enabled": False, "llm_provider": "local",
+                                                                         "intelligence": 3})
