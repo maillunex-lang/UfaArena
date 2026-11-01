@@ -14,6 +14,9 @@ var f_rarity := 0
 var f_class := ""
 var query := ""
 var sort_by := "power"
+var sort_desc := true
+var f_level := 0  # 0 any, else bucket index of LEVELS
+const LEVELS := [["Любой уровень", 0, 999], ["Ур. 1–9", 1, 9], ["Ур. 10–19", 10, 19], ["Ур. 20–29", 20, 29], ["Ур. 30+", 30, 999]]
 var _filter_row: HBoxContainer
 
 
@@ -23,6 +26,8 @@ func setup(m: Node, p: Dictionary) -> void:
 	f_rarity = int(p.get("rarity", 0))
 	f_class = p.get("class", "")
 	sort_by = p.get("sort", "power")
+	sort_desc = bool(p.get("desc", true))
+	f_level = int(p.get("level", 0))
 	main.use_world("hub")
 	var panel := UI.glass_panel()
 	panel.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -70,8 +75,14 @@ func setup(m: Node, p: Dictionary) -> void:
 		var key: String = s[0]
 		var sb := UI.button(s[1], "primary" if sort_by == key else "dim", 0, 80)
 		sb.add_theme_font_size_override("font_size", 26)
-		sb.pressed.connect(func(): main.open("heroes", {"faction": f_faction, "rarity": f_rarity, "class": f_class, "sort": key}))
+		sb.pressed.connect(func(): main.open("heroes", {"faction": f_faction, "rarity": f_rarity, "class": f_class, "sort": key,
+			"desc": sort_desc, "level": f_level}))
 		search_row.add_child(sb)
+	# sort direction
+	var dir := UI.button("↓" if sort_desc else "↑", "glass", 80, 80)
+	dir.tooltip_text = "Направление сортировки"
+	dir.pressed.connect(func(): sort_desc = not sort_desc; dir.text = "↓" if sort_desc else "↑"; _fill())
+	search_row.add_child(dir)
 	v.add_child(search_row)
 	_count = UI.label("", 26, UI.MUTED)
 	v.add_child(_count)
@@ -132,6 +143,15 @@ func _refresh_filters() -> void:
 	cls.add_theme_font_size_override("font_size", 26)
 	cls.item_selected.connect(func(i: int): f_class = codes[i]; _fill())
 	_filter_row.add_child(cls)
+	var lv := OptionButton.new()
+	for x in LEVELS:
+		lv.add_item(String(x[0]))
+	lv.select(f_level)
+	lv.custom_minimum_size = Vector2(0, 72)
+	lv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lv.add_theme_font_size_override("font_size", 26)
+	lv.item_selected.connect(func(i: int): f_level = i; _fill())
+	_filter_row.add_child(lv)
 	_fill()
 
 
@@ -164,13 +184,20 @@ func _fill() -> void:
 	var list := []
 	for h in Game.heroes:
 		owned[h.hero_code] = true
-		if _match(h.hero_code, h.name, h.faction, int(h.rarity), h["class"]):
+		var lb: Array = LEVELS[f_level]
+		if _match(h.hero_code, h.name, h.faction, int(h.rarity), h["class"]) and int(h.level) >= int(lb[1]) and int(h.level) <= int(lb[2]):
 			list.append(h)
 	list.sort_custom(func(a, b):
+		var ka := int(a.power)
+		var kb := int(b.power)
 		match sort_by:
-			"level": return int(a.level) > int(b.level) if a.level != b.level else int(a.power) > int(b.power)
-			"rarity": return int(a.rarity) > int(b.rarity) if a.rarity != b.rarity else int(a.power) > int(b.power)
-		return int(a.power) > int(b.power))
+			"level":
+				ka = int(a.level) * 1000000 + int(a.power)
+				kb = int(b.level) * 1000000 + int(b.power)
+			"rarity":
+				ka = int(a.rarity) * 1000000 + int(a.power)
+				kb = int(b.rarity) * 1000000 + int(b.power)
+		return ka > kb if sort_desc else ka < kb)
 	for h in list:
 		var card := HeroCard.new()
 		card.setup(h, h.id in Game.formation)
@@ -179,7 +206,7 @@ func _fill() -> void:
 		_grid.add_child(card)
 	var missing := 0
 	for ch in Game.catalog.get("heroes", []):
-		if ch.is_enemy or owned.has(ch.code) or not _match(ch.code, ch.name, ch.faction, int(ch.rarity), ch["class"]):
+		if f_level > 0 or ch.is_enemy or owned.has(ch.code) or not _match(ch.code, ch.name, ch.faction, int(ch.rarity), ch["class"]):
 			continue
 		missing += 1
 		var p := Button.new()

@@ -31,6 +31,7 @@ func setup(m: Node, _p: Dictionary) -> void:
 	_sound()
 	_interface()
 	_notifications()
+	_tutorial()
 	_ai()
 	_data()
 	_about()
@@ -274,6 +275,28 @@ func _notifications() -> void:
 	_toggle(box, "Друзья, подарки и чат", "notify_social", upd)
 	_toggle(box, "Гильдия: заявки", "notify_guild", upd)
 	_toggle(box, "Мировые события", "notify_events", upd)
+
+
+# ------------------------------------------------------------------ tutorial
+func _tutorial() -> void:
+	var box := _group("Обучение")
+	_note(box, "Обучение можно пропустить и пройти позже. Подсказки появляются при первом открытии раздела и не повторяются.")
+	if not Config.settings.has("tips_on"):
+		Config.settings["tips_on"] = true
+	_toggle(box, "Подсказки при первом открытии разделов", "tips_on")
+	var rs := UI.button("Показать все подсказки заново", "glass", 0, 84)
+	rs.pressed.connect(func():
+		preload("res://src/ui/Tips.gd").reset()
+		Config.settings["tips_on"] = true
+		Config.save()
+		Router.toast("Подсказки появятся снова при открытии разделов"))
+	box.add_child(rs)
+	var st := UI.button("Посмотреть вступление заново", "glass", 0, 84)
+	st.pressed.connect(func():
+		var dlg: Control = preload("res://src/ui/StoryDialog.gd").new()
+		main.ui.add_child(dlg)
+		await dlg.play(main.INTRO_STORY))
+	box.add_child(st)
 
 
 # ------------------------------------------------------------------ AI residents

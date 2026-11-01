@@ -30,6 +30,8 @@ var settings := {
 	"notify_social": true,
 	"notify_guild": true,
 	"notify_events": true,
+	"tips_on": true,           # first-open tips (brief §21)
+	"seen_tips": [],
 }
 
 

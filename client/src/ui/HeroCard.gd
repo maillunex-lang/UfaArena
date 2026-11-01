@@ -59,6 +59,18 @@ func setup(h: Dictionary, selected := false, compact := false) -> void:
 		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(frame)
 		move_child(frame, _tex.get_index() + 1)
+	# combat rating (server-computed hero power) — required on every card by the brief
+	if h.has("power"):
+		var pw := PanelContainer.new()
+		var psb := UI._flat(Color(0, 0, 0, 0.62), Color(UI.GOLD_DARK, 0.8), 10, 1)
+		psb.content_margin_left = 6
+		psb.content_margin_right = 6
+		pw.add_theme_stylebox_override("panel", psb)
+		pw.add_child(UI.label("⚔ " + Game.fmt(int(h.power)), 22 if not compact else 20, UI.GOLD, true))
+		pw.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+		pw.position = Vector2(8, custom_minimum_size.y - 84)
+		pw.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		add_child(pw)
 	var st_l := UI.stars(int(h.get("stars", 0)), 22)
 	st_l.position = Vector2(14, 40)
 	st_l.mouse_filter = Control.MOUSE_FILTER_IGNORE

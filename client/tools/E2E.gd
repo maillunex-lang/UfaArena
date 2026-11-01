@@ -137,6 +137,8 @@ func _run() -> void:
 	await wait(2.0)
 	await shot("08_summon")
 	await press("×1")
+	await wait(1.0)
+	await press("Призвать")  # transparency window
 	await wait(3.0)
 	await shot("09_summon_reveal")
 	await press("Отлично")

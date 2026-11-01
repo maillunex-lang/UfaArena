@@ -29,6 +29,7 @@ const SCREENS := {
 	"inventory": preload("res://src/screens/InventoryScreen.gd"),
 }
 const Notifications := preload("res://src/ui/Notifications.gd")
+const Tips := preload("res://src/ui/Tips.gd")
 const UpdateDialog := preload("res://src/ui/UpdateDialog.gd")
 ## Fixed order of the six main sections (design brief §4).
 const NAV := [["home", "Главная"], ["heroes", "Герои"], ["campaign", "Поход"], ["guild", "Гильдия"], ["world", "Мир"],
@@ -127,7 +128,11 @@ func open(screen_name: String, params := {}) -> void:
 	var section: String = NAV_OF.get(screen_name, screen_name)
 	for k in _nav_buttons:
 		_style_nav(k, k == section)
+	var tip: Node = ui.get_node_or_null("TipCard")
+	if tip:
+		tip.queue_free()
 	_check_onboarding()
+	Tips.maybe_show(self, screen_name)
 
 
 ## Modal overlay above content (full screen within bars).
@@ -422,7 +427,14 @@ func _build_guide() -> void:
 	_guide.offset_right = 360
 	_guide.offset_top = 352
 	_guide.offset_bottom = 446
-	_guide.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# tap the hint to skip the whole tutorial (brief §21: it can be skipped entirely and replayed from Settings)
+	_guide.mouse_filter = Control.MOUSE_FILTER_STOP
+	_guide.gui_input.connect(func(e: InputEvent):
+		if (e is InputEventMouseButton and e.pressed) or (e is InputEventScreenTouch and e.pressed):
+			UI.confirm(ui, "Пропустить обучение?", "Подсказки шагов больше не появятся. Вернуть их можно в «Настройки» → «Обучение».",
+				"Пропустить", func():
+					await Game.advance_onboarding(6)
+					_check_onboarding()))
 	_guide_label = UI.label("", 28, UI.TEXT, true)
 	_guide_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_guide_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -435,6 +447,11 @@ func _build_guide() -> void:
 
 
 var _story_open := false
+const INTRO_STORY := [
+	{"speaker": "narrator", "text": "Когда-то семь ветров хранили Уралию. Но в ночь Раскола из недр под шиханами пробудились тени Шульгана."},
+	{"speaker": "azamat", "text": "Хранитель, ты вовремя! Крепость держится, но на берегу Агидели уже поднимаются мертвецы."},
+	{"speaker": "yurek", "text": "Я Юрек, следопыт. Сафарий читает руны, Тан-Чечек лечит. Возьми нас — вместе отбросим их к Торатау."},
+]
 
 
 ## Onboarding steps (server-persisted, monotonic):
@@ -448,11 +465,7 @@ func _check_onboarding() -> void:
 		_story_open = true
 		var dlg: Control = preload("res://src/ui/StoryDialog.gd").new()
 		ui.add_child(dlg)
-		await dlg.play([
-			{"speaker": "narrator", "text": "Когда-то семь ветров хранили Уралию. Но в ночь Раскола из недр под шиханами пробудились тени Шульгана."},
-			{"speaker": "azamat", "text": "Хранитель, ты вовремя! Крепость держится, но на берегу Агидели уже поднимаются мертвецы."},
-			{"speaker": "yurek", "text": "Я Юрек, следопыт. Сафарий читает руны, Тан-Чечек лечит. Возьми нас — вместе отбросим их к Торатау."},
-		])
+		await dlg.play(INTRO_STORY)
 		_story_open = false
 		await Game.advance_onboarding(1)
 		step = 1
@@ -474,7 +487,7 @@ func _check_onboarding() -> void:
 			nav_hint = "heroes"
 		5: text = "На главной справа нажмите сундук «Дозор»"
 	_guide.visible = text != "" and current == "home"
-	_guide_label.text = text
+	_guide_label.text = (text + "\n(коснитесь, чтобы пропустить обучение)") if text != "" else ""
 	_pulse_nav(nav_hint if nav_hint != current else "")
 
 
