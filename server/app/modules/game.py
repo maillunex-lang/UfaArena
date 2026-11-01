@@ -139,9 +139,14 @@ def heroes_catalog(user: CurrentUser = Depends(player), db: Session = Depends(ge
                     "base": {"hp": h.base_hp, "atk": h.base_atk, "def": h.base_def, "spd": h.base_spd},
                     "growth": (h.extra or {}).get("growth", {}),
                     "kit": h.kit or R.legacy_kit(h.skill or {}, h.class_code, h.rarity)}
-                   for h in db.scalars(select(Hero).order_by(Hero.rarity, Hero.code))],
+                   for h in db.scalars(select(Hero).order_by(Hero.rarity, Hero.code))
+                   if not (h.extra or {}).get("disabled") or h.code in _owned_codes(db, user.id)],
         "summons": R.summons(),
     }
+
+
+def _owned_codes(db: Session, user_id: str) -> set[str]:
+    return set(db.scalars(select(PlayerHero.hero_code).where(PlayerHero.user_id == user_id)))
 
 
 def _player_heroes(db: Session, user_id: str) -> list[dict]:

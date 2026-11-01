@@ -158,6 +158,24 @@ def _icon(path: str, name: str, look: str, where: str) -> dict:
     return _slot(path, name, "256×256", where, f"Иконка «{name}». Должна читаться в размере 48 px.", prompt, True)
 
 
+def _custom_heroes() -> list[dict]:
+    try:
+        from sqlalchemy.orm import Session as _S
+        from ..core.db import get_engine
+        from ..game_editor.overrides import get as ov_get
+        with _S(get_engine()) as db:
+            out = []
+            for code, o in ov_get(db)["heroes"].items():
+                if o.get("custom"):
+                    f = o.get("fields") or {}
+                    out.append({"code": code, "name": f.get("name", code), "title": f.get("title", ""), "lore": f.get("lore", ""),
+                                "class_code": f.get("class_code", ""), "faction_code": f.get("faction_code", ""),
+                                "is_enemy": f.get("is_enemy", False), "extra": f.get("extra") or {}})
+            return out
+    except Exception:  # catalog must work without a database too (tests, offline tools)
+        return []
+
+
 def catalog() -> list[dict]:
     """Every replaceable graphic element of the client, grouped. Each path is read by the client (UI.art)."""
     sec = [
@@ -272,8 +290,8 @@ def catalog() -> list[dict]:
             build_prompt(f"Ornate hero card frame, {look}, thin border with decorated corners, a small plate along the bottom for the name",
                          "460×600", "frame only along the edges (border about 6% of the width), the whole centre fully transparent so the portrait shows through, "
                          "a dark nameplate band across the bottom 13%", TRANSPARENT), True))
-    # heroes / bosses
-    for h in D.HEROES:
+    # heroes / bosses (code roster + heroes created in the admin game editor)
+    for h in list(D.HEROES) + _custom_heroes():
         enemy = h.get("is_enemy")
         extra = h.get("extra") or {}
         lore = (h.get("lore") or h.get("title") or "")[:160]

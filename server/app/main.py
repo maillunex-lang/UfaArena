@@ -54,6 +54,8 @@ def create_app() -> FastAPI:
     app.include_router(admin_web.page)
     from .ai import admin as ai_admin
     app.include_router(ai_admin.router)
+    from .game_editor import router as game_editor
+    app.include_router(game_editor.router)
     # Web version of the game (Godot Web export, same API on the same origin). Optional: only if exported.
     web = get_settings().web_client_path
     if (web / "index.html").exists():

@@ -23,7 +23,7 @@ textarea{min-height:70px}
 .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1 1 160px}.row>button{flex:0 0 auto}
 .stat{background:var(--panel2);border-radius:12px;padding:10px 12px}.stat b{display:block;font-size:22px;color:var(--gold2)}
-.muted{color:var(--muted)}.small{font-size:13px}.ok{color:var(--green)}.bad{color:var(--red)}
+a{color:var(--teal)}a:hover{color:var(--gold2)}.muted{color:var(--muted)}.small{font-size:13px}.ok{color:var(--green)}.bad{color:var(--red)}
 table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
 .slot{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px}
 .slot .pv{height:150px;border-radius:10px;background:#081010 repeating-conic-gradient(#0f1d1d 0 25%,#0b1616 0 50%) 50%/20px 20px;
@@ -47,8 +47,8 @@ display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv
 <div id="toast"></div>
 <script>
 const $=s=>document.querySelector(s);const main=$('#main');
-const TABS=[['overview','Обзор'],['server','Сервер и APK'],['events','События'],['chat','Чат'],['players','Игроки и модерация'],['ai','ИИ-жители'],['art','Графика'],['shop','Магазин']];
-let tab='overview',artSec='heroes',aiSec='director';
+const TABS=[['overview','Обзор'],['server','Сервер и APK'],['events','События'],['chat','Чат'],['players','Игроки и модерация'],['ai','ИИ-жители'],['editor','Редактор игры'],['art','Графика'],['shop','Магазин']];
+let tab='overview',artSec='heroes',aiSec='director',edSec='heroes';
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function toast(t,bad){const e=$('#toast');e.textContent=t;e.style.borderColor=bad?'#a8433a':'';e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',3500)}
 function hdr(extra){return Object.assign({'X-Admin-Token':sessionStorage.getItem('tok')||'','X-Admin-Name':encodeURIComponent(sessionStorage.getItem('who')||'owner')},extra||{})}
@@ -170,11 +170,85 @@ async art(){const d=await api('/web/art');
  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{await api('/web/art/remove?path='+encodeURIComponent(sec.slots[+b.dataset.rm].path),'POST',{});VIEWS.art()})},
 
 async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a></div>`},
+async editor(){const SECS=[['heroes','Герои'],['balance','Баланс'],['history','История правок']];
+ main.innerHTML=`<nav style="border:0;padding:0 0 12px;background:none;flex-wrap:wrap">${SECS.map(([k,t])=>`<button class="${k===edSec?'on':''}" data-eds="${k}">${t}</button>`).join('')}</nav><div id="edbox"><p class="muted">Загрузка…</p></div>`;
+ document.querySelectorAll('[data-eds]').forEach(b=>b.onclick=()=>{edSec=b.dataset.eds;VIEWS.editor()});
+ await ED[edSec]($('#edbox'))},
 async ai(){const SECS=[['director','Director'],['switches','Переключатели'],['people','Персонажи'],['archetypes','Характеры и слои силы'],['speech','Речь'],['memory','Память'],['social','Отношения и группы'],['guilds','Гильдии ИИ'],['outreach','Общение с игроками'],['channels','Каналы'],['game','Игра и экономика'],['schedules','Расписания'],['tasks','Очередь задач'],['activity','Журнал действий']];
  main.innerHTML=`<nav style="border:0;padding:0 0 12px;background:none;flex-wrap:wrap">${SECS.map(([k,t])=>`<button class="${k===aiSec?'on':''}" data-ais="${k}">${t}</button>`).join('')}</nav><div id="aibox"><p class="muted">Загрузка…</p></div>`;
  document.querySelectorAll('[data-ais]').forEach(b=>b.onclick=()=>{aiSec=b.dataset.ais;VIEWS.ai()});
  await AI[aiSec]($('#aibox'))}
 };
+const RAR_N={1:'Обычный',2:'Необычный',3:'Редкий',4:'Эпический',5:'Легендарный',6:'Мифический'};
+const ED={
+async heroes(box,openCode){const [d,m]=await Promise.all([api('/game/heroes?enemies=1'),api('/game/meta')]);const FN={},CN={};m.factions.forEach(f=>FN[f.code]=f.name);m.classes.forEach(c=>CN[c.code]=c.name);
+ box.innerHTML=`<div class="card"><h2>Герои</h2><p class="small muted">Правки хранятся отдельно от кода игры: перезапуск и обновления сервера их не сотрут; каждая правка — в «Истории правок» с откатом. «Отключить» убирает героя из призыва и каталога; у игроков, которые его уже получили, герой остаётся. Новые герои сразу доступны серверу; их вид в приложении — встроенная модель (поле «Модель»), портрет — в «Графике» → «Портреты героев».</p>
+ <div class="row"><button class="primary" id="hnew">Создать героя</button><input id="hq" placeholder="Поиск по имени или коду"><label class="chk" style="flex:0 0 auto"><input type="checkbox" id="hen"> враги и боссы</label></div>
+ <table style="margin-top:8px"><tr><th>Герой</th><th>Редкость / класс / фракция</th><th>Здоровье · атака · защита · скорость</th><th>У игроков</th><th></th></tr><tbody id="hrows"></tbody></table></div><div id="hedit"></div>`;
+ const draw=()=>{const q=$('#hq').value.toLowerCase(),en=$('#hen').checked;$('#hrows').innerHTML=d.items.filter(h=>(en||!h.is_enemy)&&(!q||(h.name+' '+h.code).toLowerCase().includes(q))).map(h=>`<tr><td><a href="#" data-he="${h.code}"><b>${esc(h.name)}</b></a> <span class="small muted">${h.code}</span> ${h.custom?'<span class="tag g">свой</span>':''}${h.edited?'<span class="tag">изменён</span>':''}${h.disabled?'<span class="tag r">отключён</span>':''}${h.is_enemy?'<span class="tag r">враг</span>':''}</td>
+  <td class="small">${RAR_N[h.rarity]||h.rarity} · ${esc(CN[h.class_code]||h.class_code)} · ${esc(FN[h.faction_code]||h.faction_code)}</td><td class="small">${fmt(h.base_hp)} · ${h.base_atk} · ${h.base_def} · ${h.base_spd}</td><td class="small">${h.owners}</td>
+  <td><button class="small" data-hdis="${h.code}" data-on="${h.disabled?0:1}">${h.disabled?'Включить':'Отключить'}</button></td></tr>`).join('');
+  box.querySelectorAll('[data-he]').forEach(a=>a.onclick=e=>{e.preventDefault();ED.heroForm($('#hedit'),m,d.items.find(x=>x.code===a.dataset.he))});
+  box.querySelectorAll('[data-hdis]').forEach(b=>b.onclick=async()=>{const on=b.dataset.on==='1';if(on&&!confirm('Отключить героя? Он пропадёт из призыва и каталога; у владельцев останется.'))return;await api('/game/heroes/'+b.dataset.hdis+'/disable','POST',{disabled:on});toast(on?'Герой отключён':'Герой включён');ED.heroes(box)})};
+ $('#hq').oninput=draw;$('#hen').onchange=draw;draw();
+ $('#hnew').onclick=()=>ED.heroForm($('#hedit'),m,null);
+ if(openCode){const h=d.items.find(x=>x.code===openCode);if(h)ED.heroForm($('#hedit'),m,h)}},
+
+heroForm(el,m,h){const isNew=!h;h=h||{code:'',name:'',title:'',faction_code:m.factions[0].code,class_code:m.classes[0].code,rarity:3,base_hp:1000,base_atk:80,base_def:50,base_spd:100,model:'knight',lore:'',summonable:true,is_enemy:false,role:'',skill:{kind:'strike',name:'Удар',power:1.5,desc:''},kit:null,extra:{}};
+ const ex=h.extra||{},g=ex.growth||{};const opt=(arr,v)=>arr.map(([k,n])=>`<option value="${k}" ${k===v?'selected':''}>${esc(n)}</option>`).join('');
+ el.innerHTML=`<div class="card"><h2>${isNew?'Новый герой':'Герой «'+esc(h.name)+'»'}</h2><div class="grid">
+ ${isNew?`<label class="small">Код (латиница, навсегда)<input id="f_code" placeholder="batyr_new"></label>`:''}
+ <label class="small">Имя<input id="f_name" value="${esc(h.name)}"></label><label class="small">Титул<input id="f_title" value="${esc(h.title)}"></label>
+ <label class="small">Фракция<select id="f_faction_code">${opt(m.factions.map(f=>[f.code,f.name]),h.faction_code)}</select></label>
+ <label class="small">Класс<select id="f_class_code">${opt(m.classes.map(c=>[c.code,c.name]),h.class_code)}</select></label>
+ <label class="small">Редкость<select id="f_rarity">${opt(Object.entries(RAR_N).map(([k,n])=>[k,n]),String(h.rarity))}</select></label>
+ <label class="small">Модель (встроенная)<select id="f_model">${opt(m.rigs.map(r=>[r,r]).concat(m.rigs.includes(h.model)?[]:[[h.model,h.model+' (своя)']]),h.model)}</select></label>
+ <label class="small">Здоровье (база)<input id="f_base_hp" type="number" value="${h.base_hp}"></label><label class="small">Атака (база)<input id="f_base_atk" type="number" value="${h.base_atk}"></label>
+ <label class="small">Защита (база)<input id="f_base_def" type="number" value="${h.base_def}"></label><label class="small">Скорость<input id="f_base_spd" type="number" value="${h.base_spd}"></label>
+ <label class="small">Рост здоровья за уровень<input id="g_hp" type="number" step="0.005" value="${g.hp??0.06}"></label><label class="small">Рост атаки за уровень<input id="g_atk" type="number" step="0.005" value="${g.atk??0.06}"></label>
+ <label class="small">Рост защиты за уровень<input id="g_def" type="number" step="0.005" value="${g.def??0.06}"></label><label class="small">Шанс крита (0…0.9)<input id="x_crit" type="number" step="0.01" value="${ex.crit??0.12}"></label>
+ <label class="small">Урон крита (×)<input id="x_crit_dmg" type="number" step="0.05" value="${ex.crit_dmg??1.5}"></label>
+ <label class="small">Умение: тип<select id="s_kind">${opt(Object.entries(m.skill_kinds).concat([['kit','набор умений (ниже)']]),h.skill?.kind||'strike')}</select></label>
+ <label class="small">Умение: название<input id="s_name" value="${esc(h.skill?.name||'')}"></label><label class="small">Умение: сила (×атаки)<input id="s_power" type="number" step="0.1" value="${h.skill?.power??1.5}"></label>
+ <label class="chk"><input type="checkbox" id="f_summonable" ${h.summonable?'checked':''}> Можно призвать</label><label class="chk"><input type="checkbox" id="f_is_enemy" ${h.is_enemy?'checked':''}> Враг (не игровой)</label></div>
+ <label class="small" style="display:block;margin-top:8px">Описание умения<input id="s_desc" value="${esc(h.skill?.desc||'')}"></label>
+ <label class="small" style="display:block;margin-top:8px">Описание героя (лор)<textarea id="f_lore">${esc(h.lore||'')}</textarea></label>
+ <label class="small" style="display:block;margin-top:8px">Внешность (для промптов портрета)<input id="x_appearance" value="${esc(ex.appearance||'')}"></label>
+ <details style="margin-top:8px"><summary class="small">Набор умений (для опытных, JSON) — базовая атака, умения, ульта, пассивка</summary><textarea id="f_kit" style="min-height:200px;font-family:monospace;font-size:12px">${esc(h.kit?JSON.stringify(h.kit,null,1):'')}</textarea>
+ <div class="row"><button class="small" id="kitsample">Вставить образец</button></div><p class="small muted">Пусто — набор собирается из простого умения выше. Урон одного умения (множитель × число ударов) не больше 15.</p></details>
+ <div class="row" style="margin-top:10px"><button class="primary" id="hsave">${isNew?'Создать':'Сохранить'}</button>${!isNew&&(h.custom||h.edited)?`<button class="danger" id="hreset">${h.custom?'Удалить героя':'Вернуть как в игре'}</button>`:''}<button id="hbal">Проверить баланс</button></div></div>`;
+ $('#kitsample').onclick=()=>{$('#f_kit').value=JSON.stringify(m.kit_sample,null,1)};
+ $('#hsave').onclick=async()=>{const v=id=>$('#'+id).value;let kit=null;if(v('f_kit').trim()){try{kit=JSON.parse(v('f_kit'))}catch(e){return toast('Набор умений: ошибка в JSON',true)}}
+  const f={name:v('f_name'),title:v('f_title'),faction_code:v('f_faction_code'),class_code:v('f_class_code'),rarity:+v('f_rarity'),model:v('f_model'),base_hp:+v('f_base_hp'),base_atk:+v('f_base_atk'),base_def:+v('f_base_def'),base_spd:+v('f_base_spd'),
+   lore:v('f_lore'),summonable:$('#f_summonable').checked,is_enemy:$('#f_is_enemy').checked,skill:{kind:v('s_kind'),name:v('s_name'),power:+v('s_power'),desc:v('s_desc')},kit,
+   extra:{growth:{hp:+v('g_hp'),atk:+v('g_atk'),def:+v('g_def')},crit:+v('x_crit'),crit_dmg:+v('x_crit_dmg'),appearance:v('x_appearance')}};
+  const r=isNew?await api('/game/heroes','POST',{code:v('f_code').trim(),fields:f}):await api('/game/heroes/'+h.code,'PUT',{fields:f});toast(isNew?'Герой создан':'Сохранено');ED.heroes($('#edbox'),r.code)};
+ if($('#hreset'))$('#hreset').onclick=async()=>{if(!confirm(h.custom?'Удалить созданного героя?':'Убрать все правки и вернуть героя как в коде игры?'))return;await api('/game/heroes/'+h.code+'/override','DELETE');toast('Готово');ED.heroes($('#edbox'))};
+ $('#hbal').onclick=()=>{edSec='balance';VIEWS.editor()};
+ el.scrollIntoView({behavior:'smooth'})},
+
+async balance(box){box.innerHTML=`<div class="card"><h2>Баланс героев</h2><p class="small muted">Характеристики на выбранном уровне, самый сильный удар против героя со средней защитой (с учётом крита и разброса), сила относительно героев той же редкости и бои один на один настоящим боевым движком. Красным — что стоит проверить. Кнопка ниже копирует отчёт вместе с готовым заданием для ИИ-аналитика (вставьте в чат с Claude).</p>
+ <div class="row"><label class="small">Уровень<input id="bl" type="number" value="40"></label><label class="small">Звёзды<input id="bs" type="number" value="0"></label><label class="chk"><input type="checkbox" id="bd" checked> дуэли 1×1 (дольше)</label><button class="primary" id="bgo">Посчитать</button><button class="copy" id="bcopy">📋 Скопировать отчёт и задание для анализа</button></div><div id="bres"></div></div>`;
+ let last=null;
+ const run=async()=>{$('#bres').innerHTML='<p class="muted">Считаю…</p>';const r=await api(`/game/balance?level=${+$('#bl').value}&stars=${+$('#bs').value}&duels=${$('#bd').checked?1:0}`);last=r;
+  const rows=r.heroes.slice().sort((a,b)=>b.flags.length-a.flags.length||b.hit_pct_of_hp-a.hit_pct_of_hp);
+  $('#bres').innerHTML=`<p class="small">Среднее здоровье героя: <b>${fmt(r.median_hp)}</b> · средняя защита: <b>${r.median_def}</b> · под подозрением: <b class="${r.flagged.length?'bad':'ok'}">${r.flagged.length}</b></p>
+  <table><tr><th>Герой</th><th>Здоровье · атака · защита</th><th>Сила (откл. в редкости)</th><th>Сильнейший удар</th><th>% здоровья среднего героя</th><th>Дуэли</th><th>Замечания</th></tr>${rows.map(h=>`<tr><td><a href="#" data-bh="${h.code}"><b>${esc(h.name)}</b></a><div class="small muted">${RAR_N[h.rarity]} · ${esc(h.class)}</div></td><td class="small">${fmt(h.hp)} · ${fmt(h.atk)} · ${fmt(h.def)}</td><td class="small">${fmt(h.power)} (${h.power_z>0?'+':''}${h.power_z})</td>
+   <td class="small">${esc(h.max_skill)} ×${h.max_mult}<div class="muted">${fmt(h.max_hit)} / крит ${fmt(h.max_crit_hit)}</div></td><td class="${h.hit_pct_of_hp>=100?'bad':h.hit_pct_of_hp>=60?'g':''}">${h.hit_pct_of_hp}%</td><td class="small">${h.duel_win_pct!=null?h.duel_win_pct+'%':'—'}</td><td class="small bad">${h.flags.map(esc).join('<br>')}</td></tr>`).join('')}</table>`;
+  box.querySelectorAll('[data-bh]').forEach(a=>a.onclick=e=>{e.preventDefault();edSec='heroes';VIEWS.editor().then(()=>ED.heroes($('#edbox'),a.dataset.bh))})};
+ $('#bgo').onclick=run;
+ $('#bcopy').onclick=async()=>{if(!last)await run();const txt=BALANCE_PROMPT+'\n\n=== ОТЧЁТ (уровень '+last.level+', звёзды '+last.stars+') ===\n'+JSON.stringify(last,null,1);const ok=await copyText(txt);toast(ok?'Скопировано: вставьте в чат с Claude':'Не удалось скопировать',!ok)};
+ run()},
+
+async history(box){const d=await api('/game/history');
+ box.innerHTML=`<div class="card"><h2>История правок игры</h2><p class="small muted">Каждая правка героев, кампании и карты. «Откатить последнюю» возвращает состояние до неё (игровой прогресс игроков не меняется).</p><div class="row"><button class="danger" id="grb">Откатить последнюю правку</button></div>
+ <table style="margin-top:8px">${d.items.map(i=>`<tr><td class="small">${time(i.at)}</td><td class="small">${esc(i.by)}</td><td class="small">${esc(i.action)}</td></tr>`).join('')||'<tr><td class="muted">Правок пока нет</td></tr>'}</table></div>`;
+ $('#grb').onclick=async()=>{if(!confirm('Откатить последнюю правку игры?'))return;const r=await api('/game/rollback','POST',{});toast('Откачено: '+r.undid);ED.history(box)}}
+};
+const BALANCE_PROMPT=`Задание: проанализируй баланс героев игры «Уралия» и предложи правки.
+Цели: ни один герой не должен убивать среднего героя своего уровня с одного удара (даже критом); внутри одной редкости герои — сопоставимой силы (отклонение не больше ±2σ), но с разными ролями; более высокая редкость сильнее, но не «ломает» игру; в дуэлях 1×1 никто не выигрывает больше ~75% (кроме мифических против обычных).
+Ограничения: правки делаются через админку «Редактор игры» → «Герои» (база здоровья/атаки/защиты/скорости, рост за уровень, крит, урон крита, сила умения, набор умений); прогресс игроков (уровни, звёзды) не трогаем; героев, которых уже получили игроки, лучше ослаблять мягко (−10…−20% за шаг), а не отключать.
+Сделай: 1) по отчёту ниже назови проблемных героев и причину (база, рост, множитель умения, крит); 2) для каждого — конкретные новые значения полей; 3) проверь на уровнях 10, 40 и 80 (попроси меня прислать отчёты, если нужно); 4) кратко — ожидаемый эффект.`;
 const AI_SET={tick_seconds:['Такт, секунд','Как часто Director просыпается'],max_tasks_per_tick:['Действий за такт, максимум','Верхняя граница; фактический бюджет подстраивается под нагрузку'],
  tick_budget_ms:['Бюджет такта, мс','Если такт дольше — Director сам снижает активность'],registered_target:['Цель реестра ИИ','Сколько ИИ зарегистрировано (растёт порциями, ИИ не удаляются)'],
  active_min:['Активных минимум','Сколько ИИ в игре одновременно, когда реальных игроков нет'],active_max:['Активных максимум','Потолок одновременной активности'],

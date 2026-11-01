@@ -35,6 +35,9 @@ def seed_static(db: Session) -> None:
         db.merge(SummonPool(**p))
     for q in D.QUESTS:
         db.merge(Quest(**{"requires": None, **q}))
+    db.flush()
+    from ..game_editor.overrides import apply as apply_admin_layer
+    apply_admin_layer(db)  # admin edits (heroes, campaign, map) survive restarts and code updates
     if db.scalar(select(MailMessage).where(MailMessage.code == D.WELCOME_MAIL["code"])) is None:
         db.add(MailMessage(**D.WELCOME_MAIL))
     db.commit()

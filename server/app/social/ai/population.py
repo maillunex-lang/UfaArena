@@ -38,7 +38,15 @@ def log(db: Session, persona: AiPersona, activity: str, **payload) -> None:
 
 
 # ------------------------------------------------------------------ persona registry
-def _summonable() -> list[dict]:
+def _summonable(db: Session | None = None) -> list[dict]:
+    """Heroes an AI may own: the live table (admin-created, edited and disabled heroes respected)."""
+    if db is not None:
+        from ...models import Hero
+        rows = db.scalars(select(Hero).where(Hero.summonable.is_(True), Hero.is_enemy.is_(False))).all()
+        out = [{"code": h.code, "rarity": h.rarity, "class_code": h.class_code} for h in rows
+               if not (h.extra or {}).get("disabled")]
+        if out:
+            return out
     return [h for h in D.HEROES if h.get("summonable", True) and not h.get("is_enemy")]
 
 
@@ -69,7 +77,7 @@ def create_persona(db: Session, rng: random.Random | None = None) -> AiPersona:
                       cosmetics={"frame": spec["frame"]} if spec["frame"] else {},
                       last_seen_at=utcnow() - timedelta(hours=rng.randint(1, 30)))
     db.add(p)
-    pool = _summonable()
+    pool = _summonable(db)
     n_heroes = min(len(pool), rng.randint(*TR.TIERS[tier]["heroes"]))
     picks = rng.sample(pool, n_heroes)
     weights = sorted(picks, key=lambda h: -h["rarity"])
