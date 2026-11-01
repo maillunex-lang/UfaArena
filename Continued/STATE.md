@@ -20,6 +20,7 @@
 | Контент без APK: пакеты контента (подпись, откат, kill switch), «Графика» в админке (198+ слотов с промптами) | ✅ | `docs/DEPLOY_VPS.md` |
 | Лор: S0 (канон), S1 (тексты/названия), S2 (выборы и флаги), S4 (Караван вместо Крепости) | ✅ | `docs/lore/URALIA_DEVELOPMENT_ROADMAP.md` |
 | **Living World AI** (ИИ-жители), фазы 1–5 из 8 | ✅ 1–5 | `docs/URALIA_AI_*.md` |
+| **Living Community**, этап 01 — архитектура разговорных сцен (документы) | ✅ док., ждёт согласования | `docs/community/` |
 | **Редактор игры** в админке: герои (создание/правка/отключение), баланс, кампания, карта, 3D-модели/карты/сцены боя | ✅ | `docs/GAME_EDITOR.md`, `docs/ASSETS_3D.md`, `docs/BALANCE_ANALYSIS_PROMPT.md` |
 
 ## Living World AI — что уже есть (мастер-ТЗ: `docs/URALIA_AI_MASTER_SPEC.md`)
