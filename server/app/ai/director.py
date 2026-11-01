@@ -84,6 +84,12 @@ class Director:
         out["planned"] = self._plan(db, acting)
         db.commit()
         out["executed"], out["failed"] = self._execute(db, self.budget) if acting else (0, 0)
+        if acting:  # queued chat lines are posted on time (pacing: minimum gap, quiet after a discussion)
+            from ..social.ai import banter
+            from ..social.ai.control import global_switches
+            if global_switches(db).get("chat", True):
+                out["chat_posted"] = banter.flush(db)
+                db.commit()
 
         ms_set = MEM.SECTION.get(db)
         if acting and now_mono - self.last_archive >= ms_set["archive_every_min"] * 60:

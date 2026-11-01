@@ -196,7 +196,77 @@ def _cast(personas: list[AiPersona], script: dict) -> dict[str, AiPersona] | Non
     return out
 
 
+# ------------------------------------------------------------------ pacing: like a real chat, not a stream
+# * at most one AI message per channel every `chat_min_gap_s` seconds (10 by default);
+# * when a discussion is over (nothing more queued for the channel) the channel is quiet for a random 5–15 minutes.
+# The pause is stored in the database (server_settings "ai_chat_pause"), so the API process and the AI Director agree.
+PAUSE_KEY = "ai_chat_pause"
+
+
+def _pauses(db: Session) -> dict:
+    from ...models import ServerSetting
+    row = db.get(ServerSetting, PAUSE_KEY)
+    return dict(row.value or {}) if row else {}
+
+
+def in_pause(db: Session, channel: str) -> bool:
+    until = _pauses(db).get(channel)
+    if not until:
+        return False
+    from datetime import datetime
+    try:
+        return utcnow() < datetime.fromisoformat(until)
+    except ValueError:
+        return False
+
+
+def pause_left_s(db: Session, channel: str) -> int:
+    from datetime import datetime
+    until = _pauses(db).get(channel)
+    try:
+        return max(0, int((datetime.fromisoformat(until) - utcnow()).total_seconds())) if until else 0
+    except ValueError:
+        return 0
+
+
+def _set_pause(db: Session, channel: str) -> None:
+    from datetime import timedelta
+    from ...models import ServerSetting
+    sp = _speech(db)
+    lo, hi = int(sp.get("chat_pause_min", 5)), int(sp.get("chat_pause_max", 15))
+    minutes = _rng.uniform(min(lo, hi), max(lo, hi))
+    row = db.get(ServerSetting, PAUSE_KEY)
+    if row is None:
+        row = ServerSetting(key=PAUSE_KEY, value={})
+        db.add(row)
+    now = utcnow()
+    from datetime import datetime
+    cur = {k: v for k, v in (row.value or {}).items() if _iso_after(v, now)}  # drop expired pauses
+    cur[channel] = (now + timedelta(minutes=minutes)).isoformat()
+    row.value = cur
+
+
+def _iso_after(v: str, now) -> bool:
+    from datetime import datetime
+    try:
+        return datetime.fromisoformat(v) > now
+    except (TypeError, ValueError):
+        return False
+
+
+def _queued(channel: str) -> int:
+    return sum(1 for it in _queue if it[2] == channel)
+
+
+def say_reply(db: Session, persona: AiPersona, channel: str, text: str) -> None:
+    """A reply to a real player in a public channel: allowed during a pause (people answer when spoken to), but it
+    still keeps the minimum gap between AI messages."""
+    _queue.appendleft((time.monotonic() + _rng.uniform(3, 9), persona.user_id, channel, text))
+
+
 def start_conversation(db: Session, channel: str = "global", candidates: list[AiPersona] | None = None) -> int:
+    if in_pause(db, channel) or _queued(channel):
+        return 0
     personas = candidates or db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).limit(120)).all()
     if len(personas) < 2:
         return 0
@@ -225,6 +295,8 @@ def start_conversation(db: Session, channel: str = "global", candidates: list[Ai
 
 
 def ambient(db: Session, persona: AiPersona, channel: str = "global") -> str:
+    if in_pause(db, channel) or _queued(channel):
+        return ""  # the channel is resting after a discussion, or a discussion is going on
     pool = AMBIENT.get(persona.style, []) + AMBIENT["any"]
     text = _fill(_rng.choice(pool), {}, _ctx(db))
     _queue.append((time.monotonic() + _rng.uniform(0, 5), persona.user_id, channel, text))
@@ -232,16 +304,24 @@ def ambient(db: Session, persona: AiPersona, channel: str = "global") -> str:
 
 
 def flush(db: Session, limit: int = 20) -> int:
-    """Posts queued lines whose time has come."""
+    """Posts queued lines whose time has come: at most one per channel per call and never sooner than the minimum gap
+    after the previous AI message in that channel. When a channel's discussion is over, it goes quiet for a while."""
     now = time.monotonic()
     posted = 0
     keep = deque()
+    gap = int(_speech(db).get("chat_min_gap_s", 10))
+    done_in: set[str] = set()
+    blocked: set[str] = set()
     while _queue:
         item = _queue.popleft()
-        if item[0] > now or posted >= limit:
+        _, uid, channel, text = item
+        if item[0] > now or posted >= limit or channel in done_in or channel in blocked:
             keep.append(item)
             continue
-        _, uid, channel, text = item
+        if not channel.startswith("dm:") and _seconds_since_ai(db, channel) < gap:
+            blocked.add(channel)  # keep the order of the discussion: the next line waits for the gap
+            keep.append(item)
+            continue
         if db.get(PlayerProfile, uid) is None:
             continue
         persona = db.scalar(select(AiPersona).where(AiPersona.user_id == uid))
@@ -252,9 +332,22 @@ def flush(db: Session, limit: int = 20) -> int:
         p = db.get(PlayerProfile, uid)
         p.last_seen_at = utcnow()
         posted += 1
+        done_in.add(channel)
     _queue.extend(keep)
+    for ch in done_in:
+        if not ch.startswith("dm:") and not _queued(ch):
+            _set_pause(db, ch)  # the discussion is over: a real chat goes quiet for a while
     db.flush()
     return posted
+
+
+def _seconds_since_ai(db: Session, channel: str) -> float:
+    last = db.scalar(select(func.max(ChatMessage.created_at)).where(ChatMessage.channel == channel,
+                                                                     ChatMessage.is_ai.is_(True)))
+    if last is None:
+        return 1e9
+    from ...core.db import as_utc
+    return (utcnow() - as_utc(last)).total_seconds()
 
 
 _speech_cache: dict = {"at": 0.0, "value": None}
@@ -301,8 +394,7 @@ def keep_alive(db: Session, cfg: dict) -> dict:
                 stats["started"] = start_conversation(db)
             else:
                 p = db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).order_by(func.random()).limit(1)).first()
-                if p:
-                    ambient(db, p)
+                if p and ambient(db, p):
                     stats["started"] = 1
             _last_start = time.monotonic()
     # guild chats: only guilds where real players can read; at most one conversation in progress overall
@@ -312,7 +404,7 @@ def keep_alive(db: Session, cfg: dict) -> dict:
                             .where(PlayerProfile.is_ai.is_(False))).scalars().all()
         for gid in set(humans):
             g = db.get(Guild, gid)
-            if g is None or minutes_since_last(db, f"guild:{gid}") < cfg.get("guild_quiet_minutes", 20):
+            if g is None or minutes_since_last(db, f"guild:{gid}") < cfg.get("guild_quiet_minutes", 20) or in_pause(db, f"guild:{gid}"):
                 continue
             ids = [m.user_id for m in db.scalars(select(GuildMember).where(GuildMember.guild_id == gid))]
             members = db.scalars(select(AiPersona).where(AiPersona.user_id.in_(ids), AiPersona.active.is_(True))).all()

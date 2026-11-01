@@ -555,14 +555,31 @@ def test_ai_conversations_keep_chat_alive():
     with session() as db:
         AIP.ensure_population(db, max_new=6)
     with session() as db:
+        from datetime import timedelta
+        from app.core.db import utcnow
+        from app.models import ServerSetting
         start = db.scalar(select(func.max(ChatMessage.id))) or 0
         B._queue.clear()
+        row = db.get(ServerSetting, B.PAUSE_KEY)
+        if row is not None:
+            db.delete(row)  # no quiet period left over from other tests
+        db.flush()
         n = B.start_conversation(db)
         assert n >= 3
         B._queue.extend([(0, u, c, t) for _, u, c, t in list(B._queue)])  # make every line due now
         while B._queue and B._queue[0][0] != 0:
             B._queue.popleft()
-        assert B.flush(db, limit=50) >= 3
+        posted = 0
+        for _ in range(n + 2):  # one line per flush, each after the minimum gap (a real chat, not a stream)
+            got = B.flush(db, limit=50)
+            assert got <= 1
+            posted += got
+            for m in db.scalars(select(ChatMessage).where(ChatMessage.channel == "global", ChatMessage.is_ai.is_(True),
+                                                          ChatMessage.id > start)):
+                m.created_at = utcnow() - timedelta(seconds=11)
+            db.flush()
+        assert posted >= 3
+        assert B.in_pause(db, "global")  # after the discussion the chat is quiet for 5-15 minutes
     with session() as db:
         msgs = db.scalars(select(ChatMessage).where(ChatMessage.id > start, ChatMessage.channel == "global")).all()
         assert len({m.user_id for m in msgs}) >= 2 and all(m.is_ai for m in msgs)

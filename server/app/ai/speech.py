@@ -15,19 +15,23 @@ from .sections import Section
 SECTION = Section("ai_speech",
                   {"intelligence": 3, "length": "medium", "chat_frequency": 100, "context_depth": 5, "emotions": True,
                    "voice": True, "llm_enabled": False, "llm_url": "http://127.0.0.1:11434/v1", "llm_model": "qwen2.5:1.5b",
-                   "llm_timeout_s": 4, "llm_max_per_hour": 30, "llm_min_free_mb": 8192, "llm_max_tokens": 80},
+                   "llm_timeout_s": 4, "llm_max_per_hour": 30, "llm_min_free_mb": 8192, "llm_max_tokens": 80,
+                   "chat_min_gap_s": 10, "chat_pause_min": 5, "chat_pause_max": 15},
                   {"intelligence": ("int", 1, 5), "length": ("choice", ["short", "medium", "long"]),
                    "chat_frequency": ("int", 0, 300), "context_depth": ("int", 0, 20), "emotions": ("bool",),
                    "voice": ("bool",), "llm_enabled": ("bool",), "llm_url": ("url", 200), "llm_model": ("str", 80),
                    "llm_timeout_s": ("int", 1, 30), "llm_max_per_hour": ("int", 0, 2000), "llm_min_free_mb": ("int", 512, 262144),
-                   "llm_max_tokens": ("int", 16, 400)},
+                   "llm_max_tokens": ("int", 16, 400), "chat_min_gap_s": ("int", 3, 600),
+                   "chat_pause_min": ("int", 0, 240), "chat_pause_max": ("int", 0, 480)},
                   {"intelligence": "Интеллект (1 — просто шаблоны, 5 — память, контекст и локальная модель)",
                    "length": "Длина сообщений", "chat_frequency": "Частота общения, % от обычной",
                    "context_depth": "Глубина контекста (сколько воспоминаний учитывать)", "emotions": "Эмоциональные реакции",
                    "voice": "Индивидуальная манера речи", "llm_enabled": "Локальная языковая модель (необязательно)",
                    "llm_url": "Адрес локальной модели (OpenAI-совместимый: llama.cpp / Ollama)", "llm_model": "Модель",
                    "llm_timeout_s": "Ожидание ответа модели, секунд", "llm_max_per_hour": "Запросов к модели в час, максимум",
-                   "llm_min_free_mb": "Минимум свободной памяти сервера для модели, МБ", "llm_max_tokens": "Длина ответа модели, токенов"})
+                   "llm_min_free_mb": "Минимум свободной памяти сервера для модели, МБ", "llm_max_tokens": "Длина ответа модели, токенов",
+                   "chat_min_gap_s": "Пауза между сообщениями ИИ в одном канале, секунд (минимум)",
+                   "chat_pause_min": "Тишина после обсуждения: от, минут", "chat_pause_max": "Тишина после обсуждения: до, минут"})
 
 LENGTH_NAMES = {"short": "короткие", "medium": "обычные", "long": "развёрнутые"}
 HAPPY = ["Ха, ", "Ура, ", "Эх, хорошо! ", "Настроение огонь — ", "Йес! "]

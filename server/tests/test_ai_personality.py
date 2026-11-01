@@ -291,3 +291,41 @@ def test_v1_tick_and_director_run_with_personalities(client):
         db.commit()
     finally:
         gen.close()
+
+
+def test_chat_pacing_gap_and_quiet_after_discussion(client):
+    from app.core.db import utcnow
+    from app.models import ChatMessage
+    from app.social.ai import banter
+    gen, db = _session()
+    try:
+        ps = _new(db, 3, seed=77)
+        ch = "guild:pacing-test"
+        banter._queue.clear()
+        banter._speech_cache.update(at=0.0, value=None)
+        t0 = __import__("time").monotonic() - 1
+        for i, p in enumerate(ps):
+            banter._queue.append((t0, p.user_id, ch, f"реплика {i}"))
+        assert banter.flush(db) == 1          # three lines due at once -> only one is posted
+        db.commit()
+        assert banter.flush(db) == 0          # the next waits for the 10-second gap
+        n = db.query(ChatMessage).filter(ChatMessage.channel == ch).count()
+        assert n == 1
+        for m in db.query(ChatMessage).filter(ChatMessage.channel == ch):  # pretend 11 s passed
+            m.created_at = utcnow() - timedelta(seconds=11)
+        db.commit()
+        assert banter.flush(db) == 1
+        db.commit()
+        assert not banter.in_pause(db, ch)     # discussion still going (one line left)
+        for m in db.query(ChatMessage).filter(ChatMessage.channel == ch):
+            m.created_at = utcnow() - timedelta(seconds=11)
+        db.commit()
+        assert banter.flush(db) == 1
+        db.commit()
+        assert banter.in_pause(db, ch)         # discussion over -> quiet for 5..15 minutes
+        assert 5 * 60 - 5 <= banter.pause_left_s(db, ch) <= 15 * 60
+        assert banter.start_conversation(db, ch, ps) == 0
+        assert banter.ambient(db, ps[0], ch) == ""
+    finally:
+        banter._queue.clear()
+        gen.close()

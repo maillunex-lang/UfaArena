@@ -303,7 +303,8 @@ def handle_mention(db: Session, channel: str, user_id: str, text: str) -> bool:
     if persona is None:
         return False
     base = DLG.line(_rng, kind, persona.style, _context(db, persona, user_id))
-    _say(db, persona, channel, SP.compose(db, _rng, persona, base, to_user=user_id)[0])
+    from . import banter
+    banter.say_reply(db, persona, channel, SP.compose(db, _rng, persona, base, to_user=user_id)[0])  # paced like the chat
     log(db, persona, "chat_reply", channel=channel, intent=kind)
     return True
 
@@ -475,6 +476,8 @@ def act_chat(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
         if humans:  # talk in a guild chat only where real players can read it
             channel = f"guild:{m.guild_id}"
     text = banter.ambient(db, persona, channel)
+    if not text:
+        return  # the channel is quiet after a discussion
     from ...ai import personality as PERS
     PERS.evolve(db, persona, "chat")
     log(db, persona, "chat", channel=channel, text=text[:60])
