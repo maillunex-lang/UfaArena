@@ -155,8 +155,11 @@ func look(code: String) -> Dictionary:
 	return lk
 
 
-func clear_cache() -> void:
+## Also used by Settings → «Очистить кэш»; returns how many portraits were dropped.
+func clear_cache() -> int:
+	var n := _portraits.size()
 	_portraits.clear()
+	return n
 
 
 ## Returns a Node3D "actor" with meta: anim_player, anim_set.
@@ -324,3 +327,4 @@ func portrait(code: String, size := 256) -> Texture2D:
 
 func cached_portrait(code: String, size := 256) -> Texture2D:
 	return _portraits.get("%s@%d" % [code, size], null)
+

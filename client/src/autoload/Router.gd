@@ -36,6 +36,8 @@ func _ready() -> void:
 		add_child(load("res://tools/E2E.gd").new())  # dev-only UI test driver
 	if OS.get_environment("URALIA_E2E_SHOP") != "" and ResourceLoader.exists("res://tools/E2EShop.gd"):
 		add_child(load("res://tools/E2EShop.gd").new())
+	if OS.get_environment("URALIA_E2E_UI") != "" and ResourceLoader.exists("res://tools/E2EUI.gd"):
+		add_child(load("res://tools/E2EUI.gd").new())
 	if OS.get_environment("URALIA_E2E_GUILD") != "" and ResourceLoader.exists("res://tools/E2EGuild.gd"):
 		add_child(load("res://tools/E2EGuild.gd").new())
 	if OS.get_environment("URALIA_E2E_ART") != "" and ResourceLoader.exists("res://tools/E2EArt.gd"):

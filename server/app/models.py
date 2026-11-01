@@ -43,6 +43,7 @@ class User(Base):
     device_id: Mapped[str | None] = mapped_column(String(128), index=True)
     email: Mapped[str | None] = mapped_column(String(254), unique=True)
     password_hash: Mapped[str | None] = mapped_column(String(255))
+    recovery_hash: Mapped[str | None] = mapped_column(String(255))  # scrypt of the one-time recovery code
     external_provider: Mapped[str | None] = mapped_column(String(32))
     external_subject: Mapped[str | None] = mapped_column(String(255))
     is_banned: Mapped[bool] = mapped_column(Boolean, default=False)

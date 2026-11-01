@@ -20,7 +20,7 @@ func setup(m: Node, _p: Dictionary) -> void:
 	var groups := [
 		["Предметы", [["quests", "Инвентарь", "inventory", false, 0], ["lock", "Экипировка", "", true, 0], ["lock", "Артефакты", "", true, 0]]],
 		["Прогресс", [["summon", "Призыв", "summon", false, 0], ["quests", "Задания", "quests", false, int(b.get("quests", 0))],
-			["ranks", "Достижения", "rankings:achievements", false, 0]]],
+			["ranks", "Достижения", "quests:ach", false, 0]]],
 		["Социальное и сервисы", [["mail", "Почта", "mail", false, int(b.get("mail", 0))], ["shop", "Магазин", "shop", false, 0],
 			["ranks", "Рейтинг", "rankings", false, 0], ["friends", "Друзья", "friends", false, int(b.get("friends", 0))],
 			["chat", "Чат", "chat", false, int(b.get("chat", 0))], ["fortress", "Крепость", "fortress", false, 0]]],

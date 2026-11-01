@@ -52,6 +52,7 @@ func _rewards() -> void:
 	row.add_theme_constant_override("separation", UI.SP.m)
 	var afk := UI.card(UI.GOLD_DARK)
 	afk.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	afk.size_flags_stretch_ratio = 1.5
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", UI.SP.s)
 	var hh := HBoxContainer.new()
@@ -60,6 +61,7 @@ func _rewards() -> void:
 	ic.custom_minimum_size = Vector2(64, 64)
 	hh.add_child(ic)
 	var t := VBoxContainer.new()
+	t.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t.add_child(UI.label("Дозор", UI.FS.h3, UI.GOLD, true))
 	_afk_lbl = UI.label("", UI.FS.caption, UI.MUTED)
 	t.add_child(_afk_lbl)
@@ -83,9 +85,10 @@ func _rewards() -> void:
 	mic.custom_minimum_size = Vector2(64, 64)
 	mh.add_child(mic)
 	var mt := VBoxContainer.new()
+	mt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	mt.add_child(UI.label("Почта", UI.FS.h3, UI.GOLD, true))
 	var n := int(_s.mail_unclaimed)
-	mt.add_child(UI.label("%d с наградами" % n if n > 0 else "Новых наград нет", UI.FS.caption, UI.MUTED))
+	mt.add_child(UI.label("%d с наградами" % n if n > 0 else "Наград нет", UI.FS.caption, UI.MUTED))
 	mh.add_child(mt)
 	mv.add_child(mh)
 	mv.add_child(UI.expand())
@@ -110,7 +113,7 @@ func _tick_afk() -> void:
 	var now := Time.get_unix_time_from_system() + Game.server_time_offset
 	var cap: float = Game.afk.get("cap_s", 28800)
 	var el: float = clampf(now - since, 0, cap)
-	_afk_lbl.text = "Накоплено %02d:%02d из %d ч" % [int(el / 3600), int(el / 60) % 60, int(cap / 3600)]
+	_afk_lbl.text = "%02d:%02d из %d ч" % [int(el / 3600), int(el / 60) % 60, int(cap / 3600)]
 	if is_instance_valid(_afk_bar):
 		var pb: ProgressBar = _afk_bar.get_child(0)
 		pb.max_value = cap
@@ -179,7 +182,7 @@ func _daily() -> void:
 			b.pressed.connect(func(): main.open("quests"))
 			row.add_child(b)
 		elif x.claimed:
-			row.add_child(UI.label("✓", UI.FS.h2, UI.SUCCESS, true))
+			row.add_child(UI.label("✓", UI.FS.h2, UI.ok_color(), true))
 		v.add_child(row)
 	if int(q.claimable) > 0:
 		v.add_child(UI.label("Готово к получению наград: %d" % int(q.claimable), UI.FS.caption, UI.GOLD))

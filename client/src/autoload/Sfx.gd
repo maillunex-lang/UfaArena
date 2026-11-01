@@ -46,6 +46,15 @@ func _lin(v: float) -> float:
 	return linear_to_db(max(v, 0.0001))
 
 
+## Music/effects are mixed relative to each other; the one user-facing volume slider is the master bus.
+func _music_db() -> float:
+	return _lin(float(Config.settings.music_volume) if bool(Config.settings.get("music_on", true)) else 0.0)
+
+
+func _sfx_db() -> float:
+	return _lin(float(Config.settings.sfx_volume) if bool(Config.settings.get("sfx_on", true)) else 0.0)
+
+
 func music(id: String, loop := true) -> void:
 	if id == _current:
 		return
@@ -60,7 +69,7 @@ func music(id: String, loop := true) -> void:
 	nxt.stream = stream
 	nxt.volume_db = -40
 	nxt.play()
-	var target := _lin(float(Config.settings.music_volume))
+	var target := _music_db()
 	var tw := create_tween().set_parallel(true)
 	tw.tween_property(nxt, "volume_db", target, 1.2)
 	if old.playing:
@@ -76,9 +85,10 @@ func reload_music() -> void:
 
 
 func apply_volume() -> void:
+	AudioServer.set_bus_volume_db(0, _lin(float(Config.settings.get("master_volume", 0.8))))
 	for p in [_music_a, _music_b]:
 		if p.playing:
-			p.volume_db = _lin(float(Config.settings.music_volume))
+			p.volume_db = _music_db()
 
 
 func play(id: String, pitch_jitter := 0.06) -> void:
@@ -88,6 +98,6 @@ func play(id: String, pitch_jitter := 0.06) -> void:
 		if not p.playing:
 			p.stream = load(SFX[id])
 			p.pitch_scale = 1.0 + randf_range(-pitch_jitter, pitch_jitter)
-			p.volume_db = _lin(float(Config.settings.sfx_volume))
+			p.volume_db = _sfx_db()
 			p.play()
 			return

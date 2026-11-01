@@ -8,6 +8,7 @@ var _portrait: TextureRect
 var _name: Label
 var _text: Label
 var _typing := false
+var _skipped := false
 
 
 func _init() -> void:
@@ -46,19 +47,44 @@ func _init() -> void:
 	_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_text.vertical_alignment = VERTICAL_ALIGNMENT_TOP
 	v.add_child(_text)
+	var foot := HBoxContainer.new()
+	foot.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var hint := UI.label("Коснитесь, чтобы продолжить ▸", 26, UI.MUTED)
+	hint.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	v.add_child(hint)
+	foot.add_child(hint)
+	v.add_child(foot)
+	# Onboarding must be skippable: one tap ends the whole story.
+	var skip := UI.button("Пропустить", "dim", 0, 72)
+	skip.add_theme_font_size_override("font_size", 26)
+	skip.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	skip.offset_left = -300
+	skip.offset_right = -30
+	skip.offset_top = 30
+	skip.offset_bottom = 102
+	skip.pressed.connect(skip_all)
+	add_child(skip)
+
+
+## Ends the dialogue immediately (also used by automated UI tests).
+func skip_all() -> void:
+	_skipped = true
+	_typing = false
+	_advance.emit()
 
 
 func play(lines: Array) -> void:
 	for line in lines:
+		if _skipped:
+			break
 		var sp: String = line.get("speaker", "narrator")
 		var hero := Game.catalog_hero(sp)
 		_name.text = hero.get("name", "Летописец") if sp != "narrator" else "Летописец"
 		_portrait.texture = null
 		if sp != "narrator":
 			_portrait.texture = await Models.portrait(sp)
+		if _skipped:
+			break
 		_text.text = line.get("text", "")
 		_text.visible_ratio = 0.0
 		_typing = true

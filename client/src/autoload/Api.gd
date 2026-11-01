@@ -86,6 +86,15 @@ func login_email(email: String, password: String) -> Dictionary:
 	return r
 
 
+## Access recovery with the one-time recovery code; signs in on success (response carries a NEW code).
+func recover(email: String, code: String, new_password: String) -> Dictionary:
+	var r := await _raw("POST", "/api/v1/auth/recover", {"email": email.strip_edges().to_lower(),
+		"code": code.strip_edges().to_upper(), "new_password": new_password}, {}, true)
+	if r.ok:
+		_apply_tokens(r.data)
+	return r
+
+
 func refresh() -> Dictionary:
 	var r := await _raw("POST", "/api/v1/auth/refresh", {"refresh_token": refresh_token}, {}, true)
 	if r.ok:

@@ -165,7 +165,7 @@ func _fail(msg: String) -> void:
 
 ## Dev E2E runs start from a fresh guest without the login choice.
 func _auto_guest() -> bool:
-	for k in ["URALIA_E2E", "URALIA_E2E_SHOP", "URALIA_E2E_UPDATE", "URALIA_E2E_SOCIAL", "URALIA_E2E_ONLINE", "URALIA_E2E_ART", "URALIA_E2E_GUILD"]:
+	for k in ["URALIA_E2E", "URALIA_E2E_SHOP", "URALIA_E2E_UPDATE", "URALIA_E2E_SOCIAL", "URALIA_E2E_ONLINE", "URALIA_E2E_ART", "URALIA_E2E_GUILD", "URALIA_E2E_UI"]:
 		if OS.get_environment(k) != "":
 			return true
 	return false
@@ -199,7 +199,51 @@ func _build_login(pv: VBoxContainer) -> void:
 	var lb := UI.button("Войти по email", "glass", 0, 110)
 	lb.pressed.connect(_email_login)
 	_login_box.add_child(lb)
+	var forgot := UI.button("Забыли пароль? Восстановить доступ", "dim", 0, 84)
+	forgot.add_theme_font_size_override("font_size", 26)
+	_login_box.add_child(forgot)
+	var rec := VBoxContainer.new()
+	rec.add_theme_constant_override("separation", 10)
+	rec.visible = false
+	forgot.pressed.connect(func(): rec.visible = not rec.visible)
+	var hint := UI.label("Введите email выше, код восстановления (выдаётся при привязке email и в настройках) и новый пароль.", 24, UI.MUTED)
+	hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	rec.add_child(hint)
+	var code := LineEdit.new()
+	code.placeholder_text = "код восстановления XXXX-XXXX-XXXX"
+	code.custom_minimum_size = Vector2(0, 96)
+	code.add_theme_font_size_override("font_size", 30)
+	rec.add_child(code)
+	var npw := LineEdit.new()
+	npw.placeholder_text = "новый пароль (от 8 символов)"
+	npw.secret = true
+	npw.custom_minimum_size = Vector2(0, 96)
+	npw.add_theme_font_size_override("font_size", 30)
+	rec.add_child(npw)
+	var rb := UI.button("Восстановить и войти", "accent", 0, 100)
+	rb.pressed.connect(func(): _recover(code.text, npw.text))
+	rec.add_child(rb)
+	_login_box.add_child(rec)
 	pv.add_child(_login_box)
+
+
+func _recover(code: String, new_pw: String) -> void:
+	if _email.text.strip_edges() == "" or code.strip_edges() == "" or new_pw.length() < 8:
+		_status.text = "Нужны email, код восстановления и новый пароль от 8 символов"
+		return
+	_status.text = "Восстанавливаем доступ…"
+	var r := await Api.recover(_email.text, code, new_pw)
+	if not r.ok:
+		_status.text = r.message if r.status == 401 else "Не удалось восстановить: %s" % r.message
+		return
+	# the old code is spent: show the new one once before entering the game
+	_login_box.visible = false
+	_status.text = "Доступ восстановлен. Новый код восстановления:\n%s\nЗапишите его — старый больше не действует." % r.data.recovery_code
+	var ok := UI.button("Я записал код — в игру", "primary", 0, 110)
+	_status.get_parent().add_child(ok)
+	await ok.pressed
+	ok.queue_free()
+	await _enter()
 
 
 func _show_login() -> void:

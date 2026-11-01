@@ -133,6 +133,29 @@ def test_link_and_login(client, newplayer):
     assert email not in str(prof)
 
 
+def test_password_change_and_recovery(client, newplayer):
+    import uuid
+    p = newplayer()
+    email = f"rec-{uuid.uuid4().hex[:8]}@example.com"
+    r = p.post("/auth/link", {"email": email, "password": "secret-pass-1"}, key=False)
+    code = r.json()["recovery_code"]
+    assert len(code) == 14 and code.count("-") == 2
+    # wrong old password is rejected; right one changes it
+    assert p.post("/auth/password", {"old_password": "nope-nope", "new_password": "secret-pass-2"}, key=False).status_code == 401
+    assert p.post("/auth/password", {"old_password": "secret-pass-1", "new_password": "secret-pass-2"}, key=False).status_code == 200
+    assert client.post("/api/v1/auth/login", json={"email": email, "password": "secret-pass-2"}).status_code == 200
+    # recovery: bad code rejected, good code sets a new password and rotates the code
+    bad = client.post("/api/v1/auth/recover", json={"email": email, "code": "AAAA-BBBB-CCCC", "new_password": "secret-pass-3"})
+    assert bad.status_code == 401
+    ok = client.post("/api/v1/auth/recover", json={"email": email, "code": code.lower(), "new_password": "secret-pass-3"})
+    assert ok.status_code == 200 and ok.json()["user_id"] == p.tokens["user_id"] and ok.json()["recovery_code"] != code
+    again = client.post("/api/v1/auth/recover", json={"email": email, "code": code, "new_password": "secret-pass-4"})
+    assert again.status_code == 401  # one-time
+    assert client.post("/api/v1/auth/login", json={"email": email, "password": "secret-pass-3"}).status_code == 200
+    # old sessions were signed out
+    assert p.get("/player/me").status_code == 401
+
+
 def test_signed_manifest(client):
     from app.core import signing
     d = client.get("/api/v1/content/manifest?channel=dev&client_version=0.1.0").json()

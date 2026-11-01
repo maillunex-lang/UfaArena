@@ -104,6 +104,25 @@ static func reduce_motion() -> bool:
 	return bool(Config.settings.get("reduce_motion", false))
 
 
+static func colorblind() -> bool:
+	return bool(Config.settings.get("colorblind", false))
+
+
+## Status colours: in colour-blind mode red/green become orange/blue (distinguishable for protan/deutan).
+static func ok_color() -> Color:
+	return Color("#4ea3ff") if colorblind() else SUCCESS
+
+
+static func bad_color() -> Color:
+	return Color("#ff9d2e") if colorblind() else DANGER
+
+
+## Short haptic tick on taps (Android/iOS only; respects the setting).
+static func vibrate(ms := 12) -> void:
+	if bool(Config.settings.get("vibration", true)) and (OS.has_feature("android") or OS.has_feature("ios")):
+		Input.vibrate_handheld(ms)
+
+
 ## Premium Dark Glass: opaque-enough graphite surface, thin gold border, soft shadow. `tint` nudges the border hue.
 static func glass_style(tint := Color("#bfe3ff"), radius := 24) -> StyleBoxFlat:
 	var alpha := 0.97 if high_contrast() else (0.86 if not Gfx.setting("blur") else 0.2)
@@ -264,7 +283,7 @@ static func button(text: String, kind := "glass", min_w := 0, h := 96) -> Button
 	b.add_theme_stylebox_override("disabled", disabled)
 	b.add_theme_stylebox_override("focus", focus)
 	b.add_theme_color_override("font_disabled_color", Color(MUTED, 0.6))
-	b.pressed.connect(func(): Sfx.play("click"))
+	b.pressed.connect(func(): Sfx.play("click"); vibrate())
 	if not reduce_motion():
 		b.button_down.connect(func(): b.pivot_offset = b.size / 2; b.create_tween().tween_property(b, "scale", Vector2(0.97, 0.97), 0.05))
 		b.button_up.connect(func(): b.create_tween().tween_property(b, "scale", Vector2.ONE, 0.08))
@@ -495,7 +514,8 @@ static func rarity_tag(rarity: int, text: String) -> PanelContainer:
 	sb.content_margin_left = 8
 	sb.content_margin_right = 8
 	p.add_theme_stylebox_override("panel", sb)
-	p.add_child(label(text, 22, c, true))
+	# colour-blind mode: rarity is also encoded as a star count, not only by colour
+	p.add_child(label(("★%d " % rarity if colorblind() else "") + text, 22, c, true))
 	return p
 
 

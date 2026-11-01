@@ -15,6 +15,21 @@ var settings := {
 	"music_volume": 0.7,
 	"sfx_volume": 0.9,
 	"battle_speed": 1,
+	# --- UI/UX redesign settings ---
+	"master_volume": 0.8,      # the single volume slider (master bus)
+	"music_on": true,
+	"sfx_on": true,
+	"ui_scale": 1.0,           # 0.9 / 1.0 / 1.1
+	"reduce_motion": false,
+	"high_contrast": false,
+	"colorblind": false,       # alternative colour coding: symbols + blue/orange status colours
+	"vibration": true,
+	"fps_limit": 0,            # 0 = by graphics tier, otherwise 30 / 60
+	"battery_saver": false,
+	"notify_rewards": true,
+	"notify_social": true,
+	"notify_guild": true,
+	"notify_events": true,
 }
 
 

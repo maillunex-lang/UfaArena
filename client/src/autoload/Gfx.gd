@@ -30,11 +30,17 @@ func detect() -> String:
 func apply() -> void:
 	var q: String = Config.settings.get("graphics_quality", "auto")
 	tier = detect() if q == "auto" else q
+	if bool(Config.settings.get("battery_saver", false)):
+		tier = "low"  # battery saver forces the lightest tier and 30 FPS
 	var t: Dictionary = TIERS[tier]
 	var vp := get_viewport()
 	vp.scaling_3d_scale = t.scale
 	vp.msaa_3d = t.msaa
-	Engine.max_fps = t.fps
+	var cap := int(Config.settings.get("fps_limit", 0))
+	Engine.max_fps = 30 if bool(Config.settings.get("battery_saver", false)) else (cap if cap > 0 else int(t.fps))
+	var sc := clampf(float(Config.settings.get("ui_scale", 1.0)), 0.85, 1.2)
+	get_tree().root.content_scale_factor = sc
+	AudioServer.set_bus_volume_db(0, linear_to_db(maxf(0.0001, float(Config.settings.get("master_volume", 0.8)))))
 	quality_changed.emit(tier)
 
 

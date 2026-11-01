@@ -277,7 +277,10 @@ func set_badges(s: Dictionary) -> void:
 	badges = {"quests": int(s.get("quests", {}).get("claimable", 0)), "mail": int(s.get("mail_unclaimed", 0)),
 		"friends": int(soc.get("friend_requests", 0)) + int(soc.get("gifts", 0)), "chat": int(soc.get("chat_unread", 0)),
 		"guild": int(soc.get("guild_apps", 0)), "afk": 1 if afk.get("full", false) else 0}
-	var total: int = badges.quests + badges.mail + badges.friends + badges.guild + badges.afk + (1 if badges.chat > 0 else 0)
+	# the bell only counts categories the player kept enabled in Settings → Уведомления
+	var on := func(k: String) -> int: return 1 if bool(Config.settings.get("notify_" + k, true)) else 0
+	var total: int = (badges.quests + badges.mail + badges.afk) * on.call("rewards") \
+		+ (badges.friends + (1 if badges.chat > 0 else 0)) * on.call("social") + badges.guild * on.call("guild")
 	if is_instance_valid(_bell_badge):
 		_bell_badge.visible = total > 0
 		(_bell_badge.get_child(0) as Label).text = str(total) if total < 100 else "99+"
@@ -426,6 +429,9 @@ func _build_guide() -> void:
 	tw.tween_property(_guide, "modulate", Color.WHITE, 0.8)
 
 
+var _story_open := false
+
+
 ## Onboarding steps (server-persisted, monotonic):
 ## 0 intro story -> 1 fight 1-1 -> 2 claim mail -> 3 summon -> 4 formation -> 5 AFK -> 6 done
 func _check_onboarding() -> void:
@@ -433,7 +439,8 @@ func _check_onboarding() -> void:
 		return
 	var step := int(Game.profile.get("onboarding_step", 0))
 	var cleared: Array = Game.campaign.get("cleared", [])
-	if step == 0 and current == "home":
+	if step == 0 and current == "home" and not _story_open:
+		_story_open = true
 		var dlg: Control = preload("res://src/ui/StoryDialog.gd").new()
 		ui.add_child(dlg)
 		await dlg.play([
@@ -441,6 +448,7 @@ func _check_onboarding() -> void:
 			{"speaker": "azamat", "text": "Хранитель, ты вовремя! Крепость держится, но на берегу Агидели уже поднимаются мертвецы."},
 			{"speaker": "yurek", "text": "Я Юрек, следопыт. Сафарий читает руны, Тан-Чечек лечит. Возьми нас — вместе отбросим их к Торатау."},
 		])
+		_story_open = false
 		await Game.advance_onboarding(1)
 		step = 1
 	if step == 1 and "1-1" in cleared:

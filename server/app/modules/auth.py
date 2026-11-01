@@ -37,6 +37,32 @@ class LoginIn(LinkIn):
     pass
 
 
+class PasswordIn(BaseModel):
+    old_password: str = Field(min_length=1, max_length=128)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+class RecoverIn(BaseModel):
+    email: EmailStr
+    code: str = Field(min_length=8, max_length=64)
+    new_password: str = Field(min_length=8, max_length=128)
+
+
+def _new_recovery_code(u: User) -> str:
+    """One-time code shown to the player once; only its scrypt hash is stored."""
+    import secrets
+    raw = secrets.token_hex(6).upper()  # 12 hex chars
+    code = "-".join(raw[i:i + 4] for i in range(0, 12, 4))
+    u.recovery_hash = hash_password(code)
+    return code
+
+
+def _revoke_all(db: Session, user_id: str, keep: str | None = None) -> None:
+    for s in db.scalars(select(SessionToken).where(SessionToken.user_id == user_id, SessionToken.revoked_at.is_(None))):
+        if s.id != keep:
+            s.revoked_at = utcnow()
+
+
 def _issue(db: Session, user: User, request: Request, family_id: str | None = None) -> dict:
     s = get_settings()
     token, token_hash = new_refresh_token()
@@ -103,9 +129,58 @@ def link(body: LinkIn, request: Request, user: CurrentUser = Depends(current_use
     if db.scalar(select(User).where(User.email == body.email.lower())) is not None:
         raise GameError("email_taken", "Email уже используется", 409)
     u.email, u.password_hash, u.kind = body.email.lower(), hash_password(body.password), "linked"
+    code = _new_recovery_code(u)
     audit(db, u.id, "auth.linked_email", ratelimit.client_ip(request))
     db.commit()
-    return {"ok": True, "kind": u.kind}
+    return {"ok": True, "kind": u.kind, "recovery_code": code}
+
+
+@router.post("/password")
+def change_password(body: PasswordIn, request: Request, user: CurrentUser = Depends(current_user),
+                    db: Session = Depends(get_db)):
+    """Change the password; every other device is signed out."""
+    _auth_limit(request)
+    u = db.get(User, user.id)
+    if not u.password_hash or not verify_password(body.old_password, u.password_hash):
+        raise GameError("bad_credentials", "Текущий пароль неверен", 401)
+    u.password_hash = hash_password(body.new_password)
+    _revoke_all(db, u.id, keep=user.session_id)
+    audit(db, u.id, "auth.password_changed", ratelimit.client_ip(request))
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/recovery-code")
+def recovery_code(request: Request, user: CurrentUser = Depends(current_user), db: Session = Depends(get_db)):
+    """Issue a new recovery code (the previous one stops working)."""
+    _auth_limit(request)
+    u = db.get(User, user.id)
+    if not u.email:
+        raise GameError("not_linked", "Сначала привяжите email", 409)
+    code = _new_recovery_code(u)
+    audit(db, u.id, "auth.recovery_code_issued", ratelimit.client_ip(request))
+    db.commit()
+    return {"recovery_code": code}
+
+
+@router.post("/recover")
+def recover(body: RecoverIn, request: Request, db: Session = Depends(get_db)):
+    """Restore access with email + recovery code: sets a new password, signs out all devices,
+    rotates the code (returned once) and signs in on this device."""
+    _auth_limit(request)
+    u = db.scalar(select(User).where(User.email == body.email.lower()))
+    if u is None or not u.recovery_hash or not verify_password(body.code.strip().upper(), u.recovery_hash):
+        raise GameError("bad_recovery", "Неверный email или код восстановления", 401)
+    if u.is_banned:
+        from ..social.moderation import ban_message
+        raise GameError("banned", ban_message(db, u.id), 403)
+    u.password_hash = hash_password(body.new_password)
+    _revoke_all(db, u.id)
+    code = _new_recovery_code(u)
+    out = _issue(db, u, request)
+    audit(db, u.id, "auth.recovered", ratelimit.client_ip(request))
+    db.commit()
+    return {**out, "recovery_code": code}
 
 
 @router.post("/login")

@@ -153,11 +153,11 @@ func _show_node(code: String) -> void:
 	teams.add_child(mine)
 	var foes_box := VBoxContainer.new()
 	foes_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	foes_box.add_child(UI.label("Противники · %d" % n.enemies.size(), UI.FS.caption, UI.DANGER, true))
+	foes_box.add_child(UI.label("Противники · %d" % n.enemies.size(), UI.FS.caption, UI.bad_color(), true))
 	var foes := HBoxContainer.new()
 	foes.add_theme_constant_override("separation", 4)
 	for e in n.enemies:
-		foes.add_child(_face(String(e.hero_code), int(e.level), UI.DANGER))
+		foes.add_child(_face(String(e.hero_code), int(e.level), UI.bad_color()))
 	foes_box.add_child(foes)
 	teams.add_child(foes_box)
 	v.add_child(teams)

@@ -87,4 +87,7 @@ func _items() -> Array:
 		out.append(["chat", "Новые сообщения в чате: %d" % int(s.chat_unread), "chat", {}, Color(0, 0, 0, 0)])
 	for e in data.get("events", []):
 		out.append(["events", "Идёт событие «%s»: %s / %s" % [e.name, Game.fmt(int(e.progress)), Game.fmt(int(e.goal))], "events", {}, UI.TEAL_DEEP])
-	return out
+	# categories switched off in Settings → Уведомления are hidden
+	var cat := {"afk": "rewards", "quests": "rewards", "mail": "rewards", "friends": "social", "shop": "social",
+		"chat": "social", "guild": "guild", "events": "events"}
+	return out.filter(func(it): return bool(Config.settings.get("notify_" + String(cat.get(it[0], "rewards")), true)))

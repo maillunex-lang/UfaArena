@@ -427,3 +427,10 @@ func summary() -> String:
 	for p in active.get("packages", []):
 		names.append("%s v%d" % [p.package_id, int(p.version)])
 	return "Манифест v%d (%s): %s" % [v, Config.CHANNEL, ", ".join(names) if names.size() > 0 else "только встроенный контент"]
+
+
+## Settings → «Очистить кэш»: drops decoded package textures (decoded again on demand).
+func clear_texture_cache() -> int:
+	var n := _tex_cache.size()
+	_tex_cache.clear()
+	return n
