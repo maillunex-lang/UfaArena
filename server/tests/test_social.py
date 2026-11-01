@@ -111,6 +111,7 @@ def test_friend_limits_invites_search_and_block(newplayer):
     assert b.post("/social/friends/request", {"uralia_id": public_id(a)}, key=False).json()["status"] == "friends"
     # block removes friendship and hides
     assert a.post(f"/social/block/{uid(b)}", key=False).status_code == 200
+    assert [x["user_id"] for x in a.get("/social/friends").json()["blocked"]] == [uid(b)]  # privacy: block list
     assert all(f["user_id"] != uid(b) for f in a.get("/social/friends").json()["friends"])
     assert b.post("/social/friends/request", {"uralia_id": public_id(a)}, key=False).status_code == 403
     # gift only to friends

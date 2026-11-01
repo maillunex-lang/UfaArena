@@ -137,7 +137,9 @@ def friends(user: CurrentUser = Depends(player), db: Session = Depends(get_db)):
             "gifts_waiting": gifts_waiting, "presence_hidden": bool(me.presence_hidden),
             "limits": {"gift_send_per_day": F()["gift_send_per_day"], "help_per_day": F()["help_per_day"],
                        "sent_today": len(sent_today), "helped_today": len(helped_today)},
-            "blessing_battles": blessing_left(db, user.id)}
+            "blessing_battles": blessing_left(db, user.id),
+            "blocked": [card(db, uid, user.id) for uid in db.scalars(
+                select(UserBlock.blocked_id).where(UserBlock.user_id == user.id).limit(100))]}
 
 
 @router.get("/search")

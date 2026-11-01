@@ -218,6 +218,13 @@ def catalog() -> list[dict]:
             "9-slice, углы 56 px. Иконку и надпись игра рисует сама — без текста.",
             build_prompt(f"Large mobile game action button plate, {look}, rounded rectangle with a bevel", "420×150",
                          NINE_SLICE + "; light text sits on it: keep the middle evenly dark; no text", TRANSPARENT), True))
+    by["screens"]["slots"].append(_slot(
+        "ui/world_map.png", "Карта мира", "1024×768", "экран «Мир» — карта регионов (метки регионов игра рисует поверх)",
+        "Стилизованная карта Южного Урала без надписей: хребет на востоке, река Агидель (Белая) с севера на юг, степь на юге.",
+        build_prompt("Stylised fantasy map of the Southern Urals (Bashkortostan): the Ural ridge along the east, the Agidel (Belaya) river "
+                     "flowing from south to north-west, forests in the centre, steppe in the south, parchment and dark teal tones",
+                     "1024×768", "top-down map filling the whole canvas, no labels, no text, no markers (region markers are drawn by the game)",
+                     "full illustration, no transparency"), False))
     # shell
     by["shell"]["slots"] += [
         _slot("ui/topbar.png", "Фон верхней панели", "1080×214", "верх каждого экрана: профиль, ресурсы, колокольчик",

@@ -40,11 +40,11 @@ static func maybe_show(main: Node, key: String) -> void:
 	arr.append(key)
 	Config.settings["seen_tips"] = arr
 	Config.save()
-	var old: Node = main.ui.get_node_or_null("TipCard")
-	if old:
+	for old in main.get_tree().get_nodes_in_group("tip_card"):
 		old.queue_free()
 	var p := UI.solid_panel(Color("#bfe3ff"))
 	p.name = "TipCard"
+	p.add_to_group("tip_card")
 	p.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	p.offset_left = 24
 	p.offset_right = -24

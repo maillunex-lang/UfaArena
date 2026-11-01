@@ -66,6 +66,15 @@ func _regions() -> void:
 		_body.add_child(UI.state("error", "Регионы не загрузились.", "Повторить", func(): main.open("world")))
 		return
 	var unlocked: Array = w.data.get("unlocked", []) if w.ok else []
+	var map := preload("res://src/ui/WorldMap.gd").new()
+	map.set_regions(Game.campaign.regions)
+	map.region_pressed.connect(func(i: int): main.open("campaign", {"chapter": i}))
+	_body.add_child(map)
+	_body.move_child(map, 1)  # map first, catalogue below (brief §10: map + catalogue)
+	var legend := UI.label("Золото — глава пройдена, бирюза — открыта, серый — закрыта. Зелёное кольцо — регион освобождён, красное — опалён Тьмой.", 22, UI.MUTED)
+	legend.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_body.add_child(legend)
+	_body.move_child(legend, 2)
 	for i in Game.campaign.regions.size():
 		var reg: Dictionary = Game.campaign.regions[i]
 		var open: bool = reg.nodes.size() > 0 and bool(reg.nodes[0].unlocked)

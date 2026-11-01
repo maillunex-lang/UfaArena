@@ -53,6 +53,7 @@ func _draw() -> void:
 		"arena": _swords(c, r)
 		"profile": _people(c, r)
 		"lock": _lock(c, r)
+		"search": _search(c, r)
 		"stone_sky": _em_stone_sky(c, r)
 		"living_kurai": _em_living_kurai(c, r)
 		"ashen_reach": _em_ashen_reach(c, r)
@@ -391,3 +392,10 @@ func _bell(c: Vector2, r: float) -> void:
 	draw_colored_polygon(pts, g)
 	draw_rect(Rect2(c + Vector2(-r * 0.85, r * 0.42), Vector2(r * 1.7, r * 0.18)), g)
 	draw_circle(c + Vector2(0, r * 0.78), r * 0.18, Color("#3fd0c3"))
+
+
+func _search(c: Vector2, r: float) -> void:
+	var g := Color("#efcf86")
+	draw_arc(c + Vector2(-r * 0.15, -r * 0.15), r * 0.5, 0, TAU, 40, g, r * 0.16, true)
+	draw_circle(c + Vector2(-r * 0.15, -r * 0.15), r * 0.36, Color(0.25, 0.82, 0.76, 0.35))
+	draw_line(c + Vector2(r * 0.22, r * 0.22), c + Vector2(r * 0.72, r * 0.72), g, r * 0.2, true)

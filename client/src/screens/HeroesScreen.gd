@@ -92,6 +92,8 @@ func setup(m: Node, p: Dictionary) -> void:
 	_grid.add_theme_constant_override("v_separation", 14)
 	v.add_child(UI.scroll(_grid))
 	_refresh_filters()
+	if String(p.get("open", "")) != "":  # from global search
+		_open_detail.call_deferred(String(p.open))
 	Game.heroes_changed.connect(_fill)
 
 

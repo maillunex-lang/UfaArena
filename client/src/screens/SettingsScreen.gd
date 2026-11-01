@@ -33,6 +33,10 @@ func setup(m: Node, _p: Dictionary) -> void:
 	_notifications()
 	_tutorial()
 	_ai()
+	_privacy()
+	_network()
+	_memory()
+	_language()
 	_data()
 	_about()
 	_v.add_child(UI.spacer(UI.SP.xl))
@@ -320,6 +324,73 @@ func _ai() -> void:
 		_note(box, "Отключено владельцем сервера: " + ", ".join(off))
 
 
+# ------------------------------------------------------------------ privacy, network, memory, language (§19.4)
+func _privacy() -> void:
+	var box := _group("Приватность")
+	_note(box, "Профиль открыт: другие игроки видят ваше имя, уровень, боевой рейтинг, героев, достижения, гильдию и статус в сети. Email и платёжные данные никому не показываются.")
+	_note(box, "Нежелательных игроков можно заблокировать в их карточке: они не смогут писать вам и приглашать вас. Жалобы рассматривают модераторы.")
+	var r := await Api.get_json("/social/friends")
+	if r.ok and is_instance_valid(box):
+		box.add_child(UI.toggle_row("Скрывать мой статус «в сети»", bool(r.data.get("presence_hidden", false)), func(on: bool):
+			var x := await Api.post_json("/social/presence", {"hidden": on})
+			if not x.ok:
+				Router.error(x)))
+	if not is_instance_valid(box):
+		return
+	var b := UI.button("Заблокированные игроки", "glass", 0, 84)
+	b.pressed.connect(func(): main.open("friends", {"tab": "blocked"}))
+	box.add_child(b)
+
+
+func _network() -> void:
+	var box := _group("Сеть и мобильный трафик")
+	_note(box, "Игра обменивается с сервером короткими запросами (килобайты за бой). Крупные загрузки — только пакеты графики и контента.")
+	var used := _dir_size("user://content/")
+	_note(box, "Загружено пакетов контента: %d · на устройстве: %s" % [Content.active.get("packages", []).size(), _mb(used)])
+	box.add_child(UI.toggle_row("Загружать обновления контента в фоне (выключите, чтобы экономить мобильный трафик — обновления будут скачиваться по кнопке «Проверить контент»)",
+		Content.background_enabled, func(on: bool): Content.set_background(on)))
+
+
+func _memory() -> void:
+	var box := _group("Память")
+	_note(box, "Оперативная память игры сейчас: %s. Кэш картинок пересоздаётся по мере надобности." % _mb(int(Performance.get_monitor(Performance.MEMORY_STATIC))))
+	_note(box, "Файлы на устройстве: пакеты контента %s, сохранённые настройки и вход." % _mb(_dir_size("user://content/")))
+	var cache := UI.button("Очистить кэш изображений", "glass", 0, 84)
+	cache.pressed.connect(func():
+		var n := Models.clear_cache() + Content.clear_texture_cache()
+		Router.toast("Кэш очищен: освобождено изображений — %d" % n))
+	box.add_child(cache)
+	_note(box, "Прогресс хранится на сервере: очистка кэша и переустановка игры его не затрагивают.")
+
+
+func _language() -> void:
+	var box := _group("Язык")
+	_note(box, "Язык интерфейса: русский. Другие языки в этой версии не предусмотрены.")
+
+
+func _dir_size(path: String) -> int:
+	var d := DirAccess.open(path)
+	if d == null:
+		return 0
+	var total := 0
+	d.list_dir_begin()
+	var f := d.get_next()
+	while f != "":
+		if d.current_is_dir():
+			if not f.begins_with("."):
+				total += _dir_size(path.path_join(f))
+		else:
+			var fa := FileAccess.open(path.path_join(f), FileAccess.READ)
+			if fa:
+				total += fa.get_length()
+		f = d.get_next()
+	return total
+
+
+func _mb(b: int) -> String:
+	return "%.1f МБ" % (float(b) / 1048576.0)
+
+
 # ------------------------------------------------------------------ data & updates
 func _data() -> void:
 	var box := _group("Данные и обновления")
@@ -340,14 +411,6 @@ func _data() -> void:
 				main.open("settings")))
 	crow.add_child(rb)
 	box.add_child(crow)
-	box.add_child(UI.toggle_row("Загружать обновления контента в фоне", Content.background_enabled,
-		func(on: bool): Content.set_background(on)))
-	var cache := UI.button("Очистить кэш изображений", "glass", 0, 84)
-	cache.pressed.connect(func():
-		var n := Models.clear_cache() + Content.clear_texture_cache()
-		Router.toast("Кэш очищен: освобождено изображений — %d" % n))
-	box.add_child(cache)
-	_note(box, "Кэш портретов и картинок собирается заново по мере надобности. Прогресс хранится на сервере и не затрагивается.")
 	var upd := UI.button("Проверить обновление приложения", "glass", 0, 84)
 	upd.pressed.connect(func(): load("res://src/ui/UpdateDialog.gd").check(main.ui, true))
 	box.add_child(upd)

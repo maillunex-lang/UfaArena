@@ -67,7 +67,6 @@ func setup(h: Dictionary, selected := false, compact := false) -> void:
 		psb.content_margin_right = 6
 		pw.add_theme_stylebox_override("panel", psb)
 		pw.add_child(UI.label("⚔ " + Game.fmt(int(h.power)), 22 if not compact else 20, UI.GOLD, true))
-		pw.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 		pw.position = Vector2(8, custom_minimum_size.y - 84)
 		pw.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(pw)

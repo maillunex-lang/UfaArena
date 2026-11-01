@@ -2,7 +2,7 @@ extends Node
 ## Client configuration. Contains NO backend secrets — only the public server URL and
 ## the public key used to verify signed content manifests.
 
-const CLIENT_VERSION := "0.7.1"
+const CLIENT_VERSION := "0.7.2"
 const CHANNEL := "dev"
 const PLATFORM := "android"
 const SETTINGS_PATH := "user://settings.cfg"

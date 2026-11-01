@@ -129,8 +129,7 @@ func open(screen_name: String, params := {}) -> void:
 	var section: String = NAV_OF.get(screen_name, screen_name)
 	for k in _nav_buttons:
 		_style_nav(k, k == section)
-	var tip: Node = ui.get_node_or_null("TipCard")
-	if tip:
+	for tip in get_tree().get_nodes_in_group("tip_card"):
 		tip.queue_free()
 	_check_onboarding()
 	Tips.maybe_show(self, screen_name)
@@ -224,7 +223,7 @@ func _build_top() -> void:
 	var prof := Button.new()
 	prof.flat = true
 	prof.focus_mode = Control.FOCUS_NONE
-	prof.custom_minimum_size = Vector2(330, 120)
+	prof.custom_minimum_size = Vector2(280, 120)
 	for st in ["normal", "hover", "pressed"]:
 		prof.add_theme_stylebox_override(st, StyleBoxEmpty.new())
 	var ph := HBoxContainer.new()
@@ -263,6 +262,24 @@ func _build_top() -> void:
 		_chips[k] = chip
 		chips.add_child(chip)
 	bar.add_child(chips)
+	# global search (brief §22)
+	var find_b := UI.button("", "glass", 92, 92)
+	find_b.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var fi := GameIcon.new()
+	fi.kind = "search"
+	fi.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	fi.offset_left = 14
+	fi.offset_right = -14
+	fi.offset_top = 14
+	fi.offset_bottom = -14
+	fi.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	find_b.add_child(fi)
+	find_b.tooltip_text = "Поиск"
+	find_b.pressed.connect(func():
+		var gs: Control = preload("res://src/ui/GlobalSearch.gd").new()
+		gs.main = self
+		ui.add_child(gs))
+	bar.add_child(find_b)
 	# mini chat over any screen (brief §16)
 	var chat_b := UI.button("", "glass", 92, 92)
 	chat_b.size_flags_vertical = Control.SIZE_SHRINK_CENTER

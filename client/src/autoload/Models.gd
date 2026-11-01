@@ -284,7 +284,9 @@ func portrait(code: String, size := 256) -> Texture2D:
 	vp.size = Vector2i(size, size)
 	vp.transparent_bg = true
 	vp.own_world_3d = true
-	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
+	# render only after camera, lights and the posed actor are all in place (a frame hitch between add_child and
+	# setup used to capture an empty/garbage frame with UPDATE_ONCE)
+	vp.render_target_update_mode = SubViewport.UPDATE_DISABLED
 	vp.msaa_3d = Viewport.MSAA_4X
 	add_child(vp)
 	var actor := spawn(code)
@@ -316,6 +318,10 @@ func portrait(code: String, size := 256) -> Texture2D:
 	env.environment.ambient_light_energy = 0.9
 	env.environment.background_mode = Environment.BG_CLEAR_COLOR
 	vp.add_child(env)
+	await get_tree().process_frame  # animation pose and transforms applied
+	if not is_instance_valid(vp):
+		return null
+	vp.render_target_update_mode = SubViewport.UPDATE_ONCE
 	await RenderingServer.frame_post_draw
 	await RenderingServer.frame_post_draw
 	var img := vp.get_texture().get_image()

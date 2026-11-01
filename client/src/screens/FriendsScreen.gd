@@ -3,7 +3,7 @@ extends Control
 ## invite codes; received gifts and the friendship-token shop. AI personas carry the "ИИ" badge.
 
 const PlayerPopup := preload("res://src/ui/PlayerPopup.gd")
-const TABS := [["friends", "Друзья"], ["requests", "Заявки"], ["find", "Найти"], ["gifts", "Подарки"]]
+const TABS := [["friends", "Друзья"], ["requests", "Заявки"], ["find", "Найти"], ["gifts", "Подарки"], ["blocked", "Блок"]]
 
 var main: Node
 var tab := "friends"
@@ -65,6 +65,40 @@ func _render() -> void:
 		"requests": _requests()
 		"find": _find()
 		"gifts": _gifts()
+		"blocked": _blocked()
+
+
+func _blocked() -> void:
+	_body.add_child(UI.skeleton(2, 100))
+	await _reload()
+	if not is_inside_tree() or tab != "blocked":
+		return
+	for c in _body.get_children():
+		c.queue_free()
+	var list: Array = _data.get("blocked", [])
+	var info := UI.label("Заблокированные игроки не могут писать вам, приглашать и отправлять заявки.", 24, UI.MUTED)
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_body.add_child(info)
+	if list.is_empty():
+		_body.add_child(UI.state("empty", "Вы никого не блокировали."))
+	for c in list:
+		var card := UI.card()
+		var h := HBoxContainer.new()
+		var l := UI.label("%s · ур. %d" % [c.nickname, int(c.get("level", 1))], 28, UI.TEXT, true)
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		h.add_child(l)
+		var uid: String = c.user_id
+		var b := UI.button("Разблокировать", "glass", 0, 80)
+		b.pressed.connect(func():
+			var r := await Api.post_json("/social/unblock/" + uid, {})
+			if not r.ok:
+				Router.error(r)
+				return
+			Router.toast("Игрок разблокирован")
+			_render())
+		h.add_child(b)
+		card.add_child(h)
+		_body.add_child(card)
 
 
 func _reload() -> void:
