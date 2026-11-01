@@ -18,9 +18,14 @@ var margin := 40
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	resized.connect(queue_redraw)
-	if texture_path != "" and ResourceLoader.exists(texture_path):
+	var tex: Texture2D = null
+	if texture_path != "":
+		tex = UI.art(texture_path.replace("res://assets/", ""))
+		if tex == null and ResourceLoader.exists(texture_path):
+			tex = load(texture_path)
+	if tex:
 		var np := NinePatchRect.new()
-		np.texture = load(texture_path)
+		np.texture = tex
 		np.patch_margin_left = margin
 		np.patch_margin_right = margin
 		np.patch_margin_top = margin

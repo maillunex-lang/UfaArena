@@ -30,7 +30,7 @@ services:
       - apikeys:/srv/keys
       - contentstore:/srv/var/content_store     # published content packages (by SHA-256)
       - ./content_src:/srv/content_src:ro       # package sources for `python -m app.content.admin publish`
-      - ./downloads:/srv/var/downloads:ro       # APK + release.json for in-game update prompts (/download)
+      - ./downloads:/srv/var/downloads          # APK + release.json (uploads from the web admin panel)
     # Без домена/HTTPS: "8000:8000". С Caddy на этом же сервере: "127.0.0.1:8000:8000"
     ports: ["${URALIA_API_BIND:-8000}:8000"]
 volumes:

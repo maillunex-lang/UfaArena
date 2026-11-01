@@ -35,7 +35,8 @@ def admin(request: Request, x_admin_token: str | None = Header(default=None),
         raise GameError("admin_disabled", "Админ-панель отключена (не задан URALIA_ADMIN_TOKEN)", 403)
     if not x_admin_token or not hmac.compare_digest(x_admin_token, expected):
         raise GameError("forbidden", "Неверный токен администратора", 403)
-    return (x_admin_name or "owner")[:48]
+    from urllib.parse import unquote
+    return unquote(x_admin_name or "owner")[:48]
 
 
 def _log(db: Session, who: str, action: str, **details) -> None:
@@ -236,6 +237,6 @@ def vip_adjust(body: VipIn, who: str = Depends(admin), db: Session = Depends(get
     return {"vip_level": lv, "vip_xp": p.vip_xp}
 
 
-@page.get("/admin", response_class=HTMLResponse)
+@page.get("/admin/shop", response_class=HTMLResponse)
 def admin_page():
     return HTMLResponse((Path(__file__).resolve().parents[1] / "monetization" / "admin.html").read_text(encoding="utf-8"))

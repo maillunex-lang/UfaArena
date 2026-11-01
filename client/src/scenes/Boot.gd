@@ -31,9 +31,27 @@ func _ready() -> void:
 	v.offset_bottom = -200
 	v.add_theme_constant_override("separation", 10)
 	_ui.add_child(v)
-	var t := UI.title("УРАЛИЯ", 132)
-	t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	v.add_child(t)
+	var bg_art := UI.art("ui/boot_bg.png")
+	if bg_art:
+		var bgr := TextureRect.new()
+		bgr.texture = bg_art
+		bgr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bgr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		bgr.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_ui.add_child(bgr)
+		_ui.move_child(bgr, 0)
+	var logo_art := UI.art("ui/logo.png")
+	if logo_art:
+		var lt := TextureRect.new()
+		lt.texture = logo_art
+		lt.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		lt.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		lt.custom_minimum_size = Vector2(0, 300)
+		v.add_child(lt)
+	else:
+		var t := UI.title("УРАЛИЯ", 132)
+		t.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		v.add_child(t)
 	var st := UI.label("ДЫХАНИЕ ПРЕДКОВ", 50, Color("#e6f2ff"), true)
 	st.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	v.add_child(st)
@@ -147,7 +165,7 @@ func _fail(msg: String) -> void:
 
 ## Dev E2E runs start from a fresh guest without the login choice.
 func _auto_guest() -> bool:
-	for k in ["URALIA_E2E", "URALIA_E2E_SHOP", "URALIA_E2E_UPDATE", "URALIA_E2E_SOCIAL", "URALIA_E2E_ONLINE"]:
+	for k in ["URALIA_E2E", "URALIA_E2E_SHOP", "URALIA_E2E_UPDATE", "URALIA_E2E_SOCIAL", "URALIA_E2E_ONLINE", "URALIA_E2E_ART"]:
 		if OS.get_environment(k) != "":
 			return true
 	return false

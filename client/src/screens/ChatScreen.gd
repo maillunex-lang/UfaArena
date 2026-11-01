@@ -54,6 +54,9 @@ func setup(m: Node, p: Dictionary) -> void:
 
 # ------------------------------------------------------------------ optional artist textures (drop-in, see docs)
 func _tex(name: String) -> Texture2D:
+	var art := UI.art("ui/chat/" + name)  # uploaded in the admin panel
+	if art:
+		return art
 	var path := UI_DIR + name
 	return load(path) if ResourceLoader.exists(path) else null
 

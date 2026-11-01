@@ -271,6 +271,9 @@ func queue_idle(actor: Node3D) -> void:
 
 # ------------------------------------------------------------------ portraits (3D -> 2D)
 func portrait(code: String, size := 256) -> Texture2D:
+	var art := UI.art("heroes/%s.png" % code)  # painted portrait from the admin panel wins over the 3D render
+	if art:
+		return art
 	var key := "%s@%d" % [code, size]
 	if _portraits.has(key):
 		return _portraits[key]

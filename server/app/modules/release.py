@@ -45,6 +45,16 @@ def release() -> dict:
             data.update(json.loads(path.read_text(encoding="utf-8")))
         except (OSError, ValueError):
             pass
+    try:  # the web admin panel stores the release in the DB; it overrides release.json
+        from sqlalchemy.orm import Session
+        from ..core.db import get_engine
+        from ..models import ServerSetting
+        with Session(get_engine()) as db:
+            row = db.get(ServerSetting, "release")
+            if row and row.value:
+                data.update({k: v for k, v in row.value.items() if v is not None or k == "url"})
+    except Exception:
+        pass
     return data
 
 

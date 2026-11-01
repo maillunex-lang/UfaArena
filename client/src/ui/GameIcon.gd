@@ -15,6 +15,11 @@ func _ready() -> void:
 
 
 func _draw() -> void:
+	var art := UI.art("icons/%s.png" % kind)
+	if art:  # replaced in the admin panel
+		var side: float = min(size.x, size.y)
+		draw_texture_rect(art, Rect2((size - Vector2(side, side)) / 2.0, Vector2(side, side)), false)
+		return
 	var s: float = min(size.x, size.y)
 	var c := size / 2.0
 	var r := s * 0.46

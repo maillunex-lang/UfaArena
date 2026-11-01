@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Уралия — админ-панель</title>
+<style>
+:root{--bg:#0b1416;--panel:#10201f;--panel2:#14292a;--line:#2c4a48;--gold:#e0ad4f;--gold2:#ffe3a1;--teal:#3fd6c8;
+--text:#eef3f2;--muted:#9fb7b4;--red:#ff7a6b;--green:#7fe39a}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:2px solid var(--gold);background:linear-gradient(#152a2b,#0e1c1d)}
+header h1{margin:0;font-size:20px;color:var(--gold2);letter-spacing:.5px}header .sp{flex:1}
+nav{display:flex;gap:6px;overflow-x:auto;padding:10px 12px;border-bottom:1px solid var(--line);background:#0e1b1c}
+nav button{white-space:nowrap}
+main{padding:16px;max-width:1100px;margin:auto}
+button,.btn{background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 14px;cursor:pointer;font:inherit}
+button:hover{border-color:var(--gold)}button.on,button.primary{background:linear-gradient(#e7b453,#b98326);color:#241400;border-color:var(--gold2);font-weight:600}
+button.danger{background:#5a1f1a;border-color:#a8433a}button:disabled{opacity:.5;cursor:default}
+input,select,textarea{background:#08110f;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:inherit;width:100%}
+textarea{min-height:70px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;margin:0 0 14px}
+.card h2{margin:0 0 10px;font-size:17px;color:var(--gold2)}.card h3{margin:12px 0 6px;font-size:15px;color:var(--teal)}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1 1 160px}.row>button{flex:0 0 auto}
+.stat{background:var(--panel2);border-radius:12px;padding:10px 12px}.stat b{display:block;font-size:22px;color:var(--gold2)}
+.muted{color:var(--muted)}.small{font-size:13px}.ok{color:var(--green)}.bad{color:var(--red)}
+table{width:100%;border-collapse:collapse}td,th{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+.slot{background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px}
+.slot .pv{height:150px;border-radius:10px;background:#081010 repeating-conic-gradient(#0f1d1d 0 25%,#0b1616 0 50%) 50%/20px 20px;
+display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv img{max-width:100%;max-height:100%}
+.slot .pv .empty{color:var(--muted);font-size:13px;text-align:center;padding:8px}
+.prompt{font-size:12px;color:#cfe6e2;background:#081312;border-radius:8px;padding:6px 8px;max-height:84px;overflow:auto;white-space:pre-wrap}
+.tag{display:inline-block;padding:1px 8px;border-radius:9px;font-size:12px;background:#24433f;color:var(--teal)}
+.tag.g{background:#3c2f12;color:var(--gold2)}.tag.r{background:#4a1d19;color:var(--red)}
+#toast{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);background:#132826;border:1px solid var(--gold);padding:10px 16px;border-radius:12px;display:none;max-width:90%}
+.login{max-width:420px;margin:60px auto}.chatlog{max-height:440px;overflow:auto}
+.chk{display:flex;gap:10px;align-items:center;padding:4px 0;cursor:pointer}.chk input{width:18px;height:18px}
+.msg{padding:6px 0;border-bottom:1px solid #1b3331}.msg .a{color:var(--gold2);font-weight:600}
+</style>
+</head>
+<body>
+<header><h1>⛰ Уралия — админ-панель</h1><span class="sp"></span><span id="who" class="muted small"></span>
+<button id="logout" style="display:none">Выйти</button></header>
+<nav id="nav" style="display:none"></nav>
+<main id="main"></main>
+<div id="toast"></div>
+<script>
+const $=s=>document.querySelector(s);const main=$('#main');
+const TABS=[['overview','Обзор'],['server','Сервер и APK'],['events','События'],['chat','Чат'],['players','Игроки и модерация'],['art','Графика'],['shop','Магазин']];
+let tab='overview',artSec='heroes';
+function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+function toast(t,bad){const e=$('#toast');e.textContent=t;e.style.borderColor=bad?'#a8433a':'';e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',3500)}
+function hdr(extra){return Object.assign({'X-Admin-Token':sessionStorage.getItem('tok')||'','X-Admin-Name':encodeURIComponent(sessionStorage.getItem('who')||'owner')},extra||{})}
+async function api(p,m='GET',b,raw){const o={method:m,headers:hdr(raw?{'Content-Type':'application/octet-stream'}:{'Content-Type':'application/json'})};
+ if(b!==undefined)o.body=raw?b:JSON.stringify(b);const r=await fetch('/admin/api'+p,o);let d={};try{d=await r.json()}catch(e){}
+ if(!r.ok){const msg=(d.detail&&d.detail.message)||d.detail||r.statusText;toast('Ошибка: '+msg,true);if(r.status===403&&String(msg).includes('токен')){logout()}throw new Error(msg)}return d}
+function logout(){sessionStorage.removeItem('tok');location.reload()}
+$('#logout').onclick=logout;
+function login(){main.innerHTML=`<div class="card login"><h2>Вход</h2><p class="muted small">Токен — значение URALIA_ADMIN_TOKEN из файла .env на сервере (команда: grep URALIA_ADMIN_TOKEN /opt/uralia/.env).</p>
+<div class="row"><input id="tok" type="password" placeholder="Токен администратора"></div><div class="row" style="margin-top:8px"><input id="nm" placeholder="Ваше имя (для журнала)" value="owner"></div>
+<div class="row" style="margin-top:10px"><button class="primary" id="go">Войти</button></div></div>`;
+ $('#go').onclick=async()=>{sessionStorage.setItem('tok',$('#tok').value.trim());sessionStorage.setItem('who',$('#nm').value.trim()||'owner');
+  try{await api('/web/overview');start()}catch(e){sessionStorage.removeItem('tok')}}}
+function start(){$('#nav').style.display='flex';$('#logout').style.display='';$('#who').textContent=sessionStorage.getItem('who');renderNav();show(tab)}
+function renderNav(){$('#nav').innerHTML=TABS.map(([k,t])=>`<button class="${k===tab?'on':''}" data-t="${k}">${t}</button>`).join('');
+ document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>{tab=b.dataset.t;renderNav();show(tab)})}
+async function show(t){main.innerHTML='<p class="muted">Загрузка…</p>';try{await VIEWS[t]()}catch(e){main.innerHTML+=`<p class="bad">${esc(e.message)}</p>`}}
+const fmt=n=>Number(n||0).toLocaleString('ru-RU');const time=s=>s?new Date(s).toLocaleString('ru-RU'):'—';
+
+const VIEWS={
+async overview(){const d=await api('/web/overview');
+ main.innerHTML=`<div class="card"><h2>Сервер сейчас</h2><div class="grid">
+ ${[['Игроков',d.players],['Онлайн (3 мин)',d.online],['Активны за сутки',d.active_day],['ИИ-жителей',d.ai],['Гильдий игроков',d.guilds],['ИИ-гильдий',d.ai_guilds],['Сообщений за час',d.chat_hour]]
+  .map(([a,b])=>`<div class="stat">${a}<b>${fmt(b)}</b></div>`).join('')}</div></div>
+ <div class="card"><h2>Активные события</h2>${d.events.length?d.events.map(e=>`<div>${esc(e.name)} — ${fmt(e.progress)} / ${fmt(e.goal)} · до ${time(e.ends_at)}</div>`).join(''):'<p class="muted">Нет</p>'}</div>
+ <div class="card"><h2>Фоновые задачи</h2><table><tr><th>Задача</th><th>Последний запуск</th><th>Итог</th><th></th></tr>
+ ${d.jobs.map(j=>`<tr><td>${j.name}</td><td class="small">${time(j.last_run_at)}</td><td class="small muted">${esc(j.last_status)}</td><td><button data-job="${j.name}">Запустить</button></td></tr>`).join('')}</table></div>`;
+ document.querySelectorAll('[data-job]').forEach(b=>b.onclick=async()=>{const r=await api('/social/jobs/'+b.dataset.job+'/run','POST',{});toast(b.dataset.job+': '+JSON.stringify(r.result))})},
+
+async server(){const [ai,rel,mode]=await Promise.all([api('/social/ai-switches'),api('/web/release'),api('/status').catch(()=>({}))]);const r=rel.release;
+ main.innerHTML=`<div class="card"><h2>ИИ-жители (для всего сервера)</h2><div id="aisw"></div><p class="muted small">Глава гильдии и каждый игрок могут дополнительно ограничить ИИ у себя.</p></div>
+ <div class="card"><h2>Выпуск APK и окно «Вышло обновление»</h2>
+ <div class="row"><label>Версия<input id="rv" value="${esc(r.version)}"></label><label>Мин. версия (ниже — обязательное обновление)<input id="rm" value="${esc(r.min_version)}"></label></div>
+ <div class="row" style="margin-top:8px"><label>Заголовок<input id="rt" value="${esc(r.title||'')}"></label><label>Файл APK на сервере<select id="rf">${rel.apks.map(a=>`<option ${a.name===r.file?'selected':''}>${esc(a.name)}</option>`).join('')}<option value="">— внешняя ссылка —</option></select></label></div>
+ <label style="display:block;margin-top:8px">Что нового (по строке на пункт)<textarea id="rn">${esc((r.notes||[]).join('\n'))}</textarea></label>
+ <label style="display:block;margin-top:8px">Внешняя ссылка вместо файла (необязательно)<input id="ru" value="${esc(r.url||'')}" placeholder="https://..."></label>
+ <div class="row" style="margin-top:10px"><button class="primary" id="rsave">Сохранить выпуск</button><a class="btn" href="/download" target="_blank">Страница загрузки</a></div>
+ <h3>Загрузить APK на сервер</h3><div class="row"><input type="file" id="apk" accept=".apk"><button id="apkup">Загрузить</button></div><p id="apkst" class="muted small"></p>
+ <p class="muted small">Файлы на сервере: ${rel.apks.map(a=>esc(a.name)+' ('+(a.size/1048576).toFixed(0)+' МБ)').join(', ')||'нет'}</p></div>
+ <div class="card"><h2>Платежи</h2><p>Режим: <b>${esc(mode.mode||'?')}</b>. Реальные платежи выключены, пока не подключён провайдер. Каталог, заказы и промокоды — во вкладке «Магазин».</p></div>`;
+ const box=$('#aisw');box.innerHTML=Object.entries(ai.names).map(([k,n])=>`<label class="chk"><input type="checkbox" data-k="${k}" ${ai.switches[k]?'checked':''}> ${esc(n)}</label>`).join('');
+ box.querySelectorAll('input').forEach(c=>c.onchange=async()=>{await api('/social/ai-switches','POST',{[c.dataset.k]:c.checked});toast('Сохранено')});
+ $('#rsave').onclick=async()=>{await api('/web/release','POST',{version:$('#rv').value.trim(),min_version:$('#rm').value.trim(),title:$('#rt').value,
+  notes:$('#rn').value.split('\n').map(s=>s.trim()).filter(Boolean),url:$('#ru').value.trim()||null,file:$('#rf').value||null});toast('Выпуск сохранён — игроки увидят окно обновления')};
+ $('#apkup').onclick=async()=>{const f=$('#apk').files[0];if(!f)return toast('Выберите файл',true);$('#apkst').textContent='Загрузка '+(f.size/1048576).toFixed(0)+' МБ…';
+  const name=f.name.replace(/[^A-Za-z0-9._-]/g,'_');await api('/web/apk?name='+encodeURIComponent(name),'POST',f,true);$('#apkst').textContent='Загружено: '+name;toast('APK загружен');show('server')}},
+
+async events(){const d=await api('/web/events');
+ main.innerHTML=`<div class="card"><h2>Запустить мировое событие</h2><div class="row"><label>Шаблон<select id="et">${d.templates.map(t=>`<option value="${t.code}">${esc(t.name)} (${t.kind})</option>`).join('')}</select></label>
+ <label>Длительность, часов<input id="eh" type="number" value="72"></label><label>Цель сервера (пусто — по шаблону)<input id="eg" type="number" placeholder="${d.templates[0]?.goal||''}"></label></div>
+ <p class="muted small" id="edesc"></p><div class="row"><button class="primary" id="estart">Запустить</button></div>
+ <h3>События</h3><table>${d.active.map(e=>`<tr><td>${esc(e.name)}</td><td>${fmt(e.progress)} / ${fmt(e.goal)}</td><td class="small">${e.status} · до ${time(e.ends_at)}</td><td>${e.status==='active'?`<button data-fin="${e.id}">Завершить сейчас</button>`:''}</td></tr>`).join('')}</table></div>
+ <div class="card"><h2>Рейд-боссы</h2>${d.raids.map(r=>`<div class="row"><span>${r.kind==='world'?'Мировой':'Сезонный'}: ${esc(r.boss||'—')} ${r.hp_max?`(${fmt(r.hp_left)} / ${fmt(r.hp_max)})`:''}</span><button data-raid="${r.kind}">Новый босс сейчас</button></div>`).join('')}
+ <p class="muted small">Текущий босс завершится (участники получат награду за участие), сразу появится новый.</p></div>
+ <div class="card"><h2>Турнир сейчас</h2><div class="row"><label>Шаблон<select id="tt">${d.tournament_templates.map(t=>`<option value="${t.code}">${esc(t.name)}</option>`).join('')}</select></label><label>Регистрация, часов<input id="th" type="number" value="24"></label><button class="primary" id="tstart">Открыть регистрацию</button></div>
+ <p class="muted small">Открытые: ${d.tournaments.map(t=>esc(t.name)+' ('+t.status+')').join(', ')||'нет'}</p></div>
+ <div class="card"><h2>Подарок / письмо всем игрокам</h2><div class="row"><label>Заголовок<input id="mt" value="Подарок от хранителей"></label><label>Активны за последние, дней<input id="md" type="number" value="30"></label></div>
+ <label style="display:block;margin-top:8px">Текст<textarea id="mb">Спасибо, что играете в Уралию!</textarea></label>
+ <div class="row" style="margin-top:8px">${['gold','crystals','summon_essence','nature_essence','friend_tokens','raid_tickets'].map(k=>`<label>${{gold:'Золото',crystals:'Кристаллы',summon_essence:'Эссенция призыва',nature_essence:'Эссенция природы',friend_tokens:'Жетоны дружбы',raid_tickets:'Билеты рейда'}[k]}<input type="number" data-rw="${k}" value="0"></label>`).join('')}</div>
+ <div class="row" style="margin-top:10px"><button class="primary" id="msend">Отправить всем</button></div></div>`;
+ const tpl={};d.templates.forEach(t=>tpl[t.code]=t);const upd=()=>{$('#edesc').textContent=tpl[$('#et').value]?.desc||'';$('#eg').placeholder=tpl[$('#et').value]?.goal||''};$('#et').onchange=upd;upd();
+ $('#estart').onclick=async()=>{await api('/web/events/start','POST',{template:$('#et').value,hours:+$('#eh').value,goal:$('#eg').value?+$('#eg').value:null});toast('Событие запущено');show('events')};
+ document.querySelectorAll('[data-fin]').forEach(b=>b.onclick=async()=>{if(!confirm('Завершить событие сейчас? Итог применится к миру.'))return;const r=await api('/web/events/'+b.dataset.fin+'/finish','POST',{});toast('Итог: '+r.outcome);show('events')});
+ document.querySelectorAll('[data-raid]').forEach(b=>b.onclick=async()=>{if(!confirm('Заменить босса?'))return;await api('/web/raids/respawn','POST',{kind:b.dataset.raid});toast('Новый босс появился');show('events')});
+ $('#tstart').onclick=async()=>{await api('/web/tournaments/create','POST',{template:$('#tt').value,reg_hours:+$('#th').value});toast('Турнир открыт');show('events')};
+ $('#msend').onclick=async()=>{const rw={};document.querySelectorAll('[data-rw]').forEach(i=>{if(+i.value>0)rw[i.dataset.rw]=+i.value});
+  if(!confirm('Отправить письмо всем активным игрокам?'))return;const r=await api('/web/mail-all','POST',{title:$('#mt').value,body:$('#mb').value,rewards:rw,active_days:+$('#md').value});toast('Отправлено: '+r.recipients)}},
+
+async chat(ch){ch=ch||'global';const d=await api('/web/chat?channel='+encodeURIComponent(ch));
+ main.innerHTML=`<div class="card"><h2>Написать от имени администрации</h2><div class="row"><label>Канал<select id="cc"><option value="global">Общий чат</option>${d.guilds.map(g=>`<option value="${g.channel}" ${g.channel===ch?'selected':''}>${esc(g.name)}</option>`).join('')}</select></label></div>
+ <div class="row" style="margin-top:8px"><input id="ct" placeholder="Сообщение (появится как «📢 Администрация: …»)" maxlength="380"><button class="primary" id="cs">Отправить</button></div></div>
+ <div class="card"><h2>Последние сообщения</h2><div class="chatlog">${d.messages.map(m=>`<div class="msg"><span class="a">${esc(m.author)}</span> ${m.is_ai?'<span class="tag">ИИ</span>':''} ${m.uralia_id?`<span class="muted small">${m.uralia_id}</span>`:''} <span class="muted small">${time(m.at)}</span>
+ ${m.hidden?'<span class="tag r">скрыто</span>':`<button class="small" data-hide="${m.id}">Скрыть</button>`}<div>${esc(m.text)}</div></div>`).join('')}</div></div>`;
+ $('#cc').onchange=()=>VIEWS.chat($('#cc').value);
+ $('#cs').onclick=async()=>{if(!$('#ct').value.trim())return;await api('/web/chat','POST',{channel:$('#cc').value,text:$('#ct').value});toast('Отправлено');VIEWS.chat($('#cc').value)};
+ document.querySelectorAll('[data-hide]').forEach(b=>b.onclick=async()=>{await api('/social/messages/'+b.dataset.hide+'/hide','POST',{});VIEWS.chat($('#cc').value)})},
+
+async players(){const [rep,app,fl]=await Promise.all([api('/social/reports'),api('/social/appeals'),api('/social/flags')]);
+ main.innerHTML=`<div class="card"><h2>Найти игрока</h2><div class="row"><input id="pid" placeholder="UR-XXXXXXXX"><button class="primary" id="pfind">Найти</button></div><div id="pres"></div></div>
+ <div class="card"><h2>Жалобы (${rep.items.length})</h2><table>${rep.items.map(r=>`<tr><td><b>${esc(r.target.nickname)}</b> <span class="muted small">${r.target.uralia_id}</span><div class="small">${esc(r.message?r.message.text:'')}</div></td><td class="small">${esc(r.reason)} от ${esc(r.reporter)}</td>
+ <td><button data-rep="${r.id}" data-s="actioned">Принято</button> <button data-rep="${r.id}" data-s="dismissed">Отклонить</button></td></tr>`).join('')||'<tr><td class="muted">Нет открытых жалоб</td></tr>'}</table></div>
+ <div class="card"><h2>Апелляции</h2><table>${app.items.filter(a=>a.status==='open').map(a=>`<tr><td><b>${esc(a.player.nickname)}</b><div class="small">${esc(a.sanction?.kind_name)}: ${esc(a.sanction?.reason)}</div><div>${esc(a.text)}</div></td>
+ <td><button class="primary" data-ap="${a.id}" data-acc="1">Снять санкцию</button> <button data-ap="${a.id}" data-acc="0">Отклонить</button></td></tr>`).join('')||'<tr><td class="muted">Нет открытых апелляций</td></tr>'}</table></div>
+ <div class="card"><h2>Подозрительная активность (античит)</h2><table>${fl.items.map(f=>`<tr><td><b>${esc(f.player.nickname)}</b> <span class="muted small">${f.player.uralia_id}</span></td><td>${esc(f.kind)} ×${f.score}</td><td class="small muted">${esc(JSON.stringify(f.details))}</td>
+ <td><button data-fl="${f.id}" data-s="reviewed">Проверено</button> <button data-fl="${f.id}" data-s="dismissed">Ложно</button></td></tr>`).join('')||'<tr><td class="muted">Сигналов нет</td></tr>'}</table></div>`;
+ $('#pfind').onclick=()=>findPlayer($('#pid').value.trim());
+ document.querySelectorAll('[data-rep]').forEach(b=>b.onclick=async()=>{await api('/social/reports/'+b.dataset.rep,'POST',{status:b.dataset.s});show('players')});
+ document.querySelectorAll('[data-ap]').forEach(b=>b.onclick=async()=>{await api('/social/appeals/'+b.dataset.ap,'POST',{accept:b.dataset.acc==='1',resolution:''});show('players')});
+ document.querySelectorAll('[data-fl]').forEach(b=>b.onclick=async()=>{await api('/social/flags/'+b.dataset.fl,'POST',{status:b.dataset.s});show('players')})},
+
+async art(){const d=await api('/web/art');
+ main.innerHTML=`<div class="card"><h2>Замена графики</h2><p class="muted small">Загрузите PNG в нужный слот (совет и готовый промпт для генерации — в карточке). Затем нажмите «Опубликовать» — игроки получат графику фоновым обновлением, без нового APK (нужна версия игры 0.6.3+). Пустые слоты используют встроенную графику.</p>
+ <div class="row"><span>Опубликовано: версия ${d.published_version} · ${time(d.published_at)} ${d.dirty?'<span class="tag g">есть неопубликованные изменения</span>':''}</span><button class="primary" id="apub">Опубликовать для игроков</button></div></div>
+ <nav style="border:0;padding:0 0 12px;background:none">${d.sections.map(s=>`<button class="${s.id===artSec?'on':''}" data-sec="${s.id}">${esc(s.title)} (${s.slots.filter(x=>x.staged).length}/${s.slots.length})</button>`).join('')}</nav><div id="slots"></div>`;
+ document.querySelectorAll('[data-sec]').forEach(b=>b.onclick=()=>{artSec=b.dataset.sec;VIEWS.art()});
+ $('#apub').onclick=async()=>{if(!confirm('Опубликовать загруженную графику для всех игроков?'))return;const r=await api('/web/art/publish','POST',{});toast(`Опубликовано: версия ${r.version}, файлов ${r.files}`);VIEWS.art()};
+ const sec=d.sections.find(s=>s.id===artSec)||d.sections[0];
+ $('#slots').innerHTML=`<div class="card"><p class="muted small">${esc(sec.hint)}</p><div class="grid">${sec.slots.map((s,i)=>`<div class="slot" data-i="${i}">
+  <b>${esc(s.title)}</b><span class="muted small">${esc(s.path)} · рекомендуемый размер ${esc(s.size)}</span>
+  <div class="pv">${s.staged?`<img data-src="${esc(s.path)}" alt="">`:'<div class="empty">Встроенная графика<br>(слот пуст)</div>'}</div>
+  ${s.staged?`<span class="small">${s.staged.width}×${s.staged.height} · ${(s.staged.size/1024).toFixed(0)} КБ ${s.staged.published?'<span class="tag">в игре</span>':'<span class="tag g">не опубликовано</span>'}</span>`:''}
+  <span class="small">${esc(s.advice)}</span><div class="prompt">${esc(s.prompt)}</div>
+  <div class="row"><button class="small" data-copy="${i}">Копировать промпт</button><label class="btn small" style="text-align:center">Загрузить PNG<input type="file" accept="image/png" data-up="${i}" style="display:none"></label>
+  ${s.staged?`<button class="small danger" data-rm="${i}">Убрать</button>`:''}</div></div>`).join('')}</div></div>`;
+ document.querySelectorAll('img[data-src]').forEach(async im=>{const r=await fetch('/admin/api/web/art/file?path='+encodeURIComponent(im.dataset.src),{headers:hdr()});if(r.ok)im.src=URL.createObjectURL(await r.blob())});
+ document.querySelectorAll('[data-copy]').forEach(b=>b.onclick=()=>{navigator.clipboard.writeText(sec.slots[+b.dataset.copy].prompt);toast('Промпт скопирован')});
+ document.querySelectorAll('[data-up]').forEach(inp=>inp.onchange=async()=>{const f=inp.files[0];if(!f)return;const s=sec.slots[+inp.dataset.up];
+  const r=await api('/web/art/upload?path='+encodeURIComponent(s.path),'POST',f,true);const [w,h]=s.size.split('×').map(Number);
+  toast(`Загружено ${r.width}×${r.height}`+((w&&(r.width/r.height).toFixed(2)!==(w/h).toFixed(2))?' — пропорции отличаются от рекомендованных':''));VIEWS.art()});
+ document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{await api('/web/art/remove?path='+encodeURIComponent(sec.slots[+b.dataset.rm].path),'POST',{});VIEWS.art()})},
+
+async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a></div>`}
+};
+async function findPlayer(id){if(!id)return;const d=await api('/social/players/'+encodeURIComponent(id));const c=d.card;
+ $('#pres').innerHTML=`<h3>${esc(c.nickname)} ${c.is_ai?'<span class="tag">ИИ</span>':''}</h3><div class="small">${c.uralia_id} · ур. ${c.level} · сила ${fmt(c.power)} · ${esc(c.presence)} ${c.guild?'· гильдия '+esc(c.guild.name):''}</div>
+ <div class="small muted">Жалоб на игрока: ${d.reports_against}</div>
+ <h3>Санкция</h3><div class="row"><select id="sk"><option value="warning">Предупреждение</option><option value="mute">Мут чата</option><option value="temp_ban">Временная блокировка</option><option value="perm_ban">Бессрочная блокировка</option></select>
+ <input id="sm" type="number" placeholder="минут (для мута/временной)"><input id="sr" placeholder="Причина"><button class="danger" id="sgo">Выдать</button></div>
+ <h3>Добавить VIP-опыт</h3><div class="row"><input id="vl" type="number" placeholder="VIP1 = 100, VIP3 = 1500, VIP5 = 10000, VIP7 = 60000"><button id="vgo">Добавить</button></div>
+ <h3>История санкций</h3>${d.sanctions.map(s=>`<div class="small">${esc(s.kind_name)} · ${esc(s.reason)} · ${s.status} ${s.status==='active'?`<button class="small" data-rv="${s.id}">Снять</button>`:''}</div>`).join('')||'<p class="muted small">Нет</p>'}
+ <h3>Последние сообщения</h3>${d.recent_messages.map(m=>`<div class="small">${esc(m.text)} ${m.hidden?'<span class="tag r">скрыто</span>':''}</div>`).join('')||'<p class="muted small">Нет</p>'}`;
+ $('#sgo').onclick=async()=>{await api('/social/sanctions','POST',{uralia_id:c.uralia_id,kind:$('#sk').value,reason:$('#sr').value||'Нарушение правил',minutes:$('#sm').value?+$('#sm').value:null});toast('Санкция выдана');findPlayer(id)};
+ $('#vgo').onclick=async()=>{const r=await api('/vip','POST',{uralia_id:c.uralia_id,delta_xp:+$('#vl').value});toast('Теперь VIP '+r.vip_level)};
+ document.querySelectorAll('[data-rv]').forEach(b=>b.onclick=async()=>{await api('/social/sanctions/'+b.dataset.rv+'/revoke','POST',{});findPlayer(id)})}
+if(sessionStorage.getItem('tok'))api('/web/overview').then(start).catch(login);else login();
+</script>
+</body>
+</html>

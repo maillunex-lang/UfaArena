@@ -146,6 +146,11 @@ static func keep_wrapped(root: Container) -> void:
 	root.sort_children.connect(func(): autowrap_tree(root))
 
 
+## Art uploaded in the web admin panel arrives as a content package; every slot lives at art/<path>.
+static func art(path: String) -> Texture2D:
+	return Content.texture("art/" + path) if Content.has("art/" + path) else null
+
+
 ## Violet "ИИ" badge: AI personas are always labelled in social UI.
 static func ai_badge() -> PanelContainer:
 	var p := PanelContainer.new()

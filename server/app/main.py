@@ -11,6 +11,7 @@ from .core.config import get_settings
 from .core.db import Base, get_engine, init_engine
 from .game.seed import seed_static
 from .modules import admin, auth, content, economy, game, health, release, shop
+from .admin_web import router as admin_web
 from .social.ai import control as ai_control
 from .social import (admin_social, arena, chat, events, friends, guilds, moderation, raids, rankings, scheduler,
                      tournaments)
@@ -48,6 +49,8 @@ def create_app() -> FastAPI:
     app.include_router(admin.page)
     app.include_router(admin_social.router)
     app.include_router(release.page)
+    app.include_router(admin_web.router)
+    app.include_router(admin_web.page)
 
     @app.exception_handler(RequestValidationError)
     async def _validation(_: Request, exc: RequestValidationError):
