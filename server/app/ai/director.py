@@ -28,6 +28,8 @@ from ..models import AiPersona, AiScheduleProfile, AiTask
 from . import events as EV
 from . import handlers as H
 from . import hostload as HL
+from . import memory as MEM
+from . import personality as PERS
 from . import population as POP
 from . import schedules as SCH
 from . import settings as ST
@@ -43,6 +45,7 @@ class Director:
         self.budget: int | None = None
         self.last_population = 0.0
         self.last_compact = 0.0
+        self.last_archive = 0.0
         self.slow_ticks = 0
 
     # ------------------------------------------------------------------ one tick
@@ -72,6 +75,8 @@ class Director:
         if now_mono - self.last_population >= s["population_every_s"]:
             self.last_population = now_mono
             out["population"] = POP.grow(db, s, _rng, apply=acting)
+            if acting:
+                out["personalities"] = PERS.ensure(db, 50)
         target = POP.active_target(db, s, load_factor)
         out["active_target"] = target
         out["sessions_started"] = SCH.start_sessions(db, target, _rng) if acting else 0
@@ -80,6 +85,11 @@ class Director:
         db.commit()
         out["executed"], out["failed"] = self._execute(db, self.budget) if acting else (0, 0)
 
+        ms_set = MEM.SECTION.get(db)
+        if acting and now_mono - self.last_archive >= ms_set["archive_every_min"] * 60:
+            self.last_archive = now_mono
+            out["archived"] = MEM.archive(db, ms_set)
+            db.commit()
         if now_mono - self.last_compact >= 600:
             self.last_compact = now_mono
             out["compacted"] = TQ.compact(db, s["compact_after_hours"])

@@ -16,7 +16,7 @@ from sqlalchemy.orm import Session
 from ...core.db import as_utc, utcnow
 from ...game import data as D
 from ...models import (
-    AiActivityLog, AiMemory, AiPersona, ArenaMatch, ArenaProfile, ChatMessage, FortressBuilding, Formation,
+    AiActivityLog, AiPersona, ArenaMatch, ArenaProfile, ChatMessage, FortressBuilding, Formation,
     FriendGift, FriendRequest, Friendship, Guild, GuildApplication, GuildMember, GuildUpgrade, PlayerHero,
     PlayerProfile, RaidInstance, Tournament, User, WorldEvent,
 )
@@ -43,8 +43,19 @@ def _summonable() -> list[dict]:
 
 
 def create_persona(db: Session, rng: random.Random | None = None) -> AiPersona:
+    from ...ai import memory as MEM
+    from ...ai import personality as PERS
+    from ...ai import tiers as TR
     rng = rng or _rng
     spec = PR.make(rng)
+    # Living World AI phase 3: archetype from the editable table, power tier, individual personality
+    arch = PERS.pick_archetype(db, rng)
+    tier = TR.pick(rng, TR.SECTION.get(db))
+    spec["archetype"] = arch.code
+    spec["interests"] = list(arch.interests or spec["interests"])
+    spec["style"] = rng.choice(arch.styles) if arch.styles else spec["style"]
+    spec["level"] = TR.level_for(rng, tier, PR.ARCHETYPES.get(arch.code, {}).get("lvl"))
+    strategy = rng.choice(TR.TIERS[tier]["strategies"])
     nick = spec["nickname"]
     while db.scalar(select(PlayerProfile).where(PlayerProfile.nickname == nick)):
         nick = f"{spec['nickname'][:20]}{rng.randrange(10, 99)}"
@@ -59,17 +70,20 @@ def create_persona(db: Session, rng: random.Random | None = None) -> AiPersona:
                       last_seen_at=utcnow() - timedelta(hours=rng.randint(1, 30)))
     db.add(p)
     pool = _summonable()
-    n_heroes = min(len(pool), rng.randint(6, 14))
+    n_heroes = min(len(pool), rng.randint(*TR.TIERS[tier]["heroes"]))
     picks = rng.sample(pool, n_heroes)
     weights = sorted(picks, key=lambda h: -h["rarity"])
     ids = []
+    s_lo, s_hi = TR.TIERS[tier]["stars"]
     for h in weights:
         lv = max(1, min(D.LEVEL_CAP_MVP, spec["level"] + rng.randint(-6, 3)))
-        ph = PlayerHero(user_id=u.id, hero_code=h["code"], level=lv, stars=rng.choice([0, 0, 0, 1, 1, 2]) if h["rarity"] <= 4 else 0)
+        stars = rng.randint(s_lo, s_hi) if h["rarity"] <= 4 else min(1, rng.randint(s_lo, s_hi))
+        ph = PlayerHero(user_id=u.id, hero_code=h["code"], level=lv, stars=stars)
         db.add(ph)
         db.flush()
         ids.append((ph.id, h))
-    tanks = [i for i, h in ids if h["class_code"] in ("guardian", "warrior")][:2]
+    n_tanks = {"defensive": 2, "aggressive": 1}.get(strategy, 2 if rng.random() < 0.6 else 1)
+    tanks = [i for i, h in ids if h["class_code"] in ("guardian", "warrior")][:n_tanks]
     rest = [i for i, h in ids if i not in tanks]
     slots = (tanks + rest)[:5]
     db.add(Formation(user_id=u.id, kind="campaign", slots=(slots + [None] * 5)[:5]))
@@ -78,14 +92,20 @@ def create_persona(db: Session, rng: random.Random | None = None) -> AiPersona:
     persona = AiPersona(user_id=u.id, archetype=spec["archetype"], temperament=spec["temperament"],
                         backstory=spec["backstory"], style=spec["style"], schedule=spec["schedule"],
                         interests=spec["interests"], next_action_at=utcnow() + timedelta(seconds=rng.randint(20, 600)),
-                        day=day())
+                        day=day(), tier=tier, pace=round(TR.TIERS[tier]["pace"] * rng.uniform(0.85, 1.15), 2),
+                        personality_version=1)
+    PERS.apply_generated(persona, PERS.generate(rng, arch))
+    persona.counters = {"strategy": strategy}
     db.add(persona)
     db.flush()
+    MEM.checkpoint(db, persona, "Характер при создании")
+    MEM.bio_add(db, persona, "created", f"{spec['backstory']} Начал как {TR.TIERS[tier]['name'].lower()}, "
+                                        f"тактика — {TR.STRATEGY_NAMES[strategy].lower()}.")
     compute_power(db, u.id)
     spec_sq = freeze_squad(db, u.id)
     db.add(ArenaProfile(user_id=u.id, rating=1000 + rng.randint(-150, 250), defense=spec_sq,
                         defense_power=squad_power(spec_sq), is_ai=True, day=day()))
-    log(db, persona, "created", archetype=spec["archetype"], style=spec["style"])
+    log(db, persona, "created", archetype=spec["archetype"], style=spec["style"], tier=tier)
     return persona
 
 
@@ -108,6 +128,8 @@ def ensure_population(db: Session, max_new: int = 5) -> dict:
         created += 1
     retired = 0  # Living World AI stage 3: fewer active personas is handled by sessions, profiles stay enabled
     db.flush()
+    from ...ai import personality as PERS
+    PERS.ensure(db, 50)  # phase 3: personalities and tiers for personas created earlier (progress unchanged)
     _refresh_styles(db)
     ensure_ai_guilds(db)
     return {"target": target, "active": len(active) + created - retired, "created": created, "retired": retired}
@@ -188,21 +210,24 @@ def ai_consider_friend(db: Session, ai_user_id: str, from_user: str) -> bool:
     chance = 0.95 if persona.style != "shy" else 0.75
     ok = _rng.random() < chance
     if ok:
-        remember(db, persona, from_user, "Подружились")
+        remember(db, persona, from_user, "Подружились", kind="relationship")
+        from ...ai import personality as PERS
+        PERS.evolve(db, persona, "friend")
         queue_reply(db, ai_user_id, from_user, None, "__welcome__")
     return ok
 
 
 # ------------------------------------------------------------------ memory store
-def remember(db: Session, persona: AiPersona, subject: str, fact: str) -> None:
-    db.add(AiMemory(persona_id=persona.id, subject_user_id=subject, fact=fact[:200],
-                    expires_at=utcnow() + timedelta(days=30)))
+def remember(db: Session, persona: AiPersona, subject: str, fact: str, kind: str = "conversation",
+             importance: float = 1.0) -> None:
+    """Long-term memory (Living World AI stage 14): kept, later archived — never silently expires."""
+    from ...ai import memory as MEM
+    MEM.add(db, persona, kind, fact, subject=subject, importance=importance)
 
 
 def recall(db: Session, persona: AiPersona, subject: str) -> list[str]:
-    return [m.fact for m in db.scalars(select(AiMemory).where(AiMemory.persona_id == persona.id,
-                                                              AiMemory.subject_user_id == subject)
-                                        .order_by(AiMemory.id.desc()).limit(5))]
+    from ...ai import memory as MEM
+    return [m.fact for m in MEM.recall(db, persona, subject=subject, limit=5)]
 
 
 # ------------------------------------------------------------------ reply queues (filled by chat)
@@ -249,29 +274,36 @@ def handle_dm(db: Session, ai_uid: str, to_user: str, channel: str | None, text:
     persona = db.scalar(select(AiPersona).where(AiPersona.user_id == ai_uid))
     if persona is None:
         return False
+    from ...ai import speech as SP
     ctx = _context(db, persona, to_user)
     if text == "__welcome__":
         kind, reply = "welcome_dm", DLG.line(_rng, "welcome_dm", persona.style, ctx)
+        source = "template"
     else:
         if recall(db, persona, to_user):
             ctx["name"] = ctx["name"] + ", снова"
         kind, reply = DLG.reply(_rng, text, persona.style, ctx)
+        reply, source = SP.compose(db, _rng, persona, reply, to_user=to_user, user_text=text, kind=kind)
     from ..chat import dm_channel
     _say(db, persona, channel or dm_channel(ai_uid, to_user), reply)
     remember(db, persona, to_user, f"Говорили: {kind}")
-    log(db, persona, "reply", to=to_user, intent=kind)
+    from ...ai import personality as PERS
+    PERS.evolve(db, persona, "chat")
+    log(db, persona, "reply", to=to_user, intent=kind, source=source)
     return True
 
 
 def handle_mention(db: Session, channel: str, user_id: str, text: str) -> bool:
     """In public channels at most one persona answers, only sometimes, with a cooldown."""
+    from ...ai import speech as SP
     kind = DLG.intent(text)
-    if kind == "unknown" or _rng.random() > AI()["reply_chance"] or not _chat_allowed(db):
+    if kind == "unknown" or _rng.random() > AI()["reply_chance"] * SP.frequency(db) or not _chat_allowed(db):
         return False
     persona = _pick_speaker(db, channel)
     if persona is None:
         return False
-    _say(db, persona, channel, DLG.line(_rng, kind, persona.style, _context(db, persona, user_id)))
+    base = DLG.line(_rng, kind, persona.style, _context(db, persona, user_id))
+    _say(db, persona, channel, SP.compose(db, _rng, persona, base, to_user=user_id)[0])
     log(db, persona, "chat_reply", channel=channel, intent=kind)
     return True
 
@@ -379,19 +411,28 @@ def _choose(persona: AiPersona) -> str:
             weights[i] += 3
     talk = (persona.temperament or {}).get("talkative", 0.5)
     weights["chat"] = int(weights["chat"] * (0.5 + talk))
+    from ...ai import personality as PERS
+    weights = PERS.action_weights(persona, weights)  # traits, ambitions, habits and mood (stage 2)
     keys = list(weights)
     return _rng.choices(keys, weights=[weights[k] for k in keys])[0]
 
 
 def act_level(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     """Believable progression: slow growth with a soft cap by account age; updates power and arena defense."""
-    age_days = max(1, (utcnow() - as_utc(prof.created_at)).days)
-    cap = min(D.LEVEL_CAP_MVP, 10 + age_days // 2 + (15 if persona.archetype == "veteran" else 0))
+    from ...ai import tiers as TR
+    if persona.tier in TR.TIERS:  # stage 4: tier range, own pace, adapted to the real world's level
+        cap = TR.level_cap(db, persona.tier)
+        pace = max(0.2, persona.pace or 1.0)
+    else:
+        age_days = max(1, (utcnow() - as_utc(prof.created_at)).days)
+        cap = min(D.LEVEL_CAP_MVP, 10 + age_days // 2 + (15 if persona.archetype == "veteran" else 0))
+        pace = 1.0
     heroes = db.scalars(select(PlayerHero).where(PlayerHero.user_id == persona.user_id).order_by(PlayerHero.level)).all()
-    if heroes and heroes[0].level < cap and _rng.random() < 0.6:
+    if heroes and heroes[0].level < cap and _rng.random() < min(0.95, 0.6 * pace):
         heroes[0].level += 1
-    if prof.level < cap and _rng.random() < 0.25:
+    if prof.level < cap and _rng.random() < min(0.9, 0.25 * pace):
         prof.level += 1
+        _maybe_promote(db, persona, prof)
     compute_power(db, persona.user_id)
     ap = db.get(ArenaProfile, persona.user_id)
     if ap:
@@ -400,9 +441,29 @@ def act_level(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     log(db, persona, "level", level=prof.level)
 
 
+def _maybe_promote(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
+    """A persona that outgrew its tier moves up (rarely, by its own pace): biography, memory, personality."""
+    from ...ai import memory as MEM
+    from ...ai import personality as PERS
+    from ...ai import tiers as TR
+    nxt = TR.next_tier(persona.tier or "")
+    if nxt is None or prof.level < TR.tier_range(nxt)[0] + 2 or _rng.random() > 0.3:
+        return
+    persona.tier = nxt
+    persona.pace = round(TR.TIERS[nxt]["pace"] * _rng.uniform(0.85, 1.15), 2)
+    text = f"Стал игроком уровня «{TR.TIERS[nxt]['name']}» (уровень {prof.level})"
+    MEM.add(db, persona, "goal", text, importance=3)
+    MEM.bio_add(db, persona, "tier", text)
+    PERS.evolve(db, persona, "tier_up")
+    log(db, persona, "tier_up", tier=nxt)
+
+
 def act_chat(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     from . import banter, control
+    from ...ai import speech as SP
     if not control.allowed(db, "chat"):
+        return
+    if _rng.random() > SP.frequency(db):
         return
     if banter.ai_messages_last_hour(db) >= AI().get("chat_ai_per_hour", 45):
         return
@@ -414,6 +475,8 @@ def act_chat(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
         if humans:  # talk in a guild chat only where real players can read it
             channel = f"guild:{m.guild_id}"
     text = banter.ambient(db, persona, channel)
+    from ...ai import personality as PERS
+    PERS.evolve(db, persona, "chat")
     log(db, persona, "chat", channel=channel, text=text[:60])
 
 
@@ -444,6 +507,8 @@ def act_arena(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
                 target = c
                 break
     if target is None:
+        target = _revenge_target(db, persona, me)
+    if target is None:
         opp = db.scalars(select(ArenaProfile).where(ArenaProfile.is_ai.is_(True), ArenaProfile.user_id != me.user_id,
                                                     ArenaProfile.defense_power > 0)
                          .order_by(func.abs(ArenaProfile.rating - me.rating)).limit(5)).all()
@@ -468,7 +533,48 @@ def act_arena(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     db.add(ArenaMatch(season_id=season.id, kind="ranked" if rated and not target.is_ai else "training",
                       attacker_id=me.user_id, defender_id=target.user_id, result=sim["result"], delta_att=d_att,
                       delta_def=d_def, seed=seed, attacker_snapshot=me.defense, defender_snapshot=target.defense))
+    _arena_experience(db, persona, target, won)
     log(db, persona, "arena", vs_real=not target.is_ai, won=won)
+
+
+def _revenge_target(db: Session, persona: AiPersona, me: ArenaProfile) -> ArenaProfile | None:
+    """Experience changes behaviour (stage 14): a hot-tempered persona or one with the "revenge" habit seeks a rematch
+    with an AI rival that beat it. Real players are never chased for revenge."""
+    from ...ai import memory as MEM
+    t = persona.traits or {}
+    if not ("revenge" in (persona.habits or []) or t.get("temper", 0) > 0.7) or _rng.random() > 0.5:
+        return None
+    for m in MEM.recall(db, persona, kinds=("defeat",), limit=5):
+        if not m.subject_user_id:
+            continue
+        ap = db.get(ArenaProfile, m.subject_user_id)
+        if ap is not None and ap.is_ai and ap.user_id != me.user_id and ap.defense_power > 0:
+            return ap
+    return None
+
+
+def _arena_experience(db: Session, persona: AiPersona, target: ArenaProfile, won: bool) -> None:
+    from ...ai import memory as MEM
+    from ...ai import personality as PERS
+    name = (db.get(PlayerProfile, target.user_id).nickname if db.get(PlayerProfile, target.user_id) else "соперник")
+    if won:
+        row = PERS.count(persona, "wins_row", reset=("losses_row",))
+        total = PERS.count(persona, "arena_wins")
+        MEM.add(db, persona, "victory", f"Победил {name} на арене", subject=target.user_id,
+                importance=3 if row >= 5 else 1)
+        if total % 25 == 0:
+            MEM.bio_add(db, persona, "milestone", f"{total} побед на арене")
+        PERS.evolve(db, persona, "arena_win")
+    else:
+        row = PERS.count(persona, "losses_row", reset=("wins_row",))
+        PERS.count(persona, "arena_losses")
+        MEM.add(db, persona, "defeat", f"Проиграл {name} на арене", subject=target.user_id,
+                importance=2 if row >= 3 else 1)
+        PERS.evolve(db, persona, "arena_loss")
+        lost_to = [m for m in MEM.recall(db, persona, subject=target.user_id, kinds=("defeat",), limit=5)]
+        if len(lost_to) >= 3 and target.is_ai and not MEM.recall(db, persona, subject=target.user_id, kinds=("relationship",), limit=1):
+            MEM.add(db, persona, "relationship", f"{name} — соперник на арене", subject=target.user_id, importance=2)
+            PERS.evolve(db, persona, "conflict", note=f"соперничество с {name}")
 
 
 def act_guild(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
@@ -487,11 +593,13 @@ def act_guild(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
                              .where(GuildMember.guild_id == g.id, PlayerProfile.is_ai.is_(True))) or 0
             if n <= G()["max_members"] - 3 and (ai_n + 1) * 3 <= n + 1 and prof.level >= (g.min_level or 1):
                 join(db, g, persona.user_id, None, "open")
+                _guild_joined(db, persona, g)
                 log(db, persona, "guild_join", guild=g.name)
                 return
         g = db.scalar(select(Guild).where(Guild.is_ai.is_(True)).order_by(func.random()).limit(1))
         if g is not None and member_count(db, g.id) < G()["max_members"] - 3:
             db.add(GuildMember(guild_id=g.id, user_id=persona.user_id, role="novice", last_active_at=utcnow()))
+            _guild_joined(db, persona, g)
             log(db, persona, "guild_join", guild=g.name)
         return
     m.last_active_at = utcnow()
@@ -525,7 +633,17 @@ def act_guild(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
                 glog(db, g.id, persona.user_id, "building", None, code=code, level=cur + 1, ai=True)
                 break
     act_war(db, persona, prof)
+    from ...ai import personality as PERS
+    PERS.evolve(db, persona, "guild_help")
     log(db, persona, "guild_activity", guild=g.name)
+
+
+def _guild_joined(db: Session, persona: AiPersona, g: Guild) -> None:
+    from ...ai import memory as MEM
+    from ...ai import personality as PERS
+    MEM.add(db, persona, "decision", f"Вступил в гильдию «{g.name}»", importance=3)
+    MEM.bio_add(db, persona, "guild", f"Вступил в гильдию «{g.name}»")
+    PERS.evolve(db, persona, "guild_join")
 
 
 def act_war(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
@@ -561,6 +679,9 @@ def act_friend(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
         from ..friends import make_friends
         r.status = "accepted"
         make_friends(db, persona.user_id, r.from_id, r.source)
+        remember(db, persona, r.from_id, "Подружились", kind="relationship")
+        from ...ai import personality as PERS
+        PERS.evolve(db, persona, "friend")
     friends = list(db.scalars(select(Friendship.friend_id).where(Friendship.user_id == persona.user_id)))
     real = [f for f in friends if not db.get(PlayerProfile, f).is_ai]
     if real and (persona.temperament or {}).get("helpful", 0.5) > _rng.random():
@@ -569,6 +690,8 @@ def act_friend(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
                                                   FriendGift.day == day(), FriendGift.kind == "gift")):
             db.add(FriendGift(from_id=persona.user_id, to_id=to, day=day(), kind="gift",
                               contents=dict(cfg()["friends"]["gift_contents"])))
+            from ...ai import personality as PERS
+            PERS.evolve(db, persona, "gift")
             log(db, persona, "gift", to=to)
 
 
@@ -602,11 +725,16 @@ def act_raid(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     db.add(RaidAttack(raid_id=inst.id, user_id=persona.user_id, damage=dmg, phase=pidx, seed=0, team_snapshot=[]))
     if inst.hp_left <= 0:  # only possible for a purely virtual guild boss
         inst.status, inst.loot_done = "defeated", True
+    from ...ai import personality as PERS
+    PERS.evolve(db, persona, "raid")
     log(db, persona, "raid", kind=kind, damage=dmg)
 
 
 def act_event(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
     """Personas react to world events in chat but never add progress."""
+    from ...ai import personality as PERS
+    if db.scalar(select(WorldEvent).where(WorldEvent.status == "active")) is not None:
+        PERS.evolve(db, persona, "event")
     if _rng.random() < 0.5:
         act_chat(db, persona, prof)
 
@@ -616,10 +744,10 @@ ACTIONS = {"level": act_level, "chat": act_chat, "arena": act_arena, "guild": ac
 
 
 def _trim(db: Session) -> None:
-    lim = utcnow() - timedelta(days=7)
+    """Decision D-06: nothing is deleted after 7 days any more — old rows move to the long-term archive in batches."""
     if _rng.random() < 0.05:
-        db.query(AiActivityLog).filter(AiActivityLog.created_at < lim).delete(synchronize_session=False)
-        db.query(AiMemory).filter(AiMemory.expires_at < utcnow()).delete(synchronize_session=False)
+        from ...ai import memory as MEM
+        MEM.archive(db)
 
 
 def overview(db: Session) -> dict:

@@ -244,6 +244,10 @@ def flush(db: Session, limit: int = 20) -> int:
         _, uid, channel, text = item
         if db.get(PlayerProfile, uid) is None:
             continue
+        persona = db.scalar(select(AiPersona).where(AiPersona.user_id == uid))
+        if persona is not None:  # each persona keeps its own manner of speech and mood (Living World AI stage 7)
+            from ...ai import speech as SP
+            text = SP.stylize(_rng, persona, text, {**_speech(db), "length": "medium"})
         db.add(ChatMessage(channel=channel, user_id=uid, text=text[:300], is_ai=True, reactions={}))
         p = db.get(PlayerProfile, uid)
         p.last_seen_at = utcnow()
@@ -251,6 +255,16 @@ def flush(db: Session, limit: int = 20) -> int:
     _queue.extend(keep)
     db.flush()
     return posted
+
+
+_speech_cache: dict = {"at": 0.0, "value": None}
+
+
+def _speech(db: Session) -> dict:
+    if _speech_cache["value"] is None or time.monotonic() - _speech_cache["at"] > 30:
+        from ...ai import speech as SP
+        _speech_cache.update(at=time.monotonic(), value=SP.SECTION.get(db))
+    return _speech_cache["value"]
 
 
 def ai_messages_last_hour(db: Session, channel: str = "global") -> int:
@@ -277,7 +291,9 @@ def keep_alive(db: Session, cfg: dict) -> dict:
         return {"posted": 0, "started": 0, "disabled": True}
     stats = {"posted": flush(db), "started": 0}
     pending = len(_queue)
-    if pending == 0 and ai_messages_last_hour(db) < cfg.get("chat_ai_per_hour", 45):
+    from ...ai import speech as SP
+    freq = SP.frequency(db)  # admin "chat frequency" scales the hourly AI chat budget
+    if pending == 0 and freq > 0 and ai_messages_last_hour(db) < cfg.get("chat_ai_per_hour", 45) * freq:
         quiet = minutes_since_last(db) >= cfg.get("quiet_minutes", 3)
         since_start = time.monotonic() - _last_start
         if quiet or since_start > cfg.get("conversation_every_s", 200) or _rng.random() < 0.2:

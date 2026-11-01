@@ -487,6 +487,16 @@ class AiPersona(Base):
     day: Mapped[str] = mapped_column(String(10), default="", server_default="")
     schedule_profile: Mapped[str | None] = mapped_column(String(32))  # ai_schedule_profiles.code (Living World AI)
     session_until: Mapped[datetime | None] = mapped_column(TS)        # end of the current play session
+    # Living World AI phase 3: personality (stage 2), tier (stage 4), voice (stage 7)
+    traits: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")     # trait -> 0..1
+    ambitions: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
+    habits: Mapped[list] = mapped_column(JSON, default=list, server_default="[]")
+    voice: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")      # individual manner of speech
+    counters: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")   # streaks and totals
+    mood: Mapped[float] = mapped_column(Float, default=0.0, server_default="0")       # -1 upset … +1 happy
+    tier: Mapped[str | None] = mapped_column(String(16), index=True)                  # newbie … elite
+    pace: Mapped[float] = mapped_column(Float, default=1.0, server_default="1")       # development speed
+    personality_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 
 
 class AiActivityLog(Base):
@@ -506,6 +516,9 @@ class AiMemory(Base):
     fact: Mapped[str] = mapped_column(Text)
     weight: Mapped[float] = mapped_column(Float, default=1.0)
     expires_at: Mapped[datetime | None] = mapped_column(TS)
+    kind: Mapped[str] = mapped_column(String(24), default="fact", server_default="fact", index=True)
+    importance: Mapped[float] = mapped_column(Float, default=1.0, server_default="1")
+    created_at: Mapped[datetime | None] = mapped_column(TS, default=utcnow, index=True)
 
 
 # ---------------------------------------------------------------- content / update system
@@ -1209,3 +1222,52 @@ class AiScheduleProfile(Base):
     session_minutes: Mapped[int] = mapped_column(Integer, default=40)
     rest_weekdays: Mapped[list] = mapped_column(JSON, default=list)  # 0=Mon … 6=Sun
     weight: Mapped[int] = mapped_column(Integer, default=1)       # share of new personas
+
+
+# ---------------------------------------------------------------- Living World AI phase 3: personalities and memory
+class AiArchetype(Base):
+    """Base archetypes as data (stage 2): edited in the admin panel; individual traits make each persona unique."""
+    __tablename__ = "ai_archetypes"
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(64))
+    description: Mapped[str] = mapped_column(Text, default="")
+    interests: Mapped[list] = mapped_column(JSON, default=list)
+    styles: Mapped[list] = mapped_column(JSON, default=list)
+    trait_bias: Mapped[dict] = mapped_column(JSON, default=dict)   # trait -> shift of the random value (-0.3 … 0.3)
+    ambitions: Mapped[list] = mapped_column(JSON, default=list)    # likely ambitions
+    weight: Mapped[int] = mapped_column(Integer, default=1)        # share of new personas
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class AiPersonaSnapshot(Base):
+    """Versioned checkpoints of a persona's personality (stages 2 and 14): automatic on noticeable changes, manual
+    from the admin panel, before every restore/import. Game progress is not part of a snapshot."""
+    __tablename__ = "ai_persona_snapshots"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    persona_id: Mapped[str] = mapped_column(ForeignKey("ai_personas.id", ondelete="CASCADE"), index=True)
+    version: Mapped[int] = mapped_column(Integer, default=0)
+    reason: Mapped[str] = mapped_column(String(160), default="")
+    data: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_by: Mapped[str] = mapped_column(String(64), default="system")
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class AiMemoryArchive(Base):
+    """Compressed long-term memory (stage 14, D-06): old activity and memories are summarised per persona and month
+    and kept forever, so inactivity never erases history while the hot tables stay small."""
+    __tablename__ = "ai_memory_archive"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    persona_id: Mapped[str] = mapped_column(ForeignKey("ai_personas.id", ondelete="CASCADE"), index=True)
+    period: Mapped[str] = mapped_column(String(7))                 # YYYY-MM
+    stats: Mapped[dict] = mapped_column(JSON, default=dict)        # activity -> count, memory kinds -> count
+    notes: Mapped[list] = mapped_column(JSON, default=list)        # important memories kept as text
+    updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    __table_args__ = (UniqueConstraint("persona_id", "period", name="uq_ai_memory_archive_period"),)
+
+
+class AiBiography(Base):
+    """A persona's game biography: structured chapters (created, guild, tier, personality changes, milestones)."""
+    __tablename__ = "ai_biographies"
+    persona_id: Mapped[str] = mapped_column(ForeignKey("ai_personas.id", ondelete="CASCADE"), primary_key=True)
+    entries: Mapped[list] = mapped_column(JSON, default=list)      # [{at, kind, text}]
+    updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow)

@@ -161,7 +161,8 @@ def characters(query: str = Query("", max_length=32), only: str = Query("", max_
         su = as_utc(p.session_until) if p.session_until else None
         out.append({"id": p.id, "nickname": pr.nickname, "uralia_id": pr.uralia_id, "level": pr.level, "power": pr.power,
                     "archetype": p.archetype, "archetype_desc": ARCHETYPES.get(p.archetype, {}).get("desc", ""),
-                    "style": p.style, "schedule": p.schedule_profile, "active": p.active,
+                    "style": p.style, "schedule": p.schedule_profile, "active": p.active, "tier": p.tier,
+                    "mood": p.mood, "version": p.personality_version,
                     "in_session": bool(su and su > now), "actions_today": p.actions_today if p.day == now.date().isoformat() else 0,
                     "last_action_at": as_utc(p.last_action_at).isoformat() if p.last_action_at else None})
     return {"items": out}
@@ -190,3 +191,268 @@ def activity(limit: int = Query(40, ge=1, le=200), who: str = Depends(admin), db
                       .order_by(AiActivityLog.id.desc()).limit(limit)).all()
     return {"items": [{"at": as_utc(a.created_at).isoformat(), "nickname": nick, "activity": a.activity,
                        "payload": a.payload} for a, nick in rows]}
+
+
+# ------------------------------------------------------------------ phase 3: personalities, tiers, speech, memory
+from ..models import AiArchetype, AiBiography, AiMemory, AiMemoryArchive, AiPersonaSnapshot  # noqa: E402
+from . import llm as LLM  # noqa: E402
+from . import memory as MEM  # noqa: E402
+from . import personality as PERS  # noqa: E402
+from . import speech as SP  # noqa: E402
+from . import tiers as TR  # noqa: E402
+
+SECTIONS = {"speech": SP.SECTION, "memory": MEM.SECTION, "tiers": TR.SECTION}
+
+
+def _section(name: str):
+    if name not in SECTIONS:
+        raise GameError("not_found", "Нет такого раздела настроек", 404)
+    return SECTIONS[name]
+
+
+@router.get("/settings/{name}")
+def get_section(name: str, who: str = Depends(admin), db: Session = Depends(get_db)):
+    out = _section(name).describe(db)
+    if name == "speech":
+        out["llm"] = LLM.status(out["settings"])
+    if name == "tiers":
+        out["tiers"] = {k: {**{x: v[x] for x in ("name", "desc", "pace", "strategies")}, "levels": TR.tier_range(k),
+                            "heroes": v["heroes"], "stars": v["stars"]} for k, v in TR.TIERS.items()}
+        out["distribution"] = PERS.distribution(db)
+        out["world_level"] = TR.world_level(db)
+    return out
+
+
+@router.post("/settings/{name}")
+def set_section(name: str, body: dict, who: str = Depends(admin), db: Session = Depends(get_db)):
+    try:
+        s = _section(name).update(db, body, who)
+    except (ValueError, TypeError) as e:
+        raise GameError("bad_settings", str(e), 400)
+    db.commit()
+    return {"settings": s}
+
+
+@router.post("/settings/{name}/rollback")
+def rollback_section(name: str, who: str = Depends(admin), db: Session = Depends(get_db)):
+    try:
+        s = _section(name).rollback(db, who)
+    except ValueError as e:
+        raise GameError("no_history", str(e), 409)
+    db.commit()
+    return {"settings": s}
+
+
+@router.get("/archetypes")
+def get_archetypes(who: str = Depends(admin), db: Session = Depends(get_db)):
+    rows = PERS.archetypes(db)
+    counts = dict(db.execute(select(AiPersona.archetype, func.count()).group_by(AiPersona.archetype)).all())
+    db.commit()
+    return {"items": [{"code": a.code, "name": a.name, "description": a.description, "interests": a.interests,
+                       "styles": a.styles, "trait_bias": a.trait_bias, "ambitions": a.ambitions, "weight": a.weight,
+                       "enabled": a.enabled, "personas": counts.get(a.code, 0)} for a in rows.values()],
+            "traits": PERS.TRAITS, "ambitions": PERS.AMBITIONS, "habits": PERS.HABITS,
+            "interests": ["level", "chat", "arena", "guild", "friend", "raid", "event"],
+            "styles": ["friendly", "joker", "grumpy", "flirty", "bro", "shy", "wise", "laconic", "competitive"]}
+
+
+class ArchetypeIn(BaseModel):
+    name: str = Field(min_length=1, max_length=64)
+    description: str = Field("", max_length=400)
+    interests: list[str] = Field(default_factory=list, max_length=8)
+    styles: list[str] = Field(default_factory=list, max_length=12)
+    trait_bias: dict[str, float] = Field(default_factory=dict)
+    ambitions: list[str] = Field(default_factory=list, max_length=8)
+    weight: int = Field(1, ge=0, le=100)
+    enabled: bool = True
+
+
+@router.put("/archetypes/{code}")
+def put_archetype(code: str, body: ArchetypeIn, who: str = Depends(admin), db: Session = Depends(get_db)):
+    if not code.isidentifier() or len(code) > 32:
+        raise GameError("bad_code", "Код архетипа: латиница, цифры, подчёркивание", 400)
+    if any(t not in PERS.TRAITS or not -0.4 <= v <= 0.4 for t, v in body.trait_bias.items()):
+        raise GameError("bad_bias", "Сдвиг черт: известные черты, от -0.4 до 0.4", 400)
+    if any(a not in PERS.AMBITIONS for a in body.ambitions):
+        raise GameError("bad_ambition", "Неизвестная амбиция", 400)
+    if any(i not in ("level", "chat", "arena", "guild", "friend", "raid", "event") for i in body.interests):
+        raise GameError("bad_interest", "Неизвестный интерес", 400)
+    a = db.get(AiArchetype, code)
+    if a is None:
+        a = AiArchetype(code=code)
+        db.add(a)
+    for k, v in body.model_dump().items():
+        setattr(a, k, v)
+    db.add(AdminAction(admin=who, action="ai_archetype_put", details={"code": code, **body.model_dump()}))
+    db.commit()
+    return {"ok": True}
+
+
+def _persona(db: Session, persona_id: str) -> AiPersona:
+    p = db.get(AiPersona, persona_id)
+    if p is None:
+        raise GameError("not_found", "ИИ-персонаж не найден", 404)
+    return p
+
+
+def _mem(m: AiMemory, names: dict | None = None) -> dict:
+    return {"id": m.id, "kind": m.kind, "kind_name": MEM.KINDS.get(m.kind, m.kind), "text": m.fact,
+            "importance": m.importance, "subject": (names or {}).get(m.subject_user_id, m.subject_user_id),
+            "persona_id": m.persona_id, "at": as_utc(m.created_at).isoformat() if m.created_at else None}
+
+
+@router.get("/characters/{persona_id}")
+def character(persona_id: str, who: str = Depends(admin), db: Session = Depends(get_db)):
+    p = _persona(db, persona_id)
+    prof = db.get(PlayerProfile, p.user_id)
+    mems = MEM.recall(db, p, limit=40)
+    subj = {m.subject_user_id for m in mems if m.subject_user_id}
+    names = {pp.user_id: pp.nickname for pp in db.scalars(select(PlayerProfile).where(PlayerProfile.user_id.in_(subj)))} if subj else {}
+    b = db.get(AiBiography, p.id)
+    snaps = db.scalars(select(AiPersonaSnapshot).where(AiPersonaSnapshot.persona_id == p.id).order_by(AiPersonaSnapshot.id.desc()))
+    arch = db.scalars(select(AiMemoryArchive).where(AiMemoryArchive.persona_id == p.id).order_by(AiMemoryArchive.period.desc()))
+    return {"id": p.id, "nickname": prof.nickname if prof else "", "uralia_id": prof.uralia_id if prof else "",
+            "level": prof.level if prof else 0, "power": prof.power if prof else 0, "vip_level": prof.vip_level if prof else 0,
+            "archetype": p.archetype, "style": p.style, "interests": p.interests, "backstory": p.backstory,
+            "schedule": p.schedule_profile, "active": p.active, "strategy": (p.counters or {}).get("strategy"),
+            "strategy_name": TR.STRATEGY_NAMES.get((p.counters or {}).get("strategy", ""), ""),
+            "personality": PERS.describe(p), "memories": [_mem(m, names) for m in mems],
+            "biography": list(b.entries or []) if b else [],
+            "snapshots": [{"id": s.id, "version": s.version, "reason": s.reason, "by": s.created_by,
+                           "at": as_utc(s.created_at).isoformat()} for s in snaps],
+            "archive": [{"period": a.period, "stats": a.stats, "notes": a.notes[-10:]} for a in arch],
+            "dict": {"traits": PERS.TRAITS, "ambitions": PERS.AMBITIONS, "habits": PERS.HABITS, "tiers":
+                     {k: v["name"] for k, v in TR.TIERS.items()}, "kinds": MEM.KINDS, "bio": MEM.BIO_KINDS}}
+
+
+class CharacterPatch(BaseModel):
+    style: str | None = Field(None, max_length=24)
+    backstory: str | None = Field(None, max_length=600)
+    traits: dict[str, float] | None = None
+    ambitions: list[str] | None = Field(None, max_length=6)
+    habits: list[str] | None = Field(None, max_length=8)
+    mood: float | None = Field(None, ge=-1, le=1)
+    tier: str | None = Field(None, max_length=16)
+    pace: float | None = Field(None, ge=0.1, le=5)
+
+
+@router.patch("/characters/{persona_id}")
+def patch_character(persona_id: str, body: CharacterPatch, who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Administrative edit of a persona (stage 5/14): a checkpoint is taken first, so every edit can be undone."""
+    p = _persona(db, persona_id)
+    ch = body.model_dump(exclude_none=True)
+    if not ch:
+        raise GameError("no_changes", "Нет изменений", 400)
+    if "traits" in ch and any(t not in PERS.TRAITS or not 0 <= v <= 1 for t, v in ch["traits"].items()):
+        raise GameError("bad_traits", "Черты: известные, значения 0…1", 400)
+    if "ambitions" in ch and any(a not in PERS.AMBITIONS for a in ch["ambitions"]):
+        raise GameError("bad_ambition", "Неизвестная амбиция", 400)
+    if "habits" in ch and any(h not in PERS.HABITS for h in ch["habits"]):
+        raise GameError("bad_habit", "Неизвестная привычка", 400)
+    if "tier" in ch and ch["tier"] not in TR.TIERS:
+        raise GameError("bad_tier", "Неизвестный слой силы", 400)
+    MEM.checkpoint(db, p, "Перед правкой администрации", who)
+    if "traits" in ch:
+        ch["traits"] = {**(p.traits or {}), **{k: round(v, 3) for k, v in ch["traits"].items()}}
+    for k, v in ch.items():
+        setattr(p, k, v)
+    p.personality_version = (p.personality_version or 0) + 1
+    MEM.bio_add(db, p, "admin", "Характер изменён администрацией: " + ", ".join(ch))
+    db.add(AdminAction(admin=who, action="ai_character_edit", details={"persona": persona_id, **ch}))
+    db.commit()
+    return {"ok": True, "version": p.personality_version}
+
+
+@router.post("/characters/{persona_id}/checkpoint")
+def make_checkpoint(persona_id: str, body: dict | None = None, who: str = Depends(admin), db: Session = Depends(get_db)):
+    p = _persona(db, persona_id)
+    reason = str((body or {}).get("reason") or "Ручная контрольная точка")[:160]
+    s = MEM.checkpoint(db, p, reason, who, keep=MEM.SECTION.get(db)["snapshots_keep"])
+    db.add(AdminAction(admin=who, action="ai_checkpoint", details={"persona": persona_id, "snapshot": s.id}))
+    db.commit()
+    return {"id": s.id}
+
+
+@router.post("/characters/{persona_id}/restore/{snapshot_id}")
+def restore_checkpoint(persona_id: str, snapshot_id: int, who: str = Depends(admin), db: Session = Depends(get_db)):
+    p = _persona(db, persona_id)
+    snap = db.get(AiPersonaSnapshot, snapshot_id)
+    if snap is None or snap.persona_id != p.id:
+        raise GameError("not_found", "Контрольная точка не найдена", 404)
+    MEM.restore(db, p, snap, who)
+    db.commit()
+    return {"ok": True, "version": p.personality_version}
+
+
+@router.get("/characters/{persona_id}/export")
+def export_character(persona_id: str, who: str = Depends(admin), db: Session = Depends(get_db)):
+    p = _persona(db, persona_id)
+    out = MEM.export(db, p)
+    db.add(AdminAction(admin=who, action="ai_persona_export", details={"persona": persona_id}))
+    db.commit()
+    return out
+
+
+@router.post("/characters/{persona_id}/import")
+def import_character(persona_id: str, body: dict, who: str = Depends(admin), db: Session = Depends(get_db)):
+    p = _persona(db, persona_id)
+    try:
+        MEM.import_into(db, p, body, who)
+    except ValueError as e:
+        raise GameError("bad_import", str(e), 400)
+    db.commit()
+    return {"ok": True, "version": p.personality_version}
+
+
+@router.get("/memory/search")
+def memory_search(q: str = Query("", max_length=80), kind: str = Query("", max_length=24),
+                  persona_id: str = Query("", max_length=36), limit: int = Query(100, ge=1, le=500),
+                  who: str = Depends(admin), db: Session = Depends(get_db)):
+    rows = MEM.search(db, q, kind, persona_id, limit)
+    pids = {m.persona_id for m in rows}
+    nick = dict(db.execute(select(AiPersona.id, PlayerProfile.nickname).join(PlayerProfile, PlayerProfile.user_id == AiPersona.user_id)
+                           .where(AiPersona.id.in_(pids))).all()) if pids else {}
+    return {"items": [{**_mem(m), "persona": nick.get(m.persona_id, "")} for m in rows], "kinds": MEM.KINDS}
+
+
+class MemoryPatch(BaseModel):
+    text: str | None = Field(None, min_length=1, max_length=200)
+    kind: str | None = Field(None, max_length=24)
+    importance: float | None = Field(None, ge=0, le=5)
+
+
+@router.patch("/memory/{memory_id}")
+def memory_edit(memory_id: int, body: MemoryPatch, who: str = Depends(admin), db: Session = Depends(get_db)):
+    m = db.get(AiMemory, memory_id)
+    if m is None:
+        raise GameError("not_found", "Воспоминание не найдено", 404)
+    if body.kind is not None and body.kind not in MEM.KINDS:
+        raise GameError("bad_kind", "Неизвестный вид воспоминания", 400)
+    old = {"text": m.fact, "kind": m.kind, "importance": m.importance}  # kept in the journal for restoring
+    if body.text is not None:
+        m.fact = body.text
+    if body.kind is not None:
+        m.kind = body.kind
+    if body.importance is not None:
+        m.importance = body.importance
+    db.add(AdminAction(admin=who, action="ai_memory_edit", details={"memory": memory_id, "old": old,
+                                                                    "new": body.model_dump(exclude_none=True)}))
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/memory/archive-now")
+def memory_archive_now(who: str = Depends(admin), db: Session = Depends(get_db)):
+    r = MEM.archive(db)
+    db.add(AdminAction(admin=who, action="ai_memory_archive", details=r))
+    db.commit()
+    return r
+
+
+@router.get("/memory/stats")
+def memory_stats(who: str = Depends(admin), db: Session = Depends(get_db)):
+    from ..models import AiActivityLog
+    c = lambda m: db.scalar(select(func.count()).select_from(m)) or 0  # noqa: E731
+    return {"memories": c(AiMemory), "activity_log": c(AiActivityLog), "archive_rows": c(AiMemoryArchive),
+            "biographies": c(AiBiography), "snapshots": c(AiPersonaSnapshot),
+            "by_kind": dict(db.execute(select(AiMemory.kind, func.count()).group_by(AiMemory.kind)).all())}

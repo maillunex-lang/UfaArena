@@ -258,3 +258,18 @@ docker compose logs --tail=20 ai-director   # AI Director started
 Состояние: `curl -H "X-Admin-Token: <токен>" http://localhost:8000/admin/api/ai/director`.
 Включить рабочий режим (после проверки): `curl -X POST -H "X-Admin-Token: <токен>" -H "Content-Type: application/json" -d '{"mode":"normal"}' http://localhost:8000/admin/api/ai/director`.
 Выключить Director полностью: `docker compose stop ai-director` — сервер сам продолжит работу на прежнем движке ИИ.
+
+## 21. Living World AI: личности, слои силы, речь, память (фаза 3)
+Миграция 0012 только добавляет поля и таблицы. Существующие ИИ получают характер и слой постепенно (по 50 за проход),
+их уровень, герои и прогресс не меняются. Журнал ИИ больше не удаляется через 7 дней — старое уходит в архив.
+```bash
+cd /opt/uralia
+docker compose exec db pg_dump -U uralia uralia > backup_$(date +%Y%m%d_%H%M).sql
+git pull
+docker compose up -d --build
+docker compose logs --tail=40 api | grep -i upgrade      # 0011 -> 0012
+docker compose logs --tail=10 ai-director
+```
+Управление — админка `/admin`, вкладка «ИИ-жители»: «Персонажи» (карточка по нажатию на имя), «Характеры и слои силы»,
+«Речь», «Память». Локальная языковая модель выключена и на текущем VPS (2 ГБ) включаться не будет — нужно ≥ 8 ГБ
+свободной памяти.

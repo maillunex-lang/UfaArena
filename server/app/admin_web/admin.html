@@ -170,8 +170,8 @@ async art(){const d=await api('/web/art');
  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{await api('/web/art/remove?path='+encodeURIComponent(sec.slots[+b.dataset.rm].path),'POST',{});VIEWS.art()})},
 
 async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a></div>`},
-async ai(){const SECS=[['director','Director'],['switches','Переключатели'],['people','Персонажи'],['schedules','Расписания'],['tasks','Очередь задач'],['activity','Журнал действий']];
- main.innerHTML=`<nav style="border:0;padding:0 0 12px;background:none">${SECS.map(([k,t])=>`<button class="${k===aiSec?'on':''}" data-ais="${k}">${t}</button>`).join('')}</nav><div id="aibox"><p class="muted">Загрузка…</p></div>`;
+async ai(){const SECS=[['director','Director'],['switches','Переключатели'],['people','Персонажи'],['archetypes','Характеры и слои силы'],['speech','Речь'],['memory','Память'],['schedules','Расписания'],['tasks','Очередь задач'],['activity','Журнал действий']];
+ main.innerHTML=`<nav style="border:0;padding:0 0 12px;background:none;flex-wrap:wrap">${SECS.map(([k,t])=>`<button class="${k===aiSec?'on':''}" data-ais="${k}">${t}</button>`).join('')}</nav><div id="aibox"><p class="muted">Загрузка…</p></div>`;
  document.querySelectorAll('[data-ais]').forEach(b=>b.onclick=()=>{aiSec=b.dataset.ais;VIEWS.ai()});
  await AI[aiSec]($('#aibox'))}
 };
@@ -182,6 +182,10 @@ const AI_SET={tick_seconds:['Такт, секунд','Как часто Director
  compact_after_hours:['Хранить выполненные задачи в очереди, часов','Потом переносятся в историю'],events_per_tick:['Событий за такт','Сообщения и упоминания игроков, на которые ИИ отвечают'],
  host_load_soft:['Нагрузка сервера: мягкий порог, % ядра','Выше — активность ИИ ×0,5'],host_load_hard:['Нагрузка сервера: жёсткий порог, % ядра','Выше — активность ИИ ×0,2'],
  host_mem_soft_mb:['Свободная память: мягкий порог, МБ','Меньше — активность ИИ ×0,5'],host_mem_hard_mb:['Свободная память: жёсткий порог, МБ','Меньше — активность ИИ ×0,2']};
+const AI_TIER={newbie:'Новичок',regular:'Обычный',experienced:'Опытный',veteran:'Ветеран',elite:'Элита'};
+const AI_STRAT={balanced:'сбалансированная',aggressive:'атакующая',defensive:'оборонительная'};
+const AI_CHOICE={short:'Короткие',medium:'Обычные',long:'Развёрнутые'};
+const moodTxt=m=>m==null?'—':m>0.45?'😊 радостное':m<-0.45?'😣 расстроенное':m>0.15?'🙂 хорошее':m<-0.15?'😕 так себе':'😐 спокойное';
 const AI_TASK={pending:'ожидает',running:'выполняется',done:'выполнена',failed:'ошибка',simulated:'тест (не выполнялась)',cancelled:'отменена'};
 const AI_ARCH={competitor:'Соперник',collector:'Коллекционер',socializer:'Душа компании',strategist:'Стратег',explorer:'Исследователь',newbie:'Новичок',veteran:'Ветеран'};
 const AI_STYLE={friendly:'дружелюбный',joker:'шутник',grumpy:'ворчун',flirty:'кокетливый',bro:'свойский',shy:'стеснительный',wise:'мудрый',laconic:'немногословный',competitive:'азартный',humorous:'с юмором'};
@@ -224,7 +228,7 @@ async people(box,q,only){q=q??(sessionStorage.getItem('aiq')||'');only=only??(se
  <p class="small muted">Характеры: ${Object.entries(pop.by_archetype).map(([k,v])=>esc(AI_ARCH[k]||k)+' '+v).join(' · ')}</p></div>
  <div class="card"><h2>Персонажи</h2><div class="row"><input id="aiq" placeholder="Ник или UR-номер" value="${esc(q)}"><select id="aionly"><option value="">Все</option><option value="session" ${only==='session'?'selected':''}>Сейчас в игре</option><option value="disabled" ${only==='disabled'?'selected':''}>На паузе</option></select><button class="primary" id="aifind">Показать</button></div>
  <table style="margin-top:8px"><tr><th>ИИ</th><th>Характер</th><th>Уровень / сила</th><th>Сейчас</th><th>Действие вручную</th></tr>
- ${list.items.map(c=>`<tr><td><b>${esc(c.nickname)}</b> <span class="tag">ИИ</span><div class="small muted">${c.uralia_id} · расписание: ${esc(c.schedule||'—')}</div></td>
+ ${list.items.map(c=>`<tr><td><a href="#" data-open="${c.id}"><b>${esc(c.nickname)}</b></a> <span class="tag">ИИ</span><div class="small muted">${c.uralia_id} · ${esc(AI_TIER[c.tier]||'—')} · ${moodTxt(c.mood)}</div></td>
   <td class="small">${esc(AI_ARCH[c.archetype]||c.archetype)}<div class="muted">${esc(c.archetype_desc)} · ${esc(AI_STYLE[c.style]||c.style)}</div></td><td>${c.level} / ${fmt(c.power)}</td>
   <td class="small">${!c.active?'<span class="tag r">пауза</span>':c.in_session?'<span class="tag">в игре</span>':'не в сети'}<div class="muted">действий сегодня ${c.actions_today} · ${ago(c.last_action_at)}</div></td>
   <td><div class="row" style="flex-wrap:nowrap"><select data-act="${c.id}">${Object.entries(AI_ACT).map(([k,t])=>`<option value="${k}">${t}</option>`).join('')}</select><button class="small" data-run="${c.id}">Запустить</button>
@@ -233,7 +237,82 @@ async people(box,q,only){q=q??(sessionStorage.getItem('aiq')||'');only=only??(se
  const go=()=>{sessionStorage.setItem('aiq',$('#aiq').value.trim());sessionStorage.setItem('aionly',$('#aionly').value);AI.people(box,$('#aiq').value.trim(),$('#aionly').value)};
  $('#aifind').onclick=go;$('#aiq').onkeydown=e=>{if(e.key==='Enter')go()};$('#aionly').onchange=go;
  box.querySelectorAll('[data-run]').forEach(b=>b.onclick=async()=>{const a=box.querySelector(`[data-act="${b.dataset.run}"]`).value;const r=await api('/ai/characters/'+b.dataset.run+'/run?action='+a,'POST',{});toast('Поставлено в очередь. '+r.note)});
- box.querySelectorAll('[data-pause]').forEach(b=>b.onclick=async()=>{await api('/ai/characters/'+b.dataset.pause+'/active','POST',{active:b.dataset.on==='1'});toast(b.dataset.on==='1'?'ИИ возвращён':'ИИ на паузе');AI.people(box)})},
+ box.querySelectorAll('[data-pause]').forEach(b=>b.onclick=async()=>{await api('/ai/characters/'+b.dataset.pause+'/active','POST',{active:b.dataset.on==='1'});toast(b.dataset.on==='1'?'ИИ возвращён':'ИИ на паузе');AI.people(box)});
+ box.querySelectorAll('[data-open]').forEach(a=>a.onclick=e=>{e.preventDefault();AI.card(box,a.dataset.open)})},
+
+async card(box,id){const d=await api('/ai/characters/'+id);const P=d.personality,D=d.dict;
+ const bar=v=>`<span style="display:inline-block;width:120px;height:8px;border-radius:4px;background:#24433f;vertical-align:middle"><span style="display:block;height:8px;border-radius:4px;width:${Math.round((v||0)*100)}%;background:var(--gold)"></span></span> ${Math.round((v||0)*100)}`;
+ box.innerHTML=`<div class="card"><div class="row"><h2 style="flex:1 1 300px">${esc(d.nickname)} <span class="tag">ИИ</span> <span class="muted small">${d.uralia_id}</span></h2><button id="cback">← К списку</button></div>
+ <div class="grid">${[['Уровень / сила',d.level+' / '+fmt(d.power)],['Слой силы',esc(P.tier_name||'—')+' · темп ×'+(P.pace??1)],['Характер',esc(AI_ARCH[d.archetype]||d.archetype)+' · '+esc(AI_STYLE[d.style]||d.style)],
+  ['Настроение',moodTxt(P.mood)],['Тактика',esc(d.strategy_name||'—')],['Версия характера',P.version],['Расписание',esc(d.schedule||'—')],['VIP','0 (у ИИ не бывает)']]
+  .map(([a,b])=>`<div class="stat">${a}<b style="font-size:16px">${b}</b></div>`).join('')}</div>
+ <p class="small">${esc(d.backstory)}</p>
+ <p class="small muted">Арена: побед ${P.counters.arena_wins||0}, поражений ${P.counters.arena_losses||0}, серия побед ${P.counters.wins_row||0}, серия поражений ${P.counters.losses_row||0}, перерывов ${P.counters.breaks||0}</p></div>
+ <div class="card"><h2>Черты, амбиции, привычки</h2><table>${P.traits.map(t=>`<tr><td>${t.name}</td><td>${bar(t.value)}</td><td><input type="number" min="0" max="100" data-tr="${t.code}" value="${Math.round((t.value||0)*100)}" style="width:80px"></td></tr>`).join('')}</table>
+ <div class="row" style="margin-top:8px"><label>Амбиции<select id="camb" multiple size="5">${Object.entries(D.ambitions).map(([k,n])=>`<option value="${k}" ${P.ambitions.some(a=>a.code===k)?'selected':''}>${esc(n)}</option>`).join('')}</select></label>
+ <label>Привычки<select id="chab" multiple size="5">${Object.entries(D.habits).map(([k,n])=>`<option value="${k}" ${P.habits.some(a=>a.code===k)?'selected':''}>${esc(n)}</option>`).join('')}</select></label>
+ <label>Слой силы<select id="ctier">${Object.entries(D.tiers).map(([k,n])=>`<option value="${k}" ${k===P.tier?'selected':''}>${esc(n)}</option>`).join('')}</select>Настроение, -100…100<input id="cmood" type="number" min="-100" max="100" value="${Math.round((P.mood||0)*100)}"></label></div>
+ <label class="small" style="display:block;margin-top:8px">Предыстория<textarea id="cback2">${esc(d.backstory)}</textarea></label>
+ <p class="small muted">Несколько амбиций или привычек — с зажатой клавишей Ctrl (на телефоне — касанием).</p>
+ <p class="small muted">Манера речи: ${P.voice.catchphrase?'присказка «'+esc(P.voice.catchphrase)+'», ':''}эмодзи ${Math.round((P.voice.emoji||0)*100)}%${P.voice.lowercase?', пишет с маленькой буквы':''}${P.voice.ellipsis?', любит многоточия':''}.</p>
+ <div class="row"><button class="primary" id="csave">Сохранить характер</button><button id="cchk">Создать контрольную точку</button><button id="cexp">Экспорт (перенос профиля)</button><label class="btn" style="text-align:center">Импорт…<input type="file" id="cimp" accept=".json" style="display:none"></label></div>
+ <p class="small muted">Перед каждой правкой, восстановлением и импортом автоматически создаётся контрольная точка. Игровой прогресс (герои, уровень, ресурсы) не меняется.</p></div>
+ <div class="card"><h2>Биография</h2>${d.biography.slice().reverse().map(e=>`<div class="msg"><span class="a">${esc(D.bio[e.kind]||e.kind)}</span> <span class="muted small">${time(e.at)}</span><div>${esc(e.text)}</div></div>`).join('')||'<p class="muted">Пока пусто</p>'}</div>
+ <div class="card"><h2>Память (последние 40)</h2><table>${d.memories.map(m=>`<tr><td class="small">${esc(m.kind_name)}</td><td>${esc(m.text)}${m.subject?`<div class="small muted">о ком: ${esc(m.subject)}</div>`:''}</td><td class="small">важность ${m.importance}</td><td class="small muted">${ago(m.at)}</td></tr>`).join('')||'<tr><td class="muted">Пусто</td></tr>'}</table></div>
+ <div class="card"><h2>Контрольные точки</h2><table>${d.snapshots.map(x=>`<tr><td class="small">v${x.version}</td><td>${esc(x.reason)}</td><td class="small muted">${esc(x.by)} · ${time(x.at)}</td><td><button class="small" data-rs="${x.id}">Восстановить</button></td></tr>`).join('')}</table></div>
+ <div class="card"><h2>Архив</h2>${d.archive.map(a=>`<div class="small"><b>${a.period}</b>: ${Object.entries(a.stats).map(([k,v])=>esc(k.replace('act:','').replace('mem:','память: '))+' '+v).join(', ')}</div>`).join('')||'<p class="muted small">Архив появится, когда записям исполнится больше срока горячей памяти.</p>'}</div>`;
+ $('#cback').onclick=()=>AI.people(box);
+ $('#csave').onclick=async()=>{const tr={};box.querySelectorAll('[data-tr]').forEach(i=>tr[i.dataset.tr]=Math.max(0,Math.min(100,+i.value))/100);
+  const sel=id=>[...$(id).selectedOptions].map(o=>o.value);
+  await api('/ai/characters/'+id,'PATCH',{traits:tr,ambitions:sel('#camb'),habits:sel('#chab'),tier:$('#ctier').value,mood:Math.max(-100,Math.min(100,+$('#cmood').value))/100,backstory:$('#cback2').value});toast('Характер сохранён');AI.card(box,id)};
+ $('#cchk').onclick=async()=>{await api('/ai/characters/'+id+'/checkpoint','POST',{reason:'Ручная контрольная точка'});toast('Контрольная точка создана');AI.card(box,id)};
+ $('#cexp').onclick=async()=>{const x=await api('/ai/characters/'+id+'/export');const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(x,null,1)],{type:'application/json'}));a.download='ai_'+d.uralia_id+'.json';a.click()};
+ $('#cimp').onchange=async()=>{const f=$('#cimp').files[0];if(!f)return;if(!confirm('Перенести характер, биографию и память из файла в этого персонажа?'))return;
+  await api('/ai/characters/'+id+'/import','POST',JSON.parse(await f.text()));toast('Профиль перенесён');AI.card(box,id)};
+ box.querySelectorAll('[data-rs]').forEach(b=>b.onclick=async()=>{if(!confirm('Восстановить характер из этой контрольной точки?'))return;await api('/ai/characters/'+id+'/restore/'+b.dataset.rs,'POST',{});toast('Восстановлено');AI.card(box,id)})},
+
+async section(box,name,title,note,extra){const d=await api('/ai/settings/'+name);const S=d.settings;
+ const inp=(k)=>{const f=d.fields[k],v=S[k];if(f.kind==='bool')return `<label class="chk"><input type="checkbox" data-sk="${k}" ${v?'checked':''}> ${esc(d.names[k]||k)}</label>`;
+  if(f.kind==='choice')return `<label class="small">${esc(d.names[k]||k)}<select data-sk="${k}">${f.args.map(o=>`<option value="${o}" ${o===v?'selected':''}>${esc((AI_CHOICE[o]||o))}</option>`).join('')}</select></label>`;
+  return `<label class="small">${esc(d.names[k]||k)}<input data-sk="${k}" ${f.kind==='int'?`type="number" min="${f.args[0]}" max="${f.args[1]}"`:''} value="${esc(v)}">${v!==d.defaults[k]?`<span class="muted">по умолчанию ${esc(d.defaults[k])}</span>`:''}</label>`};
+ box.innerHTML=`<div class="card"><h2>${title}</h2><p class="small muted">${note}</p>${extra?extra(d):''}<div class="grid">${Object.keys(d.fields).map(inp).join('')}</div>
+ <div class="row" style="margin-top:10px"><button class="primary" id="ssave">Сохранить</button><button id="srb">Откатить к предыдущим</button></div></div><div id="sx"></div>`;
+ $('#ssave').onclick=async()=>{const ch={};box.querySelectorAll('[data-sk]').forEach(i=>{const k=i.dataset.sk,f=d.fields[k];const v=f.kind==='bool'?i.checked:f.kind==='int'?+i.value:i.value;if(v!==S[k])ch[k]=v});
+  if(!Object.keys(ch).length)return toast('Изменений нет');await api('/ai/settings/'+name,'POST',ch);toast('Сохранено');AI[aiSec](box)};
+ $('#srb').onclick=async()=>{if(!confirm('Вернуть предыдущую версию настроек?'))return;await api('/ai/settings/'+name+'/rollback','POST',{});toast('Откат выполнен');AI[aiSec](box)};
+ return d},
+
+async speech(box){await AI.section(box,'speech','Речь и интеллект ИИ','Основа — локальные шаблоны и сценарии, работают всегда. Каждый ИИ говорит в своей манере, настроение окрашивает речь, при интеллекте 3+ ИИ вспоминают прошлые разговоры. Локальная модель необязательна: включается только при достаточной памяти сервера (на текущем VPS — нет), без неё всё работает на шаблонах. Платные внешние сервисы не используются.',
+ d=>`<p class="small">Локальная модель: <b>${d.llm.enabled?(d.llm.available?'<span class="ok">готова</span>':'<span class="bad">недоступна</span>'):'выключена'}</b> — ${esc(d.llm.reason)}${d.llm.last_error?' · последняя ошибка: '+esc(d.llm.last_error):''} · запросов за час ${d.llm.calls_hour||0}</p>`)},
+
+async archetypes(box){const [a,t]=await Promise.all([api('/ai/archetypes'),api('/ai/settings/tiers')]);
+ const bias=b=>Object.entries(b||{}).map(([k,v])=>`${k}:${v}`).join(', ');
+ box.innerHTML=`<div class="card"><h2>Слои силы</h2><p class="small muted">Доли новых ИИ по слоям. Уровень реальных игроков (90-й перцентиль за 14 дней): <b>${t.world_level??'нет данных'}</b>. Слои до «опытного» не обгоняют мир больше чем на заданный запас; ветераны и элита могут вести мир, но в пределах своего слоя.</p>
+ <table><tr><th>Слой</th><th>Уровни</th><th>Героев</th><th>Звёзды</th><th>Темп</th><th>Тактики</th><th>ИИ сейчас</th></tr>${Object.entries(t.tiers).map(([k,v])=>`<tr><td><b>${esc(v.name)}</b><div class="small muted">${esc(v.desc)}</div></td><td>${v.levels.join('–')}</td><td>${v.heroes.join('–')}</td><td>${v.stars.join('–')}</td><td>×${v.pace}</td><td class="small">${v.strategies.map(x=>AI_STRAT[x]||x).join(', ')}</td><td>${t.distribution[k]||0}</td></tr>`).join('')}</table><div id="tiersx"></div></div>
+ <div class="card"><h2>Архетипы (основа характера)</h2><p class="small muted">Индивидуальные черты каждого ИИ выпадают случайно вокруг сдвига архетипа, поэтому два ИИ одного архетипа ведут себя по-разному. Сдвиг черт: «черта:число» через запятую, от -0.4 до 0.4. Черты: ${Object.entries(a.traits).map(([k,v])=>k+' — '+v.toLowerCase()).join(', ')}.</p>
+ <table><tr><th>Архетип</th><th>Интересы</th><th>Сдвиг черт</th><th>Амбиции</th><th>Вес</th><th>Вкл.</th><th>ИИ</th><th></th></tr>${a.items.map(x=>`<tr data-ar="${x.code}"><td><input data-f="name" value="${esc(x.name)}"><input data-f="description" value="${esc(x.description)}" class="small"><div class="small muted">${x.code}</div></td>
+ <td><input data-f="interests" value="${x.interests.join(',')}"></td><td><input data-f="trait_bias" value="${esc(bias(x.trait_bias))}"></td><td><input data-f="ambitions" value="${x.ambitions.join(',')}" title="${Object.keys(a.ambitions).join(', ')}"></td>
+ <td><input data-f="weight" type="number" value="${x.weight}" style="width:70px"></td><td><input data-f="enabled" type="checkbox" ${x.enabled?'checked':''} style="width:18px"></td><td>${x.personas}</td><td><button class="small primary" data-ars="${x.code}">Сохранить</button></td></tr>`).join('')}</table>
+ <p class="small muted">Амбиции: ${Object.entries(a.ambitions).map(([k,v])=>k+' — '+v.toLowerCase()).join('; ')}. Стили речи архетипа сохраняются как были.</p></div>`;
+ const list=v=>v.split(',').map(x=>x.trim()).filter(Boolean);
+ box.querySelectorAll('[data-ars]').forEach(b=>b.onclick=async()=>{const tr=box.querySelector(`tr[data-ar="${b.dataset.ars}"]`);const f=n=>tr.querySelector(`[data-f="${n}"]`);const cur=a.items.find(x=>x.code===b.dataset.ars);
+  const tb={};list(f('trait_bias').value).forEach(p=>{const [k,v]=p.split(':');if(k)tb[k.trim()]=+v});
+  await api('/ai/archetypes/'+b.dataset.ars,'PUT',{name:f('name').value,description:f('description').value,interests:list(f('interests').value),styles:cur.styles,trait_bias:tb,ambitions:list(f('ambitions').value),weight:+f('weight').value,enabled:f('enabled').checked});toast('Архетип сохранён');AI.archetypes(box)});
+ const tx=$('#tiersx');await AI.section(tx,'tiers','Доли и подстройка под мир','Изменения влияют на новых ИИ и на рост уже существующих.')},
+
+async memory(box){const st=await api('/ai/memory/stats');
+ await AI.section(box,'memory','Память ИИ','Горячая память используется в поведении и речи. Старше срока — сжимается в помесячный архив (счётчики и важные воспоминания текстом) и хранится всегда: неактивность не стирает историю. Биография — главы жизни персонажа; длинные биографии сжимаются.',
+  ()=>`<div class="grid">${[['Воспоминаний',st.memories],['Журнал действий',st.activity_log],['Строк архива',st.archive_rows],['Биографий',st.biographies],['Контрольных точек',st.snapshots]].map(([a,b])=>`<div class="stat">${a}<b>${fmt(b)}</b></div>`).join('')}</div>
+  <p class="small muted">По видам: ${Object.entries(st.by_kind).map(([k,v])=>esc(k)+' '+v).join(' · ')}</p><div class="row"><button id="march">Архивировать сейчас</button></div>`);
+ $('#march').onclick=async()=>{const r=await api('/ai/memory/archive-now','POST',{});toast(`В архив: действий ${r.activity}, воспоминаний ${r.memories}`);AI.memory(box)};
+ const sx=$('#sx');const kinds=(await api('/ai/memory/search?limit=1')).kinds;
+ const run=async()=>{const d=await api(`/ai/memory/search?limit=100&q=${encodeURIComponent($('#mq').value)}&kind=${$('#mk').value}`);
+  $('#mres').innerHTML=d.items.map(m=>`<tr><td><a href="#" data-mo="${m.persona_id}">${esc(m.persona)}</a></td><td class="small">${esc(m.kind_name)}</td><td><input data-mt="${m.id}" value="${esc(m.text)}"></td><td><input data-mi="${m.id}" type="number" min="0" max="5" step="0.5" value="${m.importance}" style="width:70px"></td><td class="small muted">${ago(m.at)}</td><td><button class="small" data-ms="${m.id}">Сохранить</button></td></tr>`).join('')||'<tr><td class="muted">Ничего не найдено</td></tr>';
+  sx.querySelectorAll('[data-ms]').forEach(b=>b.onclick=async()=>{await api('/ai/memory/'+b.dataset.ms,'PATCH',{text:sx.querySelector(`[data-mt="${b.dataset.ms}"]`).value,importance:+sx.querySelector(`[data-mi="${b.dataset.ms}"]`).value});toast('Сохранено (старое значение — в журнале администраторов)')});
+  sx.querySelectorAll('[data-mo]').forEach(a=>a.onclick=e=>{e.preventDefault();aiSec='people';VIEWS.ai().then(()=>AI.card($('#aibox'),a.dataset.mo))})};
+ sx.innerHTML=`<div class="card"><h2>Поиск по памяти</h2><div class="row"><input id="mq" placeholder="Текст: «арена», имя, «гильдия»…"><select id="mk"><option value="">Все виды</option>${Object.entries(kinds).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join('')}</select><button class="primary" id="mgo">Искать</button></div>
+ <table style="margin-top:8px"><tr><th>ИИ</th><th>Вид</th><th>Воспоминание</th><th>Важность</th><th>Когда</th><th></th></tr><tbody id="mres"></tbody></table></div>`;
+ $('#mgo').onclick=run;$('#mq').onkeydown=e=>{if(e.key==='Enter')run()};run()},
 
 async schedules(box){const d=await api('/ai/schedules');const DAYS=['пн','вт','ср','чт','пт','сб','вс'];
  box.innerHTML=`<div class="card"><h2>Расписания ИИ</h2><p class="small muted">Время — московское (с учётом сдвига пояса каждого ИИ). Часы и дни через запятую: часы 0–23, дни 0=пн … 6=вс. «Вес» — какая доля новых ИИ получит профиль.</p>

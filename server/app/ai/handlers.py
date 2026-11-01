@@ -30,6 +30,13 @@ def _act(db: Session, t: AiTask) -> dict:
     V1.ACTIONS[action](db, persona, prof)
     persona.actions_today += 1
     persona.last_action_at = utcnow()
+    from . import personality as PERS
+    if PERS.wants_break(persona, _rng):  # stung by a series of defeats: leaves the game for a while
+        persona.session_until = utcnow()
+        PERS.count(persona, "breaks")
+        PERS.count(persona, "losses_row", delta=0, reset=("losses_row",))
+        V1.log(db, persona, "break", reason="losses")
+        return {"action": action, "break": True}
     return {"action": action}
 
 

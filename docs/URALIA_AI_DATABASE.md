@@ -1,6 +1,6 @@
 # URALIA Living World AI — СТРУКТУРА БД
 
-> PostgreSQL 16 (прод), SQLite (тесты). Миграции Alembic, сейчас голова — `0011`. Принцип ТЗ §6: использовать
+> PostgreSQL 16 (прод), SQLite (тесты). Миграции Alembic, сейчас голова — `0012`. Принцип ТЗ §6: использовать
 > существующие таблицы, если они уже выполняют функцию; новые — только для того, чего нет.
 
 ## Существующие таблицы, связанные с ИИ
@@ -26,17 +26,28 @@
 | `ai_personas.schedule_profile`, `ai_personas.session_until` | Профиль расписания персонажа и конец текущей игровой сессии |
 | `server_settings`: `ai_director`, `ai_director_history`, `ai_director_status` | Настройки и режим, история для отката, сердцебиение и метрики |
 
+## Добавлено в фазе 3 (миграция 0012)
+| Таблица / поле | Назначение |
+|---|---|
+| `ai_personas`: `traits`, `ambitions`, `habits`, `voice`, `counters`, `mood`, `tier`, `pace`, `personality_version` | Черты 0…1, амбиции, привычки, манера речи, счётчики (серии, победы, тактика, дрейф черт), настроение −1…1, слой силы, темп, версия характера |
+| `ai_memory`: `kind`, `importance`, `created_at` | Вид воспоминания, важность 0…5, время (срок хранения считается от него; больше не удаляется по `expires_at`) |
+| `ai_archetypes` | Архетипы как данные: название, описание, интересы, стили, сдвиг черт, амбиции, вес, включён |
+| `ai_persona_snapshots` | Версии/контрольные точки характера (причина, кто, когда, данные) |
+| `ai_memory_archive` | Помесячный архив на персонажа: счётчики действий и видов памяти + важные воспоминания текстом (уникально persona+период) |
+| `ai_biographies` | Биография: главы `{at, kind, text}` |
+| `server_settings`: `ai_speech`, `ai_memory_settings`, `ai_tiers` (+ `_history`) | Настройки речи, памяти, слоёв с историей для отката |
+
 ## Сопоставление сущностей ТЗ §6 (план)
 | Сущность ТЗ | Решение |
 |---|---|
 | ai_profiles | **есть**: `users` + `player_profiles` + `ai_personas` |
-| ai_personalities, ai_traits | расширить `ai_personas`: `traits`, `ambitions`, `habits`, `personality_version` (JSON) |
-| ai_archetypes | **новая** `ai_archetypes` (редактируются в админке; сейчас — константы в коде) |
+| ai_personalities, ai_traits | ✅ поля `ai_personas` (0012) |
+| ai_archetypes | ✅ `ai_archetypes` (0012) |
 | ai_progress, ai_heroes, ai_inventory | **есть**: игровые таблицы (тот же прогресс, что у игроков; дублирование запрещено) |
 | ai_relationships | **новая**: `(subject_id, object_id)` → симпатия, доверие, соперничество, неприязнь, история; ИИ↔ИИ и ИИ↔игрок |
 | ai_social_groups | **новая** `ai_social_groups` + участники |
-| ai_memories | **есть** `ai_memory` → добавить `kind`, `importance`, `version` |
-| ai_memories_archive, ai_biographies | **новые**: сжатые итоги и биография (не удаляются) |
+| ai_memories | ✅ `ai_memory` + `kind`, `importance`, `created_at` (0012); версии — через контрольные точки |
+| ai_memories_archive, ai_biographies | ✅ `ai_memory_archive`, `ai_biographies` (0012) |
 | ai_guild_memberships | **есть** `guild_members` |
 | ai_schedules | ✅ `ai_personas.schedule` + `ai_schedule_profiles` (0011) |
 | ai_behavior_rules, ai_behavior_templates | **новые** (правила и шаблоны поведения как данные) |
@@ -47,7 +58,7 @@
 | ai_pvp_history | **есть** `arena_matches`, `tournament_matches`, `guild_war_attacks` |
 | ai_event_participation | **есть** `world_event_contributions` (+ флаг вклада ИИ, D-05) |
 | ai_statistics | **есть** `stat_counters` + агрегаты `ai_activity_log` |
-| ai_settings | `server_settings` (ключи `ai_*`) |
+| ai_settings | ✅ `server_settings` (ключи `ai_*`) |
 | ai_admin_logs | **есть** `admin_actions` |
 
 Все новые миграции — аддитивные, с `downgrade`, проверяются `alembic check` и откатом на PostgreSQL.
