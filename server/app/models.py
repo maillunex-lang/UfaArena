@@ -77,6 +77,7 @@ class PlayerProfile(Base):
     ai_prefs: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}")  # player's AI-participation switches
     age_group: Mapped[str | None] = mapped_column(String(8))  # adult | minor | None (not asked yet), D-C1
     age_set_at: Mapped[datetime | None] = mapped_column(TS)
+    gender: Mapped[str | None] = mapped_column(String(1))  # m | f | None (not asked yet): who flirts with the player
     created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(TS, default=utcnow, onupdate=utcnow)
 
