@@ -313,14 +313,61 @@ def level_up_cost(level: int) -> dict:
     return {"gold": 40 * level + 5 * level * level, "nature_essence": 2 + level}
 
 
+# Caravan modules (lore stage S4, decision D-08). The former fortress buildings keep their codes and levels, so every
+# player keeps every bonus; three modules from the brief are new (library, research, towers).
 BUILDINGS = {
-    "summon_hall": dict(name="Зал призыва", max_level=10, effect="Эссенция призыва из AFK: +1 за каждые 8/уровень ч."),
-    "forge": dict(name="Кузница", max_level=10, effect="+3% атаки всем героям за уровень."),
-    "training": dict(name="Тренировочный двор", max_level=10, effect="+3% здоровья всем героям за уровень."),
-    "alchemy": dict(name="Алхимическая башня", max_level=10, effect="+10% эссенции природы в AFK за уровень."),
-    "storage": dict(name="Хранилище", max_level=10, effect="Лимит AFK: 8 ч + 1 ч за уровень сверх первого."),
-    "guild_house": dict(name="Дом гильдий", max_level=1, effect="Откроется вместе с гильдиями (следующий блок).",
-                        locked=True),
+    "summon_hall": dict(name="Шатёр призыва", max_level=10, overseer="ilsur",
+                        effect="Эссенция призыва в дозоре: +1 за каждые 8/уровень ч."),
+    "forge": dict(name="Кузница и мастерская", max_level=10, overseer="yurek", effect="+3% атаки всем героям за уровень."),
+    "training": dict(name="Боевые платформы", max_level=10, overseer="azamat", effect="+3% здоровья всем героям за уровень."),
+    "alchemy": dict(name="Лазарет", max_level=10, overseer="gulnaz", effect="+10% эссенции природы в дозоре за уровень."),
+    "storage": dict(name="Торговые повозки", max_level=10, overseer="gauhar",
+                    effect="Лимит дозора: 8 ч + 1 ч за уровень сверх первого."),
+    "guild_house": dict(name="Жилые модули", max_level=10, overseer="gauhar",
+                        effect="В караване больше людей: +3% золота в дозоре за уровень."),
+    "library": dict(name="Библиотека", max_level=10, overseer="ilsur", effect="+5% опыта хранителя за бои похода за уровень."),
+    "research": dict(name="Исследовательский центр", max_level=10, overseer="ilsur",
+                     effect="+8% кристаллов в дозоре за уровень."),
+    "towers": dict(name="Оборонительные башни", max_level=10, overseer="azamat", effect="+3% защиты всем героям за уровень."),
+}
+
+# ---------------------------------------------------------------- caravan: council, roads, lands (lore stage S4)
+# Council of the caravan (C25): nobody is the sole captain. Influence is hidden (C17) and derived from story decisions,
+# upgrades of the modules a member oversees and journeys; the most influential member gives a small bonus.
+COUNCIL = {
+    "azamat": dict(name="Азамат", area="Безопасность", hero="azamat",
+                   lead_bonus="hp_pct", lead_value=0.02, lead_text="+2% здоровья героям"),
+    "gauhar": dict(name="Гаухар-апа", area="Снабжение и торговля", hero=None,
+                   lead_bonus="afk_gold", lead_value=0.05, lead_text="+5% золота в дозоре"),
+    "ilsur": dict(name="Ильсур", area="Древние механизмы", hero=None,
+                  lead_bonus="exp", lead_value=0.05, lead_text="+5% опыта хранителя"),
+    "gulnaz": dict(name="Гульназ", area="Лазарет", hero="gulnaz",
+                   lead_bonus="afk_nature", lead_value=0.05, lead_text="+5% эссенции природы в дозоре"),
+    "yurek": dict(name="Юрек", area="Разведка и охота", hero="yurek",
+                  lead_bonus="atk_pct", lead_value=0.02, lead_text="+2% атаки героям"),
+    "zarkhan": dict(name="Зархан", area="Проводник", hero="zarkhan",
+                    lead_bonus="travel", lead_value=0.15, lead_text="дорога на 15% короче"),
+}
+# Influence from prologue decisions (docs/lore/URALIA_MAIN_STORY.md): flag -> value -> {member: delta}
+COUNCIL_FLAG_INFLUENCE = {
+    "camp_guest": {"order": {"azamat": 2}, "followers": {"gulnaz": 2}, "nobody": {"zarkhan": 2}},
+    "timer_path": {"followed": {"yurek": 1}, "stayed": {"azamat": 1}},
+    "voice_tone": {"answer": {"ilsur": -1}, "silent": {"ilsur": 1}, "reject": {"ilsur": 2}},
+}
+# Roads of Breath between the seven lands (docs/lore/URALIA_WORLD_MAP.md §4): ring road + paths to the Underhill.
+ROADS = [("r1_shikhany", "r4_nugush"), ("r4_nugush", "r7_zilair"), ("r7_zilair", "r2_iremel"), ("r2_iremel", "r5_yangantau"),
+         ("r5_yangantau", "r6_ufa_plateau"), ("r6_ufa_plateau", "r1_shikhany"),
+         ("r3_shulgantash", "r1_shikhany"), ("r3_shulgantash", "r2_iremel"), ("r3_shulgantash", "r4_nugush")]
+ROAD_HOURS = 2.0
+# While the caravan stands in a land, its patrol (AFK) gets local supplies.
+LAND_BONUS = {
+    "r1_shikhany": ("gold", 0.10, "+10% золота: речная торговля"),
+    "r2_iremel": ("crystals", 0.10, "+10% кристаллов: горные рудники"),
+    "r3_shulgantash": ("summon_essence", 0.15, "+15% эссенции призыва: эхо Глубины"),
+    "r4_nugush": ("nature_essence", 0.15, "+15% эссенции природы: целебные воды"),
+    "r5_yangantau": ("gold", 0.15, "+15% золота: кузнечные гильдии"),
+    "r6_ufa_plateau": ("nature_essence", 0.20, "+20% эссенции природы: Великая Чаща"),
+    "r7_zilair": ("crystals", 0.15, "+15% кристаллов: ярмарки степи"),
 }
 
 
@@ -341,8 +388,8 @@ QUESTS = [
     dict(code="main_level_up", kind="main", order=4, title="Сила растёт",
          description="Повысь уровень любого героя 3 раза.", event="hero_level_up", target=3,
          rewards=dict(nature_essence=60), requires="main_afk"),
-    dict(code="main_fortress", kind="main", order=5, title="Стены крепости",
-         description="Улучши любое здание крепости.", event="building_upgrade", target=1,
+    dict(code="main_fortress", kind="main", order=5, title="Караван крепнет",
+         description="Улучши любой модуль каравана.", event="building_upgrade", target=1,
          rewards=dict(crystals=150), requires="main_level_up"),
     dict(code="main_region1", kind="main", order=6, title="Исход из Таулара",
          description="Пройди всю главу «Таулар» и выведи выживших на тракт.", event="campaign_clear", target=8,

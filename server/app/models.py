@@ -1132,3 +1132,15 @@ class PlayerStoryFlag(Base):
     value: Mapped[str] = mapped_column(String(64))
     source: Mapped[str] = mapped_column(String(64), default="")
     set_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+# ---------------------------------------------------------------- caravan (lore stage S4)
+class PlayerCaravan(Base):
+    """Where the player's caravan stands or travels. Created on first access at the starting land."""
+    __tablename__ = "player_caravans"
+    user_id: Mapped[str] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), primary_key=True)
+    location: Mapped[str] = mapped_column(String(32), default="r1_shikhany")
+    destination: Mapped[str | None] = mapped_column(String(32))
+    depart_at: Mapped[datetime | None] = mapped_column(TS)
+    arrive_at: Mapped[datetime | None] = mapped_column(TS)
+    trips: Mapped[int] = mapped_column(Integer, default=0)

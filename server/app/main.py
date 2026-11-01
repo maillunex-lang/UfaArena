@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from .core.config import get_settings
 from .core.db import Base, get_engine, init_engine
 from .game.seed import seed_static
-from .modules import admin, auth, content, economy, game, health, hub, release, shop, story
+from .modules import admin, auth, caravan, content, economy, game, health, hub, release, shop, story
 from .admin_web import router as admin_web
 from .social.ai import control as ai_control
 from .social import (admin_social, arena, chat, events, friends, guilds, moderation, raids, rankings, scheduler,
@@ -42,7 +42,7 @@ def create_app() -> FastAPI:
                   docs_url="/docs" if get_settings().env != "prod" else None)
     for r in (auth.router, game.router, economy.router, content.router, shop.router, friends.router, guilds.router,
               chat.router, moderation.router, raids.router, arena.router, tournaments.router, events.router,
-              rankings.router, release.router, ai_control.router, hub.router, story.router):
+              rankings.router, release.router, ai_control.router, hub.router, story.router, caravan.router):
         app.include_router(r, prefix=API)
     app.include_router(health.router)
     app.include_router(admin.router)

@@ -127,7 +127,8 @@ def freeze_squad(db: Session, user_id: str, slots: list[str | None] | None = Non
         ph = db.get(PlayerHero, pid)
         if ph is None or ph.user_id != user_id:
             raise GameError("not_owned", "Отряд содержит чужого героя", 403)
-        st = hero_stats(hero_dict(ph.hero), ph.level, ph.stars, atk_pct=b.get("atk_pct", 0), hp_pct=b.get("hp_pct", 0))
+        st = hero_stats(hero_dict(ph.hero), ph.level, ph.stars, atk_pct=b.get("atk_pct", 0), hp_pct=b.get("hp_pct", 0),
+                        def_pct=b.get("def_pct", 0))
         out.append({"slot": slot, "hero_code": ph.hero_code, "level": ph.level, "stars": ph.stars,
                     "rarity": ph.hero.rarity, "faction": ph.hero.faction_code, "class": ph.hero.class_code,
                     "stats": st, "power": power_rating(st)})

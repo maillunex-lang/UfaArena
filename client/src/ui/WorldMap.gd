@@ -12,6 +12,12 @@ const POS := {"r1_shikhany": Vector2(0.43, 0.55), "r2_iremel": Vector2(0.74, 0.4
 
 var regions: Array = []
 var _rects: Array = []
+## Route mode (caravan, lore stage S4): roads of Breath, the caravan marker and reachable lands.
+var route_mode := false
+var roads: Array = []          # [[code_a, code_b], ...]
+var caravan_at := ""
+var caravan_to := ""
+var reachable := {}            # code -> open (bool)
 
 
 func _init() -> void:
@@ -57,9 +63,20 @@ func _draw() -> void:
 	if regions.is_empty():
 		return
 	_rects.clear()
-	for i in range(regions.size() - 1):
-		var done: bool = _cleared(i) >= regions[i].nodes.size() and regions[i].nodes.size() > 0
-		draw_dashed_line(_pos(i), _pos(i + 1), Color(UI.GOLD, 0.8) if done else Color(1, 1, 1, 0.3), 4.0, 14.0, true)
+	if route_mode and not roads.is_empty():
+		for rd in roads:
+			var ia := _index(String(rd[0]))
+			var ib := _index(String(rd[1]))
+			if ia < 0 or ib < 0:
+				continue
+			var active := (String(rd[0]) == caravan_at and reachable.has(String(rd[1]))) or (String(rd[1]) == caravan_at and reachable.has(String(rd[0])))
+			draw_line(_pos(ia), _pos(ib), Color(UI.GOLD, 0.9) if active else Color(1, 1, 1, 0.22), 5.0 if active else 3.0, true)
+		if caravan_to != "" and _index(caravan_to) >= 0 and _index(caravan_at) >= 0:
+			draw_dashed_line(_pos(_index(caravan_at)), _pos(_index(caravan_to)), UI.TEAL, 7.0, 16.0, true)
+	else:
+		for i in range(regions.size() - 1):
+			var done: bool = _cleared(i) >= regions[i].nodes.size() and regions[i].nodes.size() > 0
+			draw_dashed_line(_pos(i), _pos(i + 1), Color(UI.GOLD, 0.8) if done else Color(1, 1, 1, 0.3), 4.0, 14.0, true)
 	var font := UI.FONT_BOLD
 	for i in regions.size():
 		var reg: Dictionary = regions[i]
@@ -83,7 +100,27 @@ func _draw() -> void:
 		lp.x = clampf(lp.x, 6, size.x - w - 6)
 		draw_rect(Rect2(lp + Vector2(-6, -24), Vector2(w + 12, 32)), Color(0, 0, 0, 0.55))
 		draw_string(font, lp, label, HORIZONTAL_ALIGNMENT_LEFT, -1, 24, UI.TEXT if open else UI.MUTED)
+		if route_mode:
+			var code := String(reg.get("code", ""))
+			if reachable.get(code, false):
+				draw_arc(p, 46, 0, TAU, 40, UI.GOLD, 4, true)
+			if code == caravan_at:
+				# the caravan: a small wagon badge above the node
+				var b := p + Vector2(0, -52)
+				draw_circle(b, 22, Color(UI.BG, 0.95))
+				draw_arc(b, 22, 0, TAU, 32, UI.GOLD, 3, true)
+				draw_rect(Rect2(b + Vector2(-13, -8), Vector2(26, 12)), UI.GOLD)
+				draw_arc(b + Vector2(0, -8), 13, PI, TAU, 16, UI.GOLD, 3, true)
+				draw_circle(b + Vector2(-8, 7), 4, UI.TEAL)
+				draw_circle(b + Vector2(8, 7), 4, UI.TEAL)
 		_rects.append(Rect2(p - Vector2(48, 48), Vector2(96, 120)))
+
+
+func _index(code: String) -> int:
+	for i in regions.size():
+		if String(regions[i].get("code", "")) == code:
+			return i
+	return -1
 
 
 func _cleared(i: int) -> int:
@@ -100,6 +137,11 @@ func _gui_input(e: InputEvent) -> void:
 	for i in _rects.size():
 		if (_rects[i] as Rect2).has_point(e.position):
 			var reg: Dictionary = regions[i]
+			if route_mode:  # the caravan screen decides what a tap means
+				Sfx.play("click")
+				region_pressed.emit(i)
+				accept_event()
+				return
 			if reg.nodes.size() > 0 and bool(reg.nodes[0].unlocked):
 				Sfx.play("click")
 				region_pressed.emit(i)

@@ -34,7 +34,7 @@ POSITIVE_STATS = {"atk", "def", "spd", "dr", "cc_resist", "regen", "crit", "dodg
 CONTROL_STATS = {"spd"}  # slows count as "controlled" for predators
 
 
-def hero_stats(hero: dict, level: int, stars: int = 0, atk_pct: float = 0.0, hp_pct: float = 0.0) -> dict:
+def hero_stats(hero: dict, level: int, stars: int = 0, atk_pct: float = 0.0, hp_pct: float = 0.0, def_pct: float = 0.0) -> dict:
     g = (hero.get("extra") or {}).get("growth") or {}
     rm = R.RARITY_MULT[hero["rarity"]] * (1 + STAR_MULT * stars)
 
@@ -44,7 +44,7 @@ def hero_stats(hero: dict, level: int, stars: int = 0, atk_pct: float = 0.0, hp_
     return {
         "hp": int(hero["base_hp"] * rm * lv("hp") * (1 + hp_pct)),
         "atk": int(hero["base_atk"] * rm * lv("atk") * (1 + atk_pct)),
-        "def": int(hero["base_def"] * rm * lv("def")),
+        "def": int(hero["base_def"] * rm * lv("def") * (1 + def_pct)),
         "spd": hero["base_spd"],
     }
 

@@ -198,7 +198,8 @@ def test_vip_rewards_and_afk_bonus(newplayer):
     assert "frame_vip3" in r["granted"]["cosmetics"]
     assert p.post("/vip/rewards/3/claim").status_code == 409
     assert p.post("/vip/rewards/5/claim").status_code == 403
-    assert p.get("/rewards/afk").json()["rates_per_hour"]["gold"] == int(600 * 1.045)
+    # VIP +4.5% and the starting land Таулар +10% gold (caravan, lore stage S4)
+    assert p.get("/rewards/afk").json()["rates_per_hour"]["gold"] == int(600 * 1.045 * 1.10)
 
 
 def test_refund_via_signed_notification(newplayer, client):

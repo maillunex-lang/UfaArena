@@ -117,8 +117,15 @@ def building_levels(db: Session, user_id: str) -> dict[str, int]:
 
 
 def team_bonuses(db: Session, user_id: str) -> dict:
+    """Caravan modules (forge, battle platforms, towers) + the council leader's bonus (lore stage S4)."""
     lv = building_levels(db, user_id)
-    return {"atk_pct": 0.03 * (lv.get("forge", 1) - 1), "hp_pct": 0.03 * (lv.get("training", 1) - 1)}
+    out = {"atk_pct": 0.03 * (lv.get("forge", 1) - 1), "hp_pct": 0.03 * (lv.get("training", 1) - 1),
+           "def_pct": 0.03 * (lv.get("towers", 1) - 1)}
+    from .modules.caravan import leader_bonus
+    kind, val = leader_bonus(db, user_id)
+    if kind in out:
+        out[kind] = round(out[kind] + val, 4)
+    return out
 
 
 def hero_view(ph: PlayerHero, bonuses: dict | None = None) -> dict:
@@ -165,8 +172,23 @@ def afk_rates(db: Session, user_id: str) -> dict:
         "summon_essence": round(lv.get("summon_hall", 1) / 8.0, 4),
         "crystals": 5 + 2 * cleared,
     }
-    out["gold"] = int(out["gold"] * vb)
-    out["nature_essence"] = round(out["nature_essence"] * vb, 2)
+    # caravan (lore stage S4): housing and research modules, the land the caravan stands in, the council leader
+    from .modules.caravan import land_bonus, leader_bonus
+    gold_mult = 1 + 0.03 * (lv.get("guild_house", 1) - 1)
+    crys_mult = 1 + 0.08 * (lv.get("research", 1) - 1)
+    mult = {"gold": gold_mult, "crystals": crys_mult, "nature_essence": 1.0, "summon_essence": 1.0}
+    cur, val = land_bonus(db, user_id)
+    if cur in mult:
+        mult[cur] += val
+    kind, lval = leader_bonus(db, user_id)
+    if kind == "afk_gold":
+        mult["gold"] += lval
+    elif kind == "afk_nature":
+        mult["nature_essence"] += lval
+    out["gold"] = int(out["gold"] * vb * mult["gold"])
+    out["nature_essence"] = round(out["nature_essence"] * vb * mult["nature_essence"], 2)
+    out["crystals"] = round(out["crystals"] * mult["crystals"], 2)
+    out["summon_essence"] = round(out["summon_essence"] * mult["summon_essence"], 4)
     return out
 
 

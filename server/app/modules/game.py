@@ -317,7 +317,11 @@ def campaign_complete(node_id: str, body: CompleteIn, user: CurrentUser = Depend
                 BP.add_xp(db, user.id, "campaign_clear")
             grant(db, user.id, rewards, "campaign_reward", battle.id)
             p = db.get(PlayerProfile, user.id)
-            exp_gained = 40 + 10 * node.order
+            from ..services import building_levels
+            from .caravan import leader_bonus
+            lead_kind, lead_val = leader_bonus(db, user.id)
+            exp_mult = 1 + 0.05 * (building_levels(db, user.id).get("library", 1) - 1) + (lead_val if lead_kind == "exp" else 0)
+            exp_gained = int((40 + 10 * node.order) * exp_mult)
             p.exp += exp_gained
             while p.exp >= 100 * p.level:
                 p.exp -= 100 * p.level
