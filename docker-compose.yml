@@ -34,6 +34,26 @@ services:
       - ./web:/srv/var/web:ro                   # Web version (Godot Web export) served at /play, optional
     # Без домена/HTTPS: "8000:8000". С Caddy на этом же сервере: "127.0.0.1:8000:8000"
     ports: ["${URALIA_API_BIND:-8000}:8000"]
+  # URALIA Living World AI — AI Director: one process for the whole AI population (never one per persona).
+  # Same image and code as `api`; mode is set in the admin panel (off / test / normal / high / low, default test).
+  # If this service is stopped, the API keeps running the previous AI engine automatically.
+  ai-director:
+    build: ./server
+    restart: unless-stopped
+    command: ["python", "-m", "app.ai"]
+    depends_on:
+      db: {condition: service_healthy}
+      api: {condition: service_started}   # api applies the migrations on start
+    environment:
+      URALIA_ENV: ${URALIA_ENV:-dev}
+      URALIA_DATABASE_URL: postgresql+psycopg://uralia:${URALIA_DB_PASSWORD}@db:5432/uralia
+      URALIA_REDIS_URL: redis://redis:6379/0
+      URALIA_JWT_SECRET: ${URALIA_JWT_SECRET:?set URALIA_JWT_SECRET}
+      URALIA_SCHEDULER: "off"             # the Director never runs the API's job loop
+    volumes:
+      - contentstore:/srv/var/content_store
+    mem_limit: 300m                       # light configuration for the current VPS
+    cpus: 0.5
 volumes:
   pgdata:
   apikeys:

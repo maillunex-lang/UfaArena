@@ -495,8 +495,13 @@ def test_ai_population_is_labelled_bounded_and_separate(client, newplayer):
     from app.social import chat as CH
     CH._recent.clear()
     p.post("/chat/send", {"to_user": card["user_id"], "text": "Привет! Ты бот?"}, key=False)
-    AIP._reply_queue.extend([(a, b, c, d, 0) for a, b, c, d, _ in list(AIP._reply_queue)])
-    with session() as db:
+    with session() as db:  # the reply waits a human-like pause in the ai_events queue; make it due now
+        from datetime import timedelta as _td
+        from app.core.db import utcnow as _now
+        from app.models import AiEvent
+        for ev in db.query(AiEvent).filter(AiEvent.handled_at.is_(None)):
+            ev.due_at = _now() - _td(seconds=1)
+        db.flush()
         AIP.process_replies(db, 10)
     msgs = p.get(f"/chat/messages?channel={CH.dm_channel(uid(p), card['user_id'])}").json()["messages"]
     assert any(m["is_ai"] and m["author"]["is_ai"] for m in msgs)

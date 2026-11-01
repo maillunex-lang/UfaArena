@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import random
 import secrets
-from collections import deque
 from datetime import timedelta
 
 from sqlalchemy import func, select
@@ -26,9 +25,8 @@ from . import dialogue as DLG
 from . import personas as PR
 
 _rng = random.Random()
-_reply_queue: deque = deque(maxlen=200)   # (persona_user_id, to_user_id, channel, text, due_monotonic)
-_mention_queue: deque = deque(maxlen=100)  # (channel, user_id, text)
-_chat_times: deque = deque(maxlen=200)
+# Reply and mention queues live in the database (ai_events, Living World AI phase 2): restarts lose nothing and the
+# separate AI Director process sees the same queue.
 
 
 def AI() -> dict:
@@ -108,11 +106,7 @@ def ensure_population(db: Session, max_new: int = 5) -> dict:
     while len(active) + created < target and created < max_new:
         create_persona(db)
         created += 1
-    retired = 0
-    if len(active) > target:
-        for p in active[target:]:
-            p.active = False
-            retired += 1
+    retired = 0  # Living World AI stage 3: fewer active personas is handled by sessions, profiles stay enabled
     db.flush()
     _refresh_styles(db)
     ensure_ai_guilds(db)
@@ -195,7 +189,7 @@ def ai_consider_friend(db: Session, ai_user_id: str, from_user: str) -> bool:
     ok = _rng.random() < chance
     if ok:
         remember(db, persona, from_user, "Подружились")
-        queue_reply(ai_user_id, from_user, None, "__welcome__")
+        queue_reply(db, ai_user_id, from_user, None, "__welcome__")
     return ok
 
 
@@ -212,13 +206,15 @@ def recall(db: Session, persona: AiPersona, subject: str) -> list[str]:
 
 
 # ------------------------------------------------------------------ reply queues (filled by chat)
-def queue_reply(ai_user_id: str, to_user: str, channel: str | None, text: str) -> None:
-    import time
-    _reply_queue.append((ai_user_id, to_user, channel, text, time.monotonic() + _rng.uniform(5, 40)))
+def queue_reply(db: Session, ai_user_id: str, to_user: str, channel: str | None, text: str) -> None:
+    from ...ai import events as EV
+    EV.emit(db, "dm", {"to_user": to_user, "channel": channel, "text": text[:300]}, persona_user_id=ai_user_id,
+            delay_s=_rng.uniform(5, 40))  # a human-like pause before answering
 
 
-def queue_mention(channel: str, user_id: str, text: str) -> None:
-    _mention_queue.append((channel, user_id, text))
+def queue_mention(db: Session, channel: str, user_id: str, text: str) -> None:
+    from ...ai import events as EV
+    EV.emit(db, "mention", {"channel": channel, "user_id": user_id, "text": text[:300]})
 
 
 def _context(db: Session, persona: AiPersona, to_user: str | None = None) -> dict:
@@ -248,61 +244,74 @@ def _say(db: Session, persona: AiPersona, channel: str, text: str) -> None:
     db.flush()
 
 
+def handle_dm(db: Session, ai_uid: str, to_user: str, channel: str | None, text: str) -> bool:
+    """Answer a direct message (or greet a new friend). Returns True when a message was written."""
+    persona = db.scalar(select(AiPersona).where(AiPersona.user_id == ai_uid))
+    if persona is None:
+        return False
+    ctx = _context(db, persona, to_user)
+    if text == "__welcome__":
+        kind, reply = "welcome_dm", DLG.line(_rng, "welcome_dm", persona.style, ctx)
+    else:
+        if recall(db, persona, to_user):
+            ctx["name"] = ctx["name"] + ", снова"
+        kind, reply = DLG.reply(_rng, text, persona.style, ctx)
+    from ..chat import dm_channel
+    _say(db, persona, channel or dm_channel(ai_uid, to_user), reply)
+    remember(db, persona, to_user, f"Говорили: {kind}")
+    log(db, persona, "reply", to=to_user, intent=kind)
+    return True
+
+
+def handle_mention(db: Session, channel: str, user_id: str, text: str) -> bool:
+    """In public channels at most one persona answers, only sometimes, with a cooldown."""
+    kind = DLG.intent(text)
+    if kind == "unknown" or _rng.random() > AI()["reply_chance"] or not _chat_allowed(db):
+        return False
+    persona = _pick_speaker(db, channel)
+    if persona is None:
+        return False
+    _say(db, persona, channel, DLG.line(_rng, kind, persona.style, _context(db, persona, user_id)))
+    log(db, persona, "chat_reply", channel=channel, intent=kind)
+    return True
+
+
 def process_replies(db: Session, budget: int) -> int:
-    import time
+    """Legacy path (AI Director off or not alive): consume due dm/mention events from the database queue."""
+    from ...ai import events as EV
     from .control import global_switches
-    if not global_switches(db).get("chat", True):
-        _reply_queue.clear()
-        _mention_queue.clear()
-        return 0
-    now = time.monotonic()
+    chat_on = global_switches(db).get("chat", True)
     done = 0
-    keep = deque()
-    while _reply_queue and done < budget:
-        item = _reply_queue.popleft()
-        ai_uid, to_user, channel, text, due = item
-        if due > now:
-            keep.append(item)
-            continue
-        persona = db.scalar(select(AiPersona).where(AiPersona.user_id == ai_uid))
-        if persona is None:
-            continue
-        ctx = _context(db, persona, to_user)
-        if text == "__welcome__":
-            kind, reply = "welcome_dm", DLG.line(_rng, "welcome_dm", persona.style, ctx)
-        else:
-            if recall(db, persona, to_user):
-                ctx["name"] = ctx["name"] + ", снова"
-            kind, reply = DLG.reply(_rng, text, persona.style, ctx)
-        from ..chat import dm_channel
-        _say(db, persona, channel or dm_channel(ai_uid, to_user), reply)
-        remember(db, persona, to_user, f"Говорили: {kind}")
-        log(db, persona, "reply", to=to_user, intent=kind)
-        done += 1
-    _reply_queue.extend(keep)
-    # mentions in public channels: at most one persona answers, only sometimes, with a cooldown
-    while _mention_queue and done < budget:
-        channel, user_id, text = _mention_queue.popleft()
-        kind = DLG.intent(text)
-        if kind == "unknown" or _rng.random() > AI()["reply_chance"] or not _chat_allowed():
-            continue
-        persona = _pick_speaker(db, channel)
-        if persona is None:
-            continue
-        _say(db, persona, channel, DLG.line(_rng, kind, persona.style, _context(db, persona, user_id)))
-        _chat_times.append(time.monotonic())
-        log(db, persona, "chat_reply", channel=channel, intent=kind)
-        done += 1
+    for ev in EV.due(db, max(1, budget) * 3, ("dm", "mention")):
+        if done >= budget:
+            break
+        EV.mark(ev)
+        if not chat_on:
+            continue  # chat switched off: events are consumed without answers
+        pl = ev.payload or {}
+        try:
+            with db.begin_nested():
+                if ev.kind == "dm":
+                    ok = handle_dm(db, ev.persona_user_id or "", pl.get("to_user", ""), pl.get("channel"), pl.get("text", ""))
+                else:
+                    ok = handle_mention(db, pl.get("channel", "global"), pl.get("user_id", ""), pl.get("text", ""))
+        except Exception as e:  # a broken event must not block the queue
+            ok = False
+            ev.payload = {**pl, "error": str(e)[:120]}
+        done += int(bool(ok))
+    db.flush()
     return done
 
 
-def _chat_allowed() -> bool:
-    import time
-    now = time.monotonic()
-    recent = [t for t in _chat_times if now - t < 3600]
+def _chat_allowed(db: Session) -> bool:
+    """Public-channel reply rate limit, persisted (works across processes): per hour and with a short cooldown."""
+    since = utcnow() - timedelta(hours=1)
+    recent = db.scalars(select(AiActivityLog.created_at).where(AiActivityLog.activity == "chat_reply",
+                                                               AiActivityLog.created_at >= since)
+                        .order_by(AiActivityLog.id.desc()).limit(AI()["chat_global_per_hour"])).all()
     if len(recent) >= AI()["chat_global_per_hour"]:
         return False
-    return not recent or now - recent[-1] >= AI()["chat_cooldown_s"] / 4
+    return not recent or (utcnow() - as_utc(recent[0])).total_seconds() >= AI()["chat_cooldown_s"] / 4
 
 
 def _pick_speaker(db: Session, channel: str) -> AiPersona | None:
@@ -621,4 +630,4 @@ def overview(db: Session) -> dict:
             for a in db.scalars(select(AiActivityLog).order_by(AiActivityLog.id.desc()).limit(30))]
     return {"total": total, "active": active, "target": target_population(db), "by_archetype": by_arch,
             "ai_guilds": db.scalar(select(func.count()).select_from(Guild).where(Guild.is_ai.is_(True))) or 0,
-            "queued_replies": len(_reply_queue), "recent": last, "limits": AI()}
+            "queued_replies": __import__("app.ai.events", fromlist=["pending"]).pending(db), "recent": last, "limits": AI()}

@@ -242,3 +242,19 @@ docker compose logs --tail=40 api        # должно быть: Running upgrad
 Миграция 0010 только добавляет таблицу `player_caravans`. Порядок как обычно: бэкап, `git pull`,
 `docker compose up -d --build`; в логах — `Running upgrade 0009 -> 0010`. Уровни зданий игроков сохраняются: модули
 каравана используют прежнюю таблицу `fortress_buildings`.
+
+## 20. Living World AI: AI Director (фаза 2)
+Миграция 0011 только добавляет таблицы `ai_tasks`, `ai_task_history`, `ai_events`, `ai_schedule_profiles` и два поля в
+`ai_personas`. В `docker-compose.yml` появился сервис `ai-director` (тот же образ, лимит 300 МБ и 0,5 CPU).
+```bash
+cd /opt/uralia
+docker compose exec db pg_dump -U uralia uralia > backup_$(date +%Y%m%d_%H%M).sql
+git pull
+docker compose up -d --build          # поднимет и api, и ai-director
+docker compose logs --tail=40 api     # Running upgrade 0010 -> 0011
+docker compose logs --tail=20 ai-director   # AI Director started
+```
+По умолчанию Director в **тестовом режиме**: только планирует и журналирует, мир не меняется, ИИ работают по-прежнему.
+Состояние: `curl -H "X-Admin-Token: <токен>" http://localhost:8000/admin/api/ai/director`.
+Включить рабочий режим (после проверки): `curl -X POST -H "X-Admin-Token: <токен>" -H "Content-Type: application/json" -d '{"mode":"normal"}' http://localhost:8000/admin/api/ai/director`.
+Выключить Director полностью: `docker compose stop ai-director` — сервер сам продолжит работу на прежнем движке ИИ.

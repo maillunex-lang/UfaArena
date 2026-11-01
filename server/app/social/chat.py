@@ -285,10 +285,12 @@ def send(body: SendIn, user: CurrentUser = Depends(player), db: Session = Depend
         other = [x for x in channel.split(":")[1:] if x != user.id]
         if other and db.get(PlayerProfile, other[0]) and db.get(PlayerProfile, other[0]).is_ai:
             from .ai.population import queue_reply
-            queue_reply(other[0], user.id, channel, msg.text)
+            queue_reply(db, other[0], user.id, channel, msg.text)
+            db.commit()
     elif channel == "global" or channel.startswith("guild:"):
         from .ai.population import queue_mention
-        queue_mention(channel, user.id, msg.text)
+        queue_mention(db, channel, user.id, msg.text)
+        db.commit()
     return {"message": view(db, msg, user.id, {})}
 
 

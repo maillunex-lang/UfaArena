@@ -20,11 +20,19 @@ log = logging.getLogger("uralia.jobs")
 
 
 def _ai_tick(db):
+    # Living World AI: when the AI Director is in an acting mode and alive, it drives the population; otherwise the v1
+    # engine keeps the world running (so a stopped or crashed Director never freezes the AI residents).
+    from ..ai.settings import director_owns_world
+    if director_owns_world(db):
+        return {"skipped": "AI Director"}
     from .ai.population import tick
     return tick(db)
 
 
 def _ai_population(db):
+    from ..ai.settings import director_owns_world
+    if director_owns_world(db):
+        return {"skipped": "AI Director"}
     from .ai.population import ensure_population
     return ensure_population(db)
 

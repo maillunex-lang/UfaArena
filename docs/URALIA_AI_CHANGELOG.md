@@ -8,3 +8,15 @@
 - Созданы постоянные документы: MASTER_SPEC, ROADMAP, PROGRESS, DECISIONS, CHANGELOG, TESTS, DATABASE, API.
 - Изменений кода и БД нет.
 - Ожидается: данные аудита VPS и решения D-01…D-12.
+
+## 2026-11-01 — Фаза 2: базовое ядро (этапы 1, 3, 15, 17)
+- Решения D-01…D-12 утверждены заказчиком.
+- Миграция `0011`: `ai_tasks`, `ai_task_history`, `ai_events`, `ai_schedule_profiles`; поля `ai_personas.schedule_profile`,
+  `ai_personas.session_until`.
+- Новый пакет `server/app/ai/`: `settings` (флаги и режимы, история и откат), `tasks` (очередь), `events` (события игры),
+  `schedules` (профили и сессии), `population` (реестр 500 и цель активности), `handlers` (исполнители через игровые
+  функции), `director` (ядро и процесс), `admin` (админ-API `/admin/api/ai/*`).
+- ИИ v1: очереди ответов и упоминаний перенесены из памяти процесса в БД; ограничитель частоты — по журналу в БД; лишние
+  ИИ больше не отключаются; задачи `ai_tick`/`ai_population` планировщика API уступают живому Director.
+- `docker-compose.yml`: сервис `ai-director` (тот же образ, 300 МБ, 0,5 CPU, без портов).
+- APK не собирался (по ТЗ — один раз в конце).

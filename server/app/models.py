@@ -485,6 +485,8 @@ class AiPersona(Base):
     last_action_at: Mapped[datetime | None] = mapped_column(TS)
     actions_today: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     day: Mapped[str] = mapped_column(String(10), default="", server_default="")
+    schedule_profile: Mapped[str | None] = mapped_column(String(32))  # ai_schedule_profiles.code (Living World AI)
+    session_until: Mapped[datetime | None] = mapped_column(TS)        # end of the current play session
 
 
 class AiActivityLog(Base):
@@ -1144,3 +1146,66 @@ class PlayerCaravan(Base):
     depart_at: Mapped[datetime | None] = mapped_column(TS)
     arrive_at: Mapped[datetime | None] = mapped_column(TS)
     trips: Mapped[int] = mapped_column(Integer, default=0)
+
+
+# ---------------------------------------------------------------- Living World AI: director core (stages 1, 3, 15, 17)
+class AiTask(Base):
+    """AI Director task queue. Idempotent by `key`: the same planned action is never queued twice; the action and its
+    completion are committed in one transaction, so a crash or a retry cannot duplicate rewards."""
+    __tablename__ = "ai_tasks"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String(128), unique=True)
+    kind: Mapped[str] = mapped_column(String(48), index=True)
+    persona_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    priority: Mapped[int] = mapped_column(Integer, default=50)
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    status: Mapped[str] = mapped_column(String(16), default="pending", index=True)  # pending|running|done|failed|simulated|cancelled
+    run_after: Mapped[datetime] = mapped_column(TS, default=utcnow, index=True)
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, default=3)
+    lease_until: Mapped[datetime | None] = mapped_column(TS)
+    result: Mapped[dict | None] = mapped_column(JSON)
+    error: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(TS)
+
+
+class AiTaskHistory(Base):
+    """Finished tasks moved out of the hot queue (compaction keeps ai_tasks small)."""
+    __tablename__ = "ai_task_history"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    task_id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), index=True)
+    kind: Mapped[str] = mapped_column(String(48))
+    persona_id: Mapped[str | None] = mapped_column(String(36), index=True)
+    status: Mapped[str] = mapped_column(String(16))
+    attempts: Mapped[int] = mapped_column(Integer, default=0)
+    result: Mapped[dict | None] = mapped_column(JSON)
+    error: Mapped[str | None] = mapped_column(String(300))
+    created_at: Mapped[datetime] = mapped_column(TS)
+    finished_at: Mapped[datetime | None] = mapped_column(TS)
+
+
+class AiEvent(Base):
+    """Game -> AI event queue (replaces the in-process reply/mention queues, so a separate Director process and
+    restarts lose nothing). Consumed by the Director or, when it is off, by the legacy tick."""
+    __tablename__ = "ai_events"
+    id: Mapped[int] = mapped_column(BigInteger().with_variant(Integer, "sqlite"), primary_key=True, autoincrement=True)
+    kind: Mapped[str] = mapped_column(String(32), index=True)  # dm|mention|...
+    persona_user_id: Mapped[str | None] = mapped_column(String(36))
+    payload: Mapped[dict] = mapped_column(JSON, default=dict)
+    due_at: Mapped[datetime] = mapped_column(TS, default=utcnow, index=True)
+    handled_at: Mapped[datetime | None] = mapped_column(TS, index=True)
+    created_at: Mapped[datetime] = mapped_column(TS, default=utcnow)
+
+
+class AiScheduleProfile(Base):
+    """Group play schedules (stage 15): hours, time-zone shift, session length, rest days, peak hours."""
+    __tablename__ = "ai_schedule_profiles"
+    code: Mapped[str] = mapped_column(String(32), primary_key=True)
+    name: Mapped[str] = mapped_column(String(64))
+    hours: Mapped[list] = mapped_column(JSON, default=list)       # local hours when the persona may play
+    peak_hours: Mapped[list] = mapped_column(JSON, default=list)  # hours with doubled activity
+    tz_shift: Mapped[int] = mapped_column(Integer, default=0)     # hours relative to Moscow time
+    session_minutes: Mapped[int] = mapped_column(Integer, default=40)
+    rest_weekdays: Mapped[list] = mapped_column(JSON, default=list)  # 0=Mon … 6=Sun
+    weight: Mapped[int] = mapped_column(Integer, default=1)       # share of new personas
