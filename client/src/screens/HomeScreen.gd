@@ -23,6 +23,7 @@ const DEFAULT_RIGHT := [{"id": "events", "label": "События", "icon": "eve
 const DEFAULT_ACTIONS := [{"id": "shop", "label": "Магазин", "icon": "shop", "color": "#1d4f8a", "ratio": 1.0},
 	{"id": "summon", "label": "Призыв", "icon": "summon", "color": "#4b2a7a", "ratio": 1.0},
 	{"id": "battle", "label": "В бой", "icon": "arena", "color": "#8e1b1b", "ratio": 1.5}]
+const BANNER_PATH := "ui/home/banner_%d.png"  # admin art slots 1…4 for the «Картинка» element
 const SIDE_IDS := ["quests", "mail", "friends", "chat", "caravan", "events", "afk", "raids", "arena", "tournaments", "shop",
 	"summon", "battle", "rankings", "inventory", "formation", "profile", "settings", "search", "achievements", "heroes",
 	"campaign", "guild", "world", "more", "home"]
@@ -65,6 +66,16 @@ func _load() -> void:
 		return
 	_s = r.data
 	main.set_badges(_s)
+	# full structure from the admin editor (Интерфейс → Структура главного), if set
+	var tree: Variant = Game.ui_part("home.tree", {})
+	if tree is Dictionary and not (tree as Dictionary).is_empty():
+		var built := _tree_node(tree, "vbox")
+		if built:
+			built.size_flags_vertical = Control.SIZE_EXPAND_FILL
+			_root.add_child(built)
+			Game.refresh_layout()
+			_tick()
+			return
 	# block order and visibility come from the admin layout (Редактор игры → Интерфейс)
 	var blocks: Array = Game.visible_items(Game.ui_part("home.blocks", DEFAULT_BLOCKS),
 		func(k): return k in ["campaign", "middle", "daily", "actions"])
@@ -444,24 +455,132 @@ func _big(text: String, sub: String, icon: String, base: StyleBoxFlat, art_path:
 	return b
 
 
+# ------------------------------------------------------------------ free structure (home.tree)
+## Builds one node of the admin structure: containers (vbox / hbox / grid / panel) and widgets (campaign strip, squad,
+## daily strip, side / big buttons, tiles, text, image, spacer). Unknown types are skipped; hidden nodes are not built.
+func _tree_node(n: Dictionary, parent: String) -> Control:
+	if bool(n.get("hidden", false)):
+		return null
+	var t := String(n.get("type", ""))
+	var c: Control = null
+	match t:
+		"vbox", "hbox", "grid", "panel":
+			var box: Container
+			if t == "hbox":
+				box = HBoxContainer.new()
+			elif t == "grid":
+				box = GridContainer.new()
+				(box as GridContainer).columns = clampi(int(n.get("columns", 3)), 1, 6)
+			else:
+				box = VBoxContainer.new()
+			var sep := int(n.get("sep", 8))
+			if t == "grid":
+				box.add_theme_constant_override("h_separation", sep)
+				box.add_theme_constant_override("v_separation", sep)
+			else:
+				box.add_theme_constant_override("separation", sep)
+				var al := String(n.get("align", ""))
+				(box as BoxContainer).alignment = {"center": BoxContainer.ALIGNMENT_CENTER, "end": BoxContainer.ALIGNMENT_END}.get(al, BoxContainer.ALIGNMENT_BEGIN)
+			var kind := "hbox" if t == "hbox" else ("grid" if t == "grid" else "vbox")
+			for ch in n.get("children", []):
+				if ch is Dictionary:
+					var cc := _tree_node(ch, kind)
+					if cc:
+						if t == "grid":
+							cc.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+						box.add_child(cc)
+			if t == "panel":
+				var card := UI.card(Color(0, 0, 0, 0), UI.SP.s)
+				card.add_child(box)
+				c = card
+			else:
+				c = box
+			if int(n.get("min_w", 0)) > 0:
+				c.custom_minimum_size.x = int(n.min_w)
+		"campaign_strip":
+			c = _campaign_strip()
+		"squad":
+			c = _squad()
+		"daily_strip":
+			c = _daily_strip()
+		"side":
+			c = _side_item(n)
+		"big":
+			c = _big_item(n)
+		"tile":
+			var id := String(n.get("id", ""))
+			var locked: bool = id in ["equipment", "artifacts"]
+			var tile := UI.tile(String(n.get("icon", id)), String(n.get("label", id)), "скоро" if locked else "", locked, _badge_of(id))
+			tile.pressed.connect(func(): _claim_afk() if id == "afk" else main.do_action(id, "home"))
+			c = tile
+		"text":
+			var sz: int = {"caption": UI.FS.caption, "body": UI.FS.body, "title": UI.FS.h2, "h1": UI.FS.h1}.get(String(n.get("size", "body")), UI.FS.body)
+			var l: Label = UI.title(String(n.get("text", "")), sz) if String(n.get("size", "")) in ["title", "h1"] else UI.label(String(n.get("text", "")), sz, UI.TEXT)
+			l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			l.horizontal_alignment = {"center": HORIZONTAL_ALIGNMENT_CENTER, "end": HORIZONTAL_ALIGNMENT_RIGHT}.get(String(n.get("align", "")), HORIZONTAL_ALIGNMENT_LEFT)
+			if n.has("color"):
+				l.add_theme_color_override("font_color", Color(String(n.color)))
+			c = l
+		"image":
+			var path := String(n.get("path", ""))
+			var tex: Texture2D = UI.art(path) if (path.begins_with("ui/home/banner_") or path in ["ui/home_bg.png", "ui/world_map.png"]) else null
+			if tex == null:
+				return null  # not uploaded yet: the element simply is not shown
+			var tr := TextureRect.new()
+			tr.texture = tex
+			tr.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tr.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tr.custom_minimum_size = Vector2(0, clampi(int(n.get("height", 300)), 40, 1200))
+			c = tr
+		"spacer":
+			c = UI.spacer(clampi(int(n.get("size", 20)), 0, 800))
+		_:
+			return null
+	if c == null:
+		return null
+	if bool(n.get("expand", false)):
+		if parent == "hbox":
+			c.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		else:
+			c.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	if n.has("ratio") and t != "big":
+		c.size_flags_stretch_ratio = float(n.ratio)
+	return c
+
+
+func _badge_of(id: String) -> int:
+	var q: Dictionary = _s.quests
+	var soc: Dictionary = _s.social
+	match id:
+		"quests": return int(q.claimable)
+		"mail": return int(_s.mail_unclaimed)
+		"friends": return int(soc.friend_requests) + int(soc.gifts)
+		"chat": return int(soc.chat_unread)
+	return 0
+
+
+func _big_item(it: Dictionary) -> Control:
+	var art := {"shop": "ui/home/shop_button.png", "summon": "ui/home/summon_button.png", "battle": "ui/home/battle_button.png"}
+	var id := String(it.get("id", ""))
+	var col := Color(String(it.get("color", "#1d4f8a")))
+	var edge := {"#1d4f8a": Color("#9fd3ff"), "#4b2a7a": Color("#d6b8ff")}
+	var base := UI._flat(col, UI.GOLD if id == "battle" else edge.get(String(it.get("color", "")).to_lower(), col.lightened(0.55)), UI.R.m, 3)
+	var sub := ""
+	var cb := func(): _claim_afk() if id == "afk" else main.do_action(id, "home")
+	if id == "battle":
+		base.shadow_color = Color(1.0, 0.4, 0.2, 0.45)
+		base.shadow_size = 12
+		var nx = _s.campaign.get("next")
+		var code: String = nx.code if nx else ""
+		sub = ("Этап " + code) if nx else "Карта похода"
+		cb = func(): main.open("campaign", {"select": code} if code != "" else {})
+	return _big(String(it.get("label", id)), sub, String(it.get("icon", id)), base, String(art.get(id, "ui/home/%s_button.png" % id)),
+		cb, float(it.get("ratio", 1.0)))
+
+
 func _actions() -> Control:
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", UI.SP.s)
-	var art := {"shop": "ui/home/shop_button.png", "summon": "ui/home/summon_button.png", "battle": "ui/home/battle_button.png"}
 	for it in Game.visible_items(Game.ui_part("home.actions", DEFAULT_ACTIONS), func(k): return k in SIDE_IDS):
-		var id := String(it.id)
-		var col := Color(String(it.get("color", "#1d4f8a")))
-		var edge := {"#1d4f8a": Color("#9fd3ff"), "#4b2a7a": Color("#d6b8ff")}  # the built-in look stays identical
-		var base := UI._flat(col, UI.GOLD if id == "battle" else edge.get(String(it.get("color", "")).to_lower(), col.lightened(0.55)), UI.R.m, 3)
-		var sub := ""
-		var cb := func(): main.do_action(id, "home")
-		if id == "battle":
-			base.shadow_color = Color(1.0, 0.4, 0.2, 0.45)
-			base.shadow_size = 12
-			var nx = _s.campaign.get("next")
-			var code: String = nx.code if nx else ""
-			sub = ("Этап " + code) if nx else "Карта похода"
-			cb = func(): main.open("campaign", {"select": code} if code != "" else {})
-		row.add_child(_big(String(it.get("label", id)), sub, String(it.get("icon", id)), base,
-			String(art.get(id, "ui/home/%s_button.png" % id)), cb, float(it.get("ratio", 1.0))))
+		row.add_child(_big_item(it))
 	return row

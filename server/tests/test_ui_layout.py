@@ -93,3 +93,48 @@ def test_screen_rules_any_screen_and_where_buttons_lead(client, newplayer):
     assert mm["screens"]["mail"]["source"] == "uploaded" and mm["mappers"][0]["uralia_id"] == uid
     client.post("/admin/api/game/layout/mappers", json={"uralia_id": uid, "on": False}, headers=H)
     client.post("/admin/api/game/layout/reset", headers=H)
+
+
+def test_main_menu_structure_tree_and_required_elements(client):
+    d = client.get("/admin/api/game/layout", headers=H).json()
+    assert {r["id"] for r in d["required"]} == {"battle", "afk", "quests", "mail", "settings"}
+    lay = d["layout"]
+    tree = d["tree_from_home"]  # the simple main screen converted 1:1
+    assert tree["type"] == "vbox" and [c["type"] for c in tree["children"]] == ["campaign_strip", "hbox", "daily_strip", "hbox"]
+    custom = {"type": "vbox", "sep": 12, "children": [
+        {"type": "text", "text": "Добро пожаловать!", "size": "title", "align": "center"},
+        {"type": "image", "path": "ui/home/banner_1.png", "height": 360},
+        {"type": "grid", "columns": 4, "children": [{"type": "tile", "id": "afk", "label": "Дозор", "icon": "afk"},
+                                                     {"type": "tile", "id": "quests", "label": "Задания", "icon": "quests"}]},
+        {"type": "hbox", "expand": True, "children": [{"type": "squad", "expand": True},
+                                                      {"type": "big", "id": "battle", "label": "В бой", "icon": "arena", "color": "#8e1b1b", "ratio": 2}]},
+        {"type": "spacer", "size": 24}]}
+    v = client.post("/admin/api/game/layout", json={"layout": {**lay, "home": {**lay["home"], "tree": custom}}}, headers=H).json()
+    assert v["layout"]["home"]["tree"]["children"][2]["columns"] == 4
+    assert client.get("/api/v1/client/layout").json()["layout"]["home"]["tree"]["children"][0]["text"] == "Добро пожаловать!"
+
+    def post(t, more=None):
+        L2 = {**lay, "home": {**lay["home"], "tree": t}}
+        if more is not None:
+            L2["more"] = more
+        return client.post("/admin/api/game/layout", json={"layout": L2}, headers=H)
+    import copy
+    no_afk = copy.deepcopy(custom)
+    no_afk["children"][2]["children"].pop(0)
+    r = post(no_afk)
+    assert r.status_code == 400 and "дозор" in r.json()["detail"]["message"].lower()
+    more_afk = copy.deepcopy(lay["more"])
+    more_afk["groups"][0]["items"].append({"id": "afk", "label": "Дозор", "icon": "afk"})
+    assert post(no_afk, more_afk).status_code == 200  # the patrol moved to «Ещё» — allowed
+    no_battle = copy.deepcopy(custom)
+    no_battle["children"][3]["children"].pop(1)
+    assert post(no_battle).status_code == 200  # «Поход» is still in the bottom bar — enough
+    nav_no_camp = [dict(i, hidden=True) if i["id"] == "campaign" else i for i in lay["nav"]]
+    r = client.post("/admin/api/game/layout", json={"layout": {**lay, "nav": nav_no_camp, "home": {**lay["home"], "tree": no_battle}}}, headers=H)
+    assert r.status_code == 400 and "бой" in r.json()["detail"]["message"].lower()
+    for bad in ({"type": "hbox", "children": []},  # root must be a column
+                {"type": "vbox", "children": [{"type": "squad"}, {"type": "squad"}]},  # single widgets once
+                {"type": "vbox", "children": [{"type": "image", "path": "../etc/x.png"}]},
+                {"type": "vbox", "children": [{"type": "script", "code": "x"}]}):
+        assert post(bad).status_code == 400
+    client.post("/admin/api/game/layout/reset", headers=H)

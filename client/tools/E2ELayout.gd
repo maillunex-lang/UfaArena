@@ -34,6 +34,20 @@ func _run() -> void:
 			await wait(2.0)
 			break
 	var main: Node = get_tree().current_scene
+	for i in 12:  # close the prologue / guide overlays of a fresh account
+		var hit := false
+		for b in get_tree().root.find_children("*", "Button", true, false):
+			if is_instance_valid(b) and b.is_visible_in_tree() and b.text in ["Пропустить", "Закрыть", "Понятно"]:
+				b.pressed.emit()
+				hit = true
+				break
+		for d in get_tree().root.find_children("*", "Control", true, false):
+			if is_instance_valid(d) and d.get_script() and String(d.get_script().resource_path).ends_with("StoryDialog.gd"):
+				d.queue_free()
+				hit = true
+		if not hit:
+			break
+		await wait(0.8)
 	print("LAYOUT: version = ", Game.layout_version, " nav = ", main._nav_buttons.keys())
 	main.open("home")
 	await wait(2.5)

@@ -62,6 +62,9 @@ display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv
 .shot{position:relative;flex:0 0 auto;width:min(380px,100%);border-radius:18px;overflow:hidden;border:6px solid #1e2b2c;background:#081010;aspect-ratio:9/16}.shot img{width:100%;display:block}.shot .empty{padding:40px 16px;color:var(--muted);text-align:center}
 .hot{position:absolute;border:1px solid #e0ad4f99;border-radius:4px;cursor:pointer}.hot.label{border-color:#3fd6c877}.hot:hover{background:#e0ad4f33}.hot.has{background:#7fe39a44}.hot.sel{outline:3px solid var(--gold2);background:#e0ad4f55;z-index:2}
 .elist{max-height:340px;overflow:auto}.erow{padding:5px 4px;border-bottom:1px solid #1b3331;cursor:pointer;font-size:13px}.erow:hover{background:#14292a}.erow.sel{background:#e0ad4f22;outline:1px solid var(--gold)}
+.tree .tn{margin-left:12px;border-left:1px dashed #2c4a48}.tree .troot>.tn{margin-left:0;border:0}.tree .tl{padding:4px 6px;cursor:grab;border-radius:6px;font-size:13px;user-select:none}.tree .tl:hover{background:#14292a}.tree .tn.sel>.tl{background:#e0ad4f33;outline:1px solid var(--gold)}.tree .tn.hid>.tl{opacity:.45}.tree .tch{min-height:6px;padding-left:2px}.tg{color:var(--teal)}
+.mk{border:1px dashed #2c4a4888;border-radius:6px;padding:2px;min-height:14px}.msel{outline:2px solid var(--gold2)!important}.mtext{padding:2px 4px}.mimg{background:#14292a;border:1px dashed #a37a2c;border-radius:8px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:11px}.mspc{background:repeating-linear-gradient(45deg,#ffffff08 0 4px,transparent 4px 8px)}
+.pi.mbig{flex-direction:row;justify-content:center;min-height:46px;color:#fff;border:1px solid #fff4}.pi.mbig .lb{font-size:13px;font-weight:700;max-width:none}.pi.mbig .ic{background:none;border:0}.pi.mtile{background:#14292a;border:1px solid #a37a2c66;padding:6px 2px}
 .icgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;margin-top:4px}.icgrid button{padding:4px;height:44px;font-size:20px}.msg .a{color:var(--gold2);font-weight:600}
 </style>
 </head>
@@ -411,7 +414,7 @@ async ui(box){const d=await api('/game/layout');let L=JSON.parse(JSON.stringify(
    <div class="row"><button id="uup">↑</button><button id="udn">↓</button><select id="umv"><option value="">Переместить в…</option>${Object.entries(lists()).filter(([p])=>p!==sel.p&&okFor(p,it.id)).map(([p,n])=>`<option value="${p}">${esc(n)}</option>`).join('')}</select>
    <button class="danger" id="udel" ${core?'disabled':''}>Убрать</button></div>`};
  const hdrHtml=()=>`<div class="card"><h2>Интерфейс игры</h2><p class="small muted">Визуальный редактор интерфейса: нижняя панель, главный экран, «Ещё» и <b>все экраны игры</b> (подписи, видимость, цвет, порядок и куда ведёт каждая кнопка). Кнопки открывают только существующие разделы; «Главная» и «Ещё» всегда остаются на панели. Игроки получают раскладку при входе в игру (и на главном экране раз в 5 минут) — без обновления APK, начиная с версии игры 0.7.7.</p>
-  <div class="row"><button class="${view==='home'?'on':''}" id="vh">Главный экран</button><button class="${view==='more'?'on':''}" id="vm">Экран «Ещё»</button><button class="${view==='screens'?'on':''}" id="vs">Все экраны</button>
+  <div class="row"><button class="${view==='home'?'on':''}" id="vh">Главный экран</button><button class="${view==='more'?'on':''}" id="vm">Экран «Ещё»</button><button class="${view==='tree'?'on':''}" id="vt">Структура главного</button><button class="${view==='screens'?'on':''}" id="vs">Все экраны</button>
   <span id="uidirty" class="tag g" style="flex:0 0 auto;${dirty?'':'display:none'}">есть неопубликованные изменения</span><span style="flex:1"></span>${PB('ui_layout','*')}<button class="primary" id="upub">Опубликовать</button></div></div>
   `;
  const verHtml=()=>`<div class="card"><h3>Версии</h3><p class="small">Опубликована: <b>${d.version?('версия '+d.version):'стандартная раскладка игры'}</b></p>
@@ -459,7 +462,90 @@ async ui(box){const d=await api('/game/layout');let L=JSON.parse(JSON.stringify(
   $('#madd').onclick=()=>{const k=$('#mkey').value.trim();if(!k)return;esel={key:k,kind:$('#mkind').value,text:k,count:1};renderScreens()};
   $('#mpon').onclick=async()=>{await api('/game/layout/mappers','POST',{uralia_id:$('#mpid').value.trim(),on:true});MAP=null;toast('Готово: этот игрок может снимать карту');renderScreens()};
   box.querySelectorAll('[data-mpoff]').forEach(a=>a.onclick=async ev=>{ev.preventDefault();await api('/game/layout/mappers','POST',{uralia_id:a.dataset.mpoff,on:false});MAP=null;renderScreens()})};
- const render=()=>{if(view==='screens')return renderScreens();edUiView=view;box.innerHTML=`${hdrHtml()}<div class="uiwrap"><div class="phone"><div class="ptop">👤 Игрок · ур. 12 <span>🪙 12 400 💎 350</span></div><div class="pscreen">${view==='home'?homeMock():moreMock()}</div>${listHtml('nav','pnav')}</div>
+ const TT={...d.containers,...d.widgets};const isCont=t=>t in d.containers;let tsel=null,kseq=0;const byK={};
+ const tkey=n=>{if(!n.__k)n.__k=++kseq;byK[n.__k]=n;(n.children||[]).forEach(tkey);return n.__k};
+ const strip=n=>{if(!n||typeof n!=='object')return n;if(Array.isArray(n))return n.map(strip);const o={};for(const k in n)if(!k.startsWith('__'))o[k]=strip(n[k]);return o};
+ const parentOf=(k,n=L.home.tree)=>{for(const c of (n.children||[])){if(c.__k===k)return n;const p=parentOf(k,c);if(p)return p}return null};
+ const tlabel=n=>{const t=TT[n.type]||n.type;if(['side','big','tile'].includes(n.type))return `${n.type==='side'?'Кнопка':n.type==='big'?'Большая':'Плитка'} «${n.label}» → ${(T[n.id]||{}).label||n.id}`;
+  if(n.type==='text')return 'Текст: '+n.text.slice(0,40);if(n.type==='image')return 'Картинка: '+n.path.replace('ui/home/','');if(n.type==='spacer')return 'Отступ '+(n.size??20)+' px';if(n.type==='grid')return t.split(' (')[0]+' · '+(n.columns||3)+' кол.';return t.split(' (')[0]};
+ const reachT=()=>{const vis=new Set(),nav=new Set(L.nav.filter(i=>!i.hidden).map(i=>i.id)),more=new Set(L.more.groups.flatMap(g=>g.items.filter(i=>!i.hidden).map(i=>i.id)));
+  const walk=n=>{if(n.hidden)return;if(['campaign_strip','squad','daily_strip'].includes(n.type))vis.add(n.type);if(['side','big','tile'].includes(n.type))vis.add(n.id);(n.children||[]).forEach(walk)};walk(L.home.tree);
+  const all=new Set([...vis,...nav,...more]);return {battle:['campaign_strip','battle','campaign'].some(x=>vis.has(x))||nav.has('campaign')||more.has('campaign')||more.has('battle'),afk:vis.has('afk')||more.has('afk'),
+   quests:all.has('daily_strip')||all.has('quests'),mail:all.has('mail'),settings:all.has('settings')}};
+ const tnode=(n,root)=>`<div class="tn${n.hidden?' hid':''}${tsel===n.__k?' sel':''}" data-k="${n.__k}"><div class="tl" data-ts="${n.__k}">${isCont(n.type)?'<span class="tg">▤</span>':'<span class="tg">•</span>'} ${esc(tlabel(n))}${n.expand?' <span class="tag">растяг.</span>':''}${n.hidden?' <span class="tag r">скрыт</span>':''}</div>${isCont(n.type)?`<div class="tch" data-tc="${n.__k}">${(n.children||[]).map(c=>tnode(c)).join('')}</div>`:''}</div>`;
+ const S3=v=>Math.round((v||0)/2.9);
+ const mk=(n,pt='vbox')=>{const sel=tsel===n.__k?' msel':'',hid=n.hidden?' hid':'',k=`data-mk="${n.__k}"`,row=pt==='hbox',grow=(n.expand||(row&&n.ratio))?(row?'flex:'+(n.ratio||1)+' 1 0;min-width:0;':'flex:1 0 auto;'):'';
+  if(isCont(n.type)){const t=n.type,al={center:'center',end:'flex-end',start:'flex-start'}[n.align]||'stretch';
+   return `<div class="mk mk-${t}${sel}${hid}" ${k} style="display:${t==='grid'?'grid':'flex'};flex-direction:${t==='hbox'?'row':'column'};${t==='grid'?`grid-template-columns:repeat(${n.columns||3},1fr);`:''}gap:${S3(n.sep??8)}px;${n.min_w?`min-width:${S3(n.min_w)}px;`:''}justify-content:${t==='hbox'?'flex-start':al};${t!=='hbox'?`align-items:stretch;`:''}${grow}">${(n.children||[]).map(c=>mk(c,t==='hbox'?'hbox':'vbox')).join('')||'<span class="small muted">пусто</span>'}</div>`}
+  if(n.type==='campaign_strip')return `<div class="pbar${sel}${hid}" ${k} style="${grow}">🗺 Поход · Этап 1-4 <b>›</b></div>`;
+  if(n.type==='daily_strip')return `<div class="pbar${sel}${hid}" ${k} style="${grow}">📋 Ежедневные задания 2/5 <span class="pbtn">Забрать</span></div>`;
+  if(n.type==='squad')return `<div class="psq${sel}${hid}" ${k} style="${grow}min-height:90px">🛡 🗡 🏹<div class="small muted">отряд</div></div>`;
+  if(n.type==='side')return `<div class="pi${sel}${hid}" ${k} style="${grow}"><span class="ic">${ico(n.icon)}</span><span class="lb">${esc(n.label)}</span></div>`;
+  if(n.type==='big')return `<div class="pi mbig${sel}${hid}" ${k} style="flex:${n.ratio||1} 1 0;background:${n.color||'#1d4f8a'}"><span class="ic">${ico(n.icon)}</span><span class="lb">${esc(n.label)}</span></div>`;
+  if(n.type==='tile')return `<div class="pi mtile${sel}${hid}" ${k} style="${grow}"><span class="ic">${ico(n.icon)}</span><span class="lb">${esc(n.label)}</span></div>`;
+  if(n.type==='text')return `<div class="mtext${sel}${hid}" ${k} style="${grow}font-size:${{caption:10,body:12,title:15,h1:18}[n.size]||12}px;text-align:${{center:'center',end:'right'}[n.align]||'left'};color:${n.color||(['title','h1'].includes(n.size)?'var(--gold2)':'var(--text)')}">${esc(n.text)}</div>`;
+  if(n.type==='image')return `<div class="mimg${sel}${hid}" ${k} style="${grow}height:${S3(n.height||300)}px">🖼 ${esc(n.path.replace('ui/home/',''))}</div>`;
+  if(n.type==='spacer')return `<div class="mspc${sel}${hid}" ${k} style="height:${S3(n.size??20)}px"></div>`;return ''};
+ const NEWN={vbox:{type:'vbox',sep:8,children:[]},hbox:{type:'hbox',sep:8,children:[]},grid:{type:'grid',columns:3,sep:8,children:[]},panel:{type:'panel',sep:8,children:[]},
+  campaign_strip:{type:'campaign_strip'},squad:{type:'squad',expand:true},daily_strip:{type:'daily_strip'},side:{type:'side',id:'quests',label:'Задания',icon:'quests'},
+  big:{type:'big',id:'shop',label:'Магазин',icon:'shop',color:'#1d4f8a',ratio:1},tile:{type:'tile',id:'shop',label:'Магазин',icon:'shop'},text:{type:'text',text:'Новый текст',size:'body'},
+  image:{type:'image',path:'ui/home/banner_1.png',height:300},spacer:{type:'spacer',size:20}};
+ const tprops=()=>{const n=tsel&&byK[tsel];if(!n)return `<p class="small muted">Выберите элемент в дереве или на макете. Перетаскивайте элементы в дереве за название — в любой контейнер, на любое место.</p>`;
+  const root=n===L.home.tree,btn=['side','big','tile'].includes(n.type),par=parentOf(n.__k),inRow=par&&par.type==='hbox';
+  let h=`<h3>${esc(TT[n.type]||n.type)}</h3>`;
+  if(btn){h+=`<label class="small">Куда ведёт<select id="tA">${d.targets.filter(t=>t.kind!=='locked'||n.type==='tile').map(t=>`<option value="${t.id}" ${n.id===t.id?'selected':''}>${esc(t.label)}</option>`).join('')}</select></label>
+   <label class="small">Подпись<input id="tL" maxlength="20" value="${esc(n.label)}"></label><div class="icgrid">${d.icons.map(i=>`<button class="${i===n.icon?'on':''}" data-tic="${i}" title="${i}">${ico(i)}</button>`).join('')}</div>`;
+   if(n.type==='big')h+=`<div class="row"><label class="small">Цвет<input type="color" id="tC" value="${n.color||'#1d4f8a'}" style="height:38px;padding:2px"></label><label class="small">Ширина ×<input type="number" id="tR" min="0.5" max="3" step="0.25" value="${n.ratio||1}"></label></div>`}
+  if(isCont(n.type)){h+=`<div class="row"><label class="small">Отступ между элементами, px<input type="number" id="tS" min="0" max="80" value="${n.sep??8}"></label>${n.type==='grid'?`<label class="small">Колонок<input type="number" id="tCol" min="1" max="6" value="${n.columns||3}"></label>`:`<label class="small">Выравнивание<select id="tAl">${[['','обычное'],['start','в начале'],['center','по центру'],['end','в конце']].map(([v,t])=>`<option value="${v}" ${(n.align||'')===v?'selected':''}>${t}</option>`).join('')}</select></label>`}
+   <label class="small">Мин. ширина, px (0 — авто)<input type="number" id="tW" min="0" max="1080" value="${n.min_w||0}"></label></div>`}
+  if(n.type==='text')h+=`<label class="small">Текст<textarea id="tT" maxlength="200">${esc(n.text)}</textarea></label><div class="row"><label class="small">Размер<select id="tSz">${[['caption','мелкий'],['body','обычный'],['title','заголовок'],['h1','крупный заголовок']].map(([v,t])=>`<option value="${v}" ${n.size===v?'selected':''}>${t}</option>`).join('')}</select></label>
+   <label class="small">Выравнивание<select id="tAl">${[['','слева'],['center','по центру'],['end','справа']].map(([v,t])=>`<option value="${v}" ${(n.align||'')===v?'selected':''}>${t}</option>`).join('')}</select></label><label class="small">Цвет<input type="color" id="tTc" value="${n.color||'#eef3f2'}" style="height:38px;padding:2px"></label></div>`;
+  if(n.type==='image')h+=`<div class="row"><label class="small">Картинка<select id="tP">${['ui/home/banner_1.png','ui/home/banner_2.png','ui/home/banner_3.png','ui/home/banner_4.png','ui/home_bg.png','ui/world_map.png'].map(p=>`<option ${n.path===p?'selected':''}>${p}</option>`).join('')}</select></label><label class="small">Высота, px<input type="number" id="tH" min="40" max="1200" value="${n.height||300}"></label></div><p class="small muted">Загрузите картинку в «Графика» → Главный экран (баннеры 1080×360). Пока не загружена — элемент в игре не показывается.</p>`;
+  if(n.type==='spacer')h+=`<label class="small">Высота отступа, px<input type="number" id="tSp" min="0" max="800" value="${n.size??20}"></label>`;
+  if(!root)h+=`<div class="row" style="margin-top:6px"><label class="chk"><input type="checkbox" id="tHid" ${n.hidden?'checked':''}> Скрыть</label><label class="chk"><input type="checkbox" id="tE" ${n.expand?'checked':''}> Растягивать${inRow?' по ширине':' по высоте'}</label>${inRow&&n.type!=='big'?`<label class="small">Вес<input type="number" id="tWr" min="0.2" max="5" step="0.1" value="${n.ratio||1}"></label>`:''}</div>
+   <div class="row" style="margin-top:6px"><button id="tUp">↑</button><button id="tDn">↓</button><button id="tDup">Дублировать</button><button id="tWrap">Обернуть в строку</button><button class="danger" id="tDel">Удалить</button></div>`;
+  return h};
+ const renderTree=()=>{edUiView=view;const has=!!L.home.tree;
+  if(has)tkey(L.home.tree);const R=has?reachT():null;
+  box.innerHTML=hdrHtml()+(has?`<div class="uiwrap"><div class="phone"><div class="ptop">👤 Игрок · ур. 12 <span>🪙 12 400 💎 350</span></div><div class="pscreen"><div style="min-height:100%;display:flex;flex-direction:column">${mk(L.home.tree)}</div></div>${listHtml('nav','pnav')}</div>
+   <div class="uiside"><div class="card"><h3>Обязательные элементы</h3>${d.required.map(r=>`<div class="small">${R[r.id]?'<span class="ok">✓</span>':'<span class="bad">✗</span>'} <b>${esc(r.title)}</b> <span class="muted">— ${esc(r.where)}</span></div>`).join('')}</div>
+    <div class="card" id="tprops">${tprops()}</div>
+    <div class="card"><h3>Добавить</h3><div class="row"><select id="tNew">${Object.entries(TT).map(([k,t])=>`<option value="${k}">${esc(t)}</option>`).join('')}</select><button id="tAdd">Добавить</button></div><p class="small muted">Добавляется внутрь выбранного контейнера (или после выбранного элемента).</p></div>
+    <div class="card"><h3>Дерево</h3><div class="tree"><div class="tch troot" data-tc="root">${tnode(L.home.tree,true)}</div></div>
+     <div class="row" style="margin-top:8px"><button id="tFromV1">Пересоздать из простого режима</button><button class="danger" id="tOff">Выключить структуру</button>${PB('ui_layout','*','ИИ / патч')}</div></div>
+    ${verHtml()}</div></div>`
+   :`<div class="card"><h3>Структура главного экрана</h3><p>Свободная структура: строки, колонки, сетки и панели, в них — полоса похода, отряд, ежедневные задания, круглые и большие кнопки, плитки, тексты, картинки и отступы. Можно полностью перестроить главный экран (игра 0.7.8+; старые версии показывают простой режим).</p>
+    <p class="small muted">Обязательно должны остаться: ${d.required.map(r=>esc(r.title)).join(', ')} — в главном экране, нижней панели или «Ещё».</p>
+    <button class="primary" id="tStart">Создать структуру из текущего главного экрана</button></div>${verHtml()}`);
+  bindCommon();
+  if(!has){$('#tStart').onclick=()=>{L.home.tree=JSON.parse(JSON.stringify(d.tree_from_home));mark();renderTree()};return}
+  const sel=k=>{tsel=+k;renderTree()};
+  box.querySelectorAll('[data-ts]').forEach(e=>e.onclick=ev=>{ev.stopPropagation();sel(e.dataset.ts)});
+  box.querySelectorAll('[data-mk]').forEach(e=>e.onclick=ev=>{ev.stopPropagation();sel(e.dataset.mk)});
+  if(window.Sortable)box.querySelectorAll('.tch:not(.troot)').forEach(el=>Sortable.create(el,{group:'tree',handle:'.tl',animation:150,forceFallback:true,fallbackTolerance:3,fallbackOnBody:true,swapThreshold:0.6,delay:120,delayOnTouchOnly:true,onEnd:()=>{
+   const rb=el2=>{const n=byK[+el2.dataset.k];const ch=el2.querySelector(':scope>.tch');if(ch&&isCont(n.type))n.children=[...ch.children].filter(x=>x.dataset.k).map(rb);return n};
+   L.home.tree=rb(box.querySelector('.troot>.tn'));mark();renderTree()}}));
+  const n=tsel&&byK[tsel];
+  $('#tAdd').onclick=()=>{const t=$('#tNew').value;if(['campaign_strip','squad','daily_strip'].includes(t)){let f=false;const w=x=>{if(x.type===t&&!x.hidden)f=true;(x.children||[]).forEach(w)};w(L.home.tree);if(f)return toast('Этот элемент уже есть (он может быть только один)',true)}
+   const nn=JSON.parse(JSON.stringify(NEWN[t]));const cur=n||L.home.tree;if(isCont(cur.type))cur.children.push(nn);else{const p=parentOf(cur.__k);p.children.splice(p.children.indexOf(cur)+1,0,nn)}tkey(nn);tsel=nn.__k;mark();renderTree()};
+  $('#tFromV1').onclick=()=>{if(!confirm('Заменить структуру тем, что настроено в «Главном экране» (простой режим)?'))return;L.home.tree=JSON.parse(JSON.stringify(d.tree_from_home));tsel=null;mark();renderTree()};
+  $('#tOff').onclick=()=>{if(!confirm('Выключить структуру? Главный экран вернётся к простому режиму (колонки и большие кнопки).'))return;delete L.home.tree;tsel=null;mark();renderTree()};
+  if(!n)return;const re=()=>{mark();renderTree()};const on=(id,ev,f)=>{const e=$(id);if(e)e[ev]=f};
+  on('#tA','onchange',e=>{n.id=e.target.value;const t=T[n.id];if(t){n.label=t.label;n.icon=t.icon}re()});on('#tL','onchange',e=>{n.label=e.target.value.trim()||n.label;re()});
+  box.querySelectorAll('[data-tic]').forEach(b=>b.onclick=()=>{n.icon=b.dataset.tic;re()});
+  on('#tC','onchange',e=>{n.color=e.target.value;re()});on('#tR','onchange',e=>{n.ratio=Math.max(0.5,Math.min(3,+e.target.value||1));re()});
+  on('#tS','onchange',e=>{n.sep=Math.max(0,Math.min(80,parseInt(e.target.value)||0));re()});on('#tCol','onchange',e=>{n.columns=Math.max(1,Math.min(6,parseInt(e.target.value)||3));re()});
+  on('#tAl','onchange',e=>{if(e.target.value)n.align=e.target.value;else delete n.align;re()});on('#tW','onchange',e=>{const v=Math.max(0,Math.min(1080,parseInt(e.target.value)||0));if(v)n.min_w=v;else delete n.min_w;re()});
+  on('#tT','onchange',e=>{n.text=e.target.value.trim()||'…';re()});on('#tSz','onchange',e=>{n.size=e.target.value;re()});on('#tTc','onchange',e=>{n.color=e.target.value;re()});
+  on('#tP','onchange',e=>{n.path=e.target.value;re()});on('#tH','onchange',e=>{n.height=Math.max(40,Math.min(1200,parseInt(e.target.value)||300));re()});on('#tSp','onchange',e=>{n.size=Math.max(0,Math.min(800,parseInt(e.target.value)||0));re()});
+  on('#tHid','onchange',e=>{if(e.target.checked)n.hidden=true;else delete n.hidden;re()});on('#tE','onchange',e=>{if(e.target.checked)n.expand=true;else delete n.expand;re()});
+  on('#tWr','onchange',e=>{n.ratio=Math.max(0.2,Math.min(5,+e.target.value||1));re()});
+  const p=parentOf(n.__k);if(!p)return;const arr=p.children,i=arr.indexOf(n);
+  on('#tUp','onclick',()=>{if(i>0){[arr[i-1],arr[i]]=[arr[i],arr[i-1]];re()}});on('#tDn','onclick',()=>{if(i<arr.length-1){[arr[i+1],arr[i]]=[arr[i],arr[i+1]];re()}});
+  on('#tDup','onclick',()=>{const c=strip(n);if(['campaign_strip','squad','daily_strip'].includes(c.type))return toast('Этот элемент может быть только один',true);arr.splice(i+1,0,c);tkey(c);tsel=c.__k;re()});
+  on('#tWrap','onclick',()=>{const w={type:'hbox',sep:8,children:[n]};arr[i]=w;tkey(w);re()});
+  on('#tDel','onclick',()=>{arr.splice(i,1);tsel=null;re()})};
+ const render=()=>{if(view==='screens')return renderScreens();if(view==='tree')return renderTree();edUiView=view;box.innerHTML=`${hdrHtml()}<div class="uiwrap"><div class="phone"><div class="ptop">👤 Игрок · ур. 12 <span>🪙 12 400 💎 350</span></div><div class="pscreen">${view==='home'?homeMock():moreMock()}</div>${listHtml('nav','pnav')}</div>
   <div class="uiside"><div class="card" id="uprops">${props()}</div>
    ${view==='home'?`<div class="card"><h3>Блоки главного экрана</h3>${L.home.blocks.map((b,i)=>`<div class="row" style="margin:4px 0"><label class="chk" style="flex:1 1 0;min-width:0"><input type="checkbox" data-bv="${i}" ${b.hidden?'':'checked'}> ${esc(BL[b.id])}</label><button class="small" data-bu="${i}">↑</button><button class="small" data-bd="${i}">↓</button></div>`).join('')}</div>`
     :`<div class="card"><h3>Экран «Ещё»</h3><div class="row"><label class="small">Колонок<select id="mcols">${[2,3,4].map(n=>`<option ${n===L.more.columns?'selected':''}>${n}</option>`).join('')}</select></label><button id="gadd">+ Группа</button></div><p class="small muted">Нажмите на название группы, чтобы переименовать или переставить её.</p></div>`}
@@ -469,8 +555,8 @@ async ui(box){const d=await api('/game/layout');let L=JSON.parse(JSON.stringify(
   bind()};
  const move=(fp,fi,tp,ti)=>{const it=get(fp).splice(fi,1)[0];if(!okFor(tp,it.id)){get(fp).splice(fi,0,it);toast('Эту кнопку сюда поставить нельзя',true);return false}
   if(tp==='home.actions'&&it.ratio===undefined){it.ratio=1;it.color=it.color||'#1d4f8a'}get(tp).splice(Math.min(ti,get(tp).length),0,it);sel={p:tp,i:Math.min(ti,get(tp).length-1)};mark();return true};
- const bindCommon=()=>{$('#vh').onclick=()=>{view='home';sel=null;render()};$('#vm').onclick=()=>{view='more';sel=null;render()};$('#vs').onclick=()=>{view='screens';sel=null;render()};
-  $('#upub').onclick=async()=>{cleanRules();const r=await api('/game/layout','POST',{layout:L});d.version=r.version;L=r.layout;dirty=false;toast('Опубликовано: версия '+r.version);ED.ui(box)};
+ const bindCommon=()=>{$('#vh').onclick=()=>{view='home';sel=null;render()};$('#vm').onclick=()=>{view='more';sel=null;render()};$('#vs').onclick=()=>{view='screens';sel=null;render()};$('#vt').onclick=()=>{view='tree';sel=null;render()};
+  $('#upub').onclick=async()=>{cleanRules();const r=await api('/game/layout','POST',{layout:strip(L)});d.version=r.version;L=r.layout;dirty=false;toast('Опубликовано: версия '+r.version);ED.ui(box)};
   $('#urel').onclick=()=>{if(!dirty||confirm('Отменить несохранённые изменения?'))ED.ui(box)};
   $('#urb').onclick=async()=>{if(!confirm('Вернуть предыдущую опубликованную раскладку?'))return;const r=await api('/game/layout/rollback','POST',{});toast('Откачено, версия '+r.version);ED.ui(box)};
   $('#urs').onclick=async()=>{if(!confirm('Сбросить меню к стандартному виду игры? (текущую можно будет вернуть откатом)'))return;await api('/game/layout/reset','POST',{});toast('Сброшено');ED.ui(box)}};

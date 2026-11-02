@@ -521,8 +521,16 @@ func do_action(id: String, from := "") -> void:
 			open("campaign", {"select": code} if code != "" else {})
 		"equipment", "artifacts":
 			Router.toast("Появится вместе с системой предметов в следующих обновлениях")
-		"afk":
-			open("home")
+		"afk":  # patrol (AFK) rewards can be claimed from any button the admin placed
+			var r := await Api.post_json("/rewards/afk/claim", {}, true)
+			if not r.ok:
+				Router.error(r)
+				return
+			Sfx.play("coins")
+			Game.set_wallet(r.data.wallet)
+			Router.toast("Дозор принёс: " + Game.rewards_text(r.data.rewards))
+			await Game.refresh_afk()
+			onboarding_event("afk")
 		_:
 			if SCREENS.has(id):
 				open(id)

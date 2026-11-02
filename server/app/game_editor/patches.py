@@ -450,6 +450,16 @@ class LayoutT(T):
   "action": "куда ведёт кнопка: id действия из списка выше, \"none\" — выключить, пусто — как в игре",
   "move": -20…20 (сдвиг среди соседних)}}]}}}}. В merge экран из screens целиком заменяет правила этого экрана.
 - Экраны: {"; ".join(f"{k} — {v}" for k, v in LAYOUT.SCREEN_IDS.items())}.
+- home.tree — ПОЛНАЯ структура главного экрана (игра 0.7.8+; если задана, заменяет blocks/left/right/actions).
+  Корень — {{"type": "vbox", "children": [...]}}. Контейнеры: {", ".join(f"{k} ({v})" for k, v in LAYOUT.CONTAINERS.items())};
+  поля контейнера: children, sep 0…80 (отступ, px), align start|center|end, min_w 0…1080, columns 1…6 (grid), expand, ratio 0.2…5, hidden.
+  Элементы: {", ".join(f"{k} ({v})" for k, v in LAYOUT.WIDGETS.items())}.
+  side/big/tile: {{"type": "side", "id": "<действие>", "label": "…", "icon": "…"}} (big: + "color", "ratio");
+  text: {{"type": "text", "text": "до 200", "size": "caption|body|title|h1", "color": "#RRGGBB", "align": "…"}};
+  image: {{"type": "image", "path": "ui/home/banner_1.png … banner_4.png", "height": 40…1200}}; spacer: {{"type": "spacer", "size": 0…800}}.
+  campaign_strip, squad, daily_strip — не больше одного раза. Всего до 120 элементов, вложенность до 8.
+  Заменить только структуру: {{"type": "ui_layout", "merge": {{"home": {{"tree": {{…}}}}}}}}.
+- ОБЯЗАТЕЛЬНО должно остаться доступным (иначе админка не примет): {"; ".join(f"{t} — {w}" for t, w in LAYOUT.REQUIRED.values())}.
 - Элементы экранов (kind:key), снятые с игры:
 {self._elements()}"""
 

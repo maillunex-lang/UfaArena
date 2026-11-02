@@ -82,6 +82,26 @@ DEFAULT: dict = {
 }
 
 
+# ------------------------------------------------------------------ main-screen structure (home.tree)
+CONTAINERS = {"vbox": "Колонка (элементы сверху вниз)", "hbox": "Строка (элементы слева направо)",
+              "grid": "Сетка (N колонок)", "panel": "Панель с фоном (элементы сверху вниз)"}
+WIDGETS = {"campaign_strip": "Полоса похода (прогресс кампании)", "squad": "Отряд игрока (портреты, сила)",
+           "daily_strip": "Ежедневные задания", "side": "Круглая кнопка с подписью (живые счётчики и таймеры)",
+           "big": "Большая кнопка (цвет, ширина)", "tile": "Плитка (как в «Ещё»)", "text": "Текст",
+           "image": "Картинка (баннер из «Графики»)", "spacer": "Отступ"}
+SINGLE = ("campaign_strip", "squad", "daily_strip")
+TEXT_SIZES = ("caption", "body", "title", "h1")
+ALIGNS = ("start", "center", "end")
+# Required: whatever the menu looks like, the player must still reach these (paths: nav, home.tree, more.groups)
+REQUIRED = {
+    "battle": ("Вход в бой / поход", "элемент campaign_strip, или кнопка battle / campaign в home.tree, или campaign в nav, или плитка campaign / battle в more"),
+    "afk": ("Сбор дозора (AFK-награды)", "кнопка afk в home.tree (side / big / tile) или плитка afk в more"),
+    "quests": ("Задания", "элемент daily_strip, или кнопка quests в home.tree, nav или more"),
+    "mail": ("Почта (подарки и компенсации)", "кнопка mail в home.tree, nav или more"),
+    "settings": ("Настройки (выход, возраст, приватность)", "кнопка settings в home.tree, nav или more"),
+}
+
+
 def _bad(msg: str):
     raise GameError("bad_layout", msg, 400)
 
@@ -120,6 +140,153 @@ def _list(xs, where: str, lo: int, hi: int, extra: tuple = (), unique: bool = Tr
     if unique and len(set(ids)) != len(ids):
         _bad(f"{where}: одна кнопка указана дважды")
     return out
+
+
+def _tree(n, depth: int, count: list, singles: set, path: str) -> dict:
+    if not isinstance(n, dict) or n.get("type") not in {**CONTAINERS, **WIDGETS}:
+        _bad(f"Структура {path}: неизвестный тип «{n.get('type') if isinstance(n, dict) else n}»")
+    count[0] += 1
+    if count[0] > 120:
+        _bad("Структура главного: не больше 120 элементов")
+    if depth > 8:
+        _bad("Структура главного: вложенность не глубже 8")
+    t = n["type"]
+    out = {"type": t}
+    if n.get("hidden"):
+        out["hidden"] = True
+    if n.get("expand"):
+        out["expand"] = True
+    if "ratio" in n:
+        try:
+            r = round(float(n["ratio"]), 2)
+        except (TypeError, ValueError):
+            r = -1
+        if not 0.2 <= r <= 5:
+            _bad(f"Структура {path}: ratio 0.2…5")
+        out["ratio"] = r
+    if t in CONTAINERS:
+        sep = n.get("sep", 8)
+        if not isinstance(sep, int) or not 0 <= sep <= 80:
+            _bad(f"Структура {path}: sep (отступ между элементами) 0…80")
+        out["sep"] = sep
+        if "min_w" in n:
+            if not isinstance(n["min_w"], int) or not 0 <= n["min_w"] <= 1080:
+                _bad(f"Структура {path}: min_w 0…1080")
+            out["min_w"] = n["min_w"]
+        if n.get("align"):
+            if n["align"] not in ALIGNS:
+                _bad(f"Структура {path}: align — start, center или end")
+            out["align"] = n["align"]
+        if t == "grid":
+            if not isinstance(n.get("columns", 3), int) or not 1 <= n.get("columns", 3) <= 6:
+                _bad(f"Структура {path}: columns 1…6")
+            out["columns"] = n.get("columns", 3)
+        ch = n.get("children", [])
+        if not isinstance(ch, list):
+            _bad(f"Структура {path}: children — список")
+        out["children"] = [_tree(c, depth + 1, count, singles, f"{path}.children[{i}]") for i, c in enumerate(ch)]
+        return out
+    if t in SINGLE:
+        if t in singles:
+            _bad(f"Структура: «{WIDGETS[t]}» можно поставить только один раз")
+        singles.add(t)
+        return out
+    if t in ("side", "big", "tile"):
+        it = _item(n, f"Структура {path}", ("color", "ratio") if t == "big" else ())
+        if TARGETS[it["id"]][2] == "locked" and t != "tile":
+            _bad(f"Структура {path}: «{it['label']}» ещё не работает в игре (можно только плиткой «скоро»)")
+        return {**out, **it, "type": t, **({"hidden": True} if n.get("hidden") else {})}
+    if t == "text":
+        txt = str(n.get("text", "")).strip()
+        if not 1 <= len(txt) <= 200:
+            _bad(f"Структура {path}: текст 1…200 символов")
+        out["text"] = txt
+        out["size"] = n.get("size", "body")
+        if out["size"] not in TEXT_SIZES:
+            _bad(f"Структура {path}: size — {', '.join(TEXT_SIZES)}")
+        if n.get("color"):
+            if not HEX.match(n["color"]):
+                _bad(f"Структура {path}: цвет #RRGGBB")
+            out["color"] = n["color"]
+        if n.get("align"):
+            if n["align"] not in ALIGNS:
+                _bad(f"Структура {path}: align — start, center или end")
+            out["align"] = n["align"]
+        return out
+    if t == "image":
+        path_ = str(n.get("path", ""))
+        if not re.fullmatch(r"ui/home/banner_[1-4]\.png|ui/home_bg\.png|ui/world_map\.png", path_):
+            _bad(f"Структура {path}: картинка — ui/home/banner_1.png … banner_4.png (загружаются в «Графика» → Главный экран)")
+        h = n.get("height", 300)
+        if not isinstance(h, int) or not 40 <= h <= 1200:
+            _bad(f"Структура {path}: height 40…1200")
+        return {**out, "path": path_, "height": h}
+    if t == "spacer":
+        sz = n.get("size", 20)
+        if not isinstance(sz, int) or not 0 <= sz <= 800:
+            _bad(f"Структура {path}: size отступа 0…800")
+        return {**out, "size": sz}
+    return out
+
+
+def _visible_ids(n: dict, acc: set) -> None:
+    if n.get("hidden"):
+        return
+    t = n.get("type")
+    if t in SINGLE:
+        acc.add(t)
+    elif t in ("side", "big", "tile"):
+        acc.add(n["id"])
+    for c in n.get("children", []) or []:
+        _visible_ids(c, acc)
+
+
+def reachable(v: dict) -> dict:
+    """What the player can reach from the menu (nav, the main screen, «Ещё»), for the required-elements check."""
+    nav = {i["id"] for i in v["nav"] if not i["hidden"]}
+    more = {i["id"] for g in v["more"]["groups"] for i in g["items"] if not i["hidden"]}
+    home = set()
+    if v["home"].get("tree"):
+        _visible_ids(v["home"]["tree"], home)
+    else:
+        blocks = {b["id"] for b in v["home"]["blocks"] if not b["hidden"]}
+        if "campaign" in blocks:
+            home.add("campaign_strip")
+        if "daily" in blocks:
+            home.add("daily_strip")
+        if "middle" in blocks:
+            home |= {i["id"] for i in v["home"]["left"] + v["home"]["right"] if not i["hidden"]}
+        if "actions" in blocks:
+            home |= {i["id"] for i in v["home"]["actions"] if not i["hidden"]}
+    every = nav | more | home
+    return {"battle": bool({"campaign_strip", "battle", "campaign"} & home or "campaign" in nav or {"campaign", "battle"} & more),
+            "afk": "afk" in home or "afk" in more,
+            "quests": bool({"daily_strip", "quests"} & every),
+            "mail": "mail" in every, "settings": "settings" in every}
+
+
+def tree_from_v1(home: dict) -> dict:
+    """The current main screen (blocks, columns, big buttons) as a structure — the starting point for free editing."""
+    def side(i):
+        return {"type": "side", **{k: i[k] for k in ("id", "label", "icon")}, **({"hidden": True} if i["hidden"] else {})}
+    parts = {
+        "campaign": {"type": "campaign_strip"},
+        "middle": {"type": "hbox", "expand": True, "sep": 4, "children": [
+            {"type": "vbox", "min_w": 150, "align": "center", "sep": 4, "children": [side(i) for i in home["left"]]},
+            {"type": "squad", "expand": True},
+            {"type": "vbox", "min_w": 150, "align": "center", "sep": 4, "children": [side(i) for i in home["right"]]}]},
+        "daily": {"type": "daily_strip"},
+        "actions": {"type": "hbox", "sep": 8, "children": [
+            {"type": "big", **{k: i[k] for k in ("id", "label", "icon", "color", "ratio")}, **({"hidden": True} if i["hidden"] else {})}
+            for i in home["actions"]]},
+    }
+    kids = []
+    for b in home["blocks"]:
+        node = dict(parts[b["id"]])
+        if b["hidden"]:
+            node["hidden"] = True
+        kids.append(node)
+    return {"type": "vbox", "sep": 8, "children": kids}
 
 
 def validate(v: dict) -> dict:
@@ -161,7 +328,16 @@ def validate(v: dict) -> dict:
     allm = [i["id"] for g in gout for i in g["items"]]
     if len(set(allm)) != len(allm):
         _bad("«Ещё»: кнопка стоит в двух группах")
+    if h.get("tree"):
+        root = h["tree"]
+        if not isinstance(root, dict) or root.get("type") != "vbox":
+            _bad("Структура главного: корень home.tree — колонка {\"type\": \"vbox\", \"children\": [...]}")
+        home["tree"] = _tree(root, 1, [0], set(), "home.tree")
     out = {"nav": nav, "home": home, "more": {"columns": cols, "groups": gout}}
+    reach = reachable(out)
+    missing = [REQUIRED[k] for k, ok in reach.items() if not ok]
+    if missing:
+        _bad("Нельзя убрать обязательное: " + "; ".join(f"{t} — нужен {where}" for t, where in missing))
     if v.get("screens"):
         out["screens"] = _screens(v["screens"])
     return out
@@ -323,7 +499,10 @@ def client_layout(db: Session = Depends(get_db)):
 @router.get("")
 def admin_layout(_: str = Depends(admin), db: Session = Depends(get_db)):
     targets = [{"id": k, "label": v[0], "icon": v[1], "kind": v[2]} for k, v in TARGETS.items()]
-    return {**get(db), "default": DEFAULT, "targets": targets, "icons": ICONS, "screens": SCREEN_IDS,
+    cur = get(db)
+    return {**cur, "default": DEFAULT, "targets": targets, "icons": ICONS, "screens": SCREEN_IDS,
+            "tree_from_home": tree_from_v1(cur["layout"]["home"]), "containers": CONTAINERS, "widgets": WIDGETS,
+            "required": [{"id": k, "title": t, "where": w} for k, (t, w) in REQUIRED.items()],
             "blocks": [{"id": k, "title": v} for k, v in BLOCKS.items()], "history": history(db)}
 
 

@@ -250,6 +250,14 @@ def catalog() -> list[dict]:
             "9-slice, углы 56 px. Иконку и надпись игра рисует сама — без текста.",
             build_prompt(f"Large mobile game action button plate, {look}, rounded rectangle with a bevel", "420×150",
                          NINE_SLICE + "; light text sits on it: keep the middle evenly dark; no text", TRANSPARENT), True))
+    for i in range(1, 5):  # free pictures for the main-screen structure editor (element «Картинка»)
+        by["home"]["slots"].append(_slot(
+            f"ui/home/banner_{i}.png", f"Баннер главного экрана №{i}", "1080×360",
+            "главный экран — элемент «Картинка» в структуре главного меню (Редактор игры → Интерфейс → Структура главного)",
+            "Широкая картинка-баннер: акция, событие, новость. Можно с надписью (игра текст поверх не рисует).",
+            build_prompt("Wide promo banner for a fantasy mobile RPG set in the Southern Urals, Bashkir ornament border", "1080×360",
+                         "horizontal banner, important content in the centre, soft dark vignette at the edges", "full illustration, no transparency"),
+            False))
     by["screens"]["slots"].append(_slot(
         "ui/world_map.png", "Карта мира", "1024×768", "экран «Мир» — карта регионов (метки регионов игра рисует поверх)",
         "Стилизованная карта Южного Урала без надписей: хребет на востоке, река Агидель (Белая) с севера на юг, степь на юге.",
