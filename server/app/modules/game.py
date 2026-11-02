@@ -48,7 +48,16 @@ def profile_view(p: PlayerProfile, u: User | None = None) -> dict:
             "age_group": p.age_group, "needs_setup": p.age_group is None and not p.is_ai,
             "vip_level": p.vip_level or 0, "vip_xp": p.vip_xp or 0, "battle_speeds": VIP.battle_speeds(p.vip_level or 0),
             "vip_speed_table": [{"vip": int(k), "speeds": s} for k, s in MCFG()["vip"]["battle_speeds"].items()],
-            "created_at": as_utc(p.created_at).isoformat()}
+            "created_at": as_utc(p.created_at).isoformat(), "ui_mapper": _ui_mapper(p)}
+
+
+def _ui_mapper(p: PlayerProfile) -> bool:
+    from sqlalchemy.orm import object_session
+    db = object_session(p)
+    if db is None or p.is_ai:
+        return False
+    from ..game_editor.layout import is_mapper
+    return is_mapper(db, p.user_id)
 
 
 @router.get("/player/me")

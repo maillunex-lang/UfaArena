@@ -32,6 +32,7 @@ const SCREENS := {
 const Notifications := preload("res://src/ui/Notifications.gd")
 const Tips := preload("res://src/ui/Tips.gd")
 const UpdateDialog := preload("res://src/ui/UpdateDialog.gd")
+const UIOverrides := preload("res://src/ui/UIOverrides.gd")
 ## Fixed order of the six main sections (design brief §4).
 const NAV := [["home", "Главная"], ["heroes", "Герои"], ["campaign", "Поход"], ["guild", "Гильдия"], ["world", "Мир"],
 	["more", "Ещё"]]
@@ -49,6 +50,7 @@ var screen: Control
 var _chips := {}
 var _nav_buttons := {}
 var _nav_panel: Control
+var _uo_pending := false
 var _guide: PanelContainer
 var _guide_label: Label
 var _profile_lbl: Label
@@ -74,6 +76,7 @@ func _ready() -> void:
 	Game.load_cached_layout()
 	_build_nav()
 	Game.layout_changed.connect(_on_layout_changed)
+	get_tree().node_added.connect(_on_node_added)
 	_build_guide()
 	Game.wallet_changed.connect(_update_chips)
 	Game.profile_changed.connect(_update_profile)
@@ -525,6 +528,21 @@ func do_action(id: String, from := "") -> void:
 				open(id)
 
 
+## Admin rules over the real interface (any screen + the shell): applied once per frame after nodes appear.
+func _on_node_added(n: Node) -> void:
+	if (n is Button or n is Label) and not _uo_pending:
+		_uo_pending = true
+		_apply_overrides.call_deferred()
+
+
+func _apply_overrides() -> void:
+	_uo_pending = false
+	if is_instance_valid(screen):
+		UIOverrides.apply(screen, current, self)
+	if is_instance_valid(ui):
+		UIOverrides.apply(ui, "main", self, content)
+
+
 func _on_layout_changed() -> void:
 	if _nav_panel:
 		_nav_panel.queue_free()
@@ -533,8 +551,9 @@ func _on_layout_changed() -> void:
 	var section: String = current if _nav_buttons.has(current) else NAV_OF.get(current, current)
 	for k in _nav_buttons:
 		_style_nav(k, k == section)
-	if current in ["home", "more"]:
-		open(current)
+	if current != "":
+		open(current)  # rebuild with the new menu and screen rules
+	_apply_overrides.call_deferred()
 
 
 func _style_nav(key: String, active: bool) -> void:

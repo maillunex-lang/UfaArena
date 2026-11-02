@@ -24,12 +24,15 @@ func _run() -> void:
 	while get_tree().current_scene == null or get_tree().current_scene.name != "Main":
 		await wait(0.25)
 	await wait(2.0)
-	for d in get_tree().root.find_children("*", "Control", true, false):  # close the hero setup window if shown
+	for d in get_tree().root.find_children("*", "Control", true, false):
+		if not is_instance_valid(d):
+			continue  # close the hero setup window if shown
 		if d.get_script() and String(d.get_script().resource_path).ends_with("HeroSetupDialog.gd"):
 			d._nick.text = "Макет_Тест"
 			d._adult.button_pressed = true
 			d._submit()
 			await wait(2.0)
+			break
 	var main: Node = get_tree().current_scene
 	print("LAYOUT: version = ", Game.layout_version, " nav = ", main._nav_buttons.keys())
 	main.open("home")

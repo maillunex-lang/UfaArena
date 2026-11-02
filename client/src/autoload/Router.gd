@@ -49,6 +49,8 @@ func _ready() -> void:
 		add_child(load("res://tools/E2ESetup.gd").new())
 	if OS.get_environment("URALIA_E2E_LAYOUT") != "" and ResourceLoader.exists("res://tools/E2ELayout.gd"):
 		add_child(load("res://tools/E2ELayout.gd").new())
+	if OS.get_environment("URALIA_E2E_UIMAP") != "" and ResourceLoader.exists("res://tools/E2EUIMap.gd"):
+		add_child(load("res://tools/E2EUIMap.gd").new())
 	if OS.get_environment("URALIA_E2E_GUILD") != "" and ResourceLoader.exists("res://tools/E2EGuild.gd"):
 		add_child(load("res://tools/E2EGuild.gd").new())
 	if OS.get_environment("URALIA_E2E_ART") != "" and ResourceLoader.exists("res://tools/E2EArt.gd"):

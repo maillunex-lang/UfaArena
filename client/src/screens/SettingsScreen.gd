@@ -469,6 +469,16 @@ func _about() -> void:
 	var box := _group("О игре")
 	_note(box, "УРАЛИЯ: Дыхание предков · версия %s · канал %s" % [Config.CLIENT_VERSION, Config.CHANNEL])
 	_note(box, "Ассеты: KayKit (CC0), Poly Haven (CC0), RPG Sound Pack (CC0); шрифты Philosopher и Manrope (SIL OFL). Музыка — оригинальная.")
+	if bool(Game.profile.get("ui_mapper", false)):  # marked in the admin panel: maps the interface for the editor
+		_note(box, "Вы отмечены в админке как картограф интерфейса: игра обойдёт все экраны и отправит снимки и список кнопок в редактор «Все экраны».")
+		var mp := UI.button("Снять карту интерфейса", "glass", 0, 88)
+		mp.pressed.connect(func():
+			var m: Node = preload("res://src/ui/UIMapper.gd").new()
+			m.main = main
+			main.add_child(m)
+			m.finished.connect(func(n): Router.toast("Карта интерфейса отправлена: %d экранов" % n); m.queue_free())
+			m.run())
+		box.add_child(mp)
 	var lo := UI.button("Выйти из аккаунта", "danger", 0, 88)
 	lo.pressed.connect(_logout)
 	box.add_child(lo)

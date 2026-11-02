@@ -59,6 +59,9 @@ display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv
 .pnav{display:flex;justify-content:space-around;gap:2px;margin:6px;padding:4px;background:#a9c9ff22;border:1px solid #a9c9ff55;border-radius:18px}.pnav .pi{flex:1}
 .pgrp{color:var(--gold2);font-weight:700;padding:4px 2px;cursor:pointer;border-radius:6px}.pgrp.sel{outline:2px solid var(--gold2)}
 .pgrid{display:grid;gap:5px;min-height:44px}.pgrid .pi{background:#14292a;border:1px solid #a37a2c66;padding:6px 2px}
+.shot{position:relative;flex:0 0 auto;width:min(380px,100%);border-radius:18px;overflow:hidden;border:6px solid #1e2b2c;background:#081010;aspect-ratio:9/16}.shot img{width:100%;display:block}.shot .empty{padding:40px 16px;color:var(--muted);text-align:center}
+.hot{position:absolute;border:1px solid #e0ad4f99;border-radius:4px;cursor:pointer}.hot.label{border-color:#3fd6c877}.hot:hover{background:#e0ad4f33}.hot.has{background:#7fe39a44}.hot.sel{outline:3px solid var(--gold2);background:#e0ad4f55;z-index:2}
+.elist{max-height:340px;overflow:auto}.erow{padding:5px 4px;border-bottom:1px solid #1b3331;cursor:pointer;font-size:13px}.erow:hover{background:#14292a}.erow.sel{background:#e0ad4f22;outline:1px solid var(--gold)}
 .icgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:4px;margin-top:4px}.icgrid button{padding:4px;height:44px;font-size:20px}.msg .a{color:var(--gold2);font-weight:600}
 </style>
 </head>
@@ -71,7 +74,7 @@ display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv
 <script>
 const $=s=>document.querySelector(s);const main=$('#main');
 const TABS=[['overview','Обзор'],['server','Сервер и APK'],['events','События'],['chat','Чат'],['players','Игроки и модерация'],['ai','ИИ-жители'],['editor','Редактор игры'],['art','Графика'],['shop','Магазин']];
-let tab='overview',artSec='heroes',aiSec='director',edSec='heroes',edUiView='home',patchPreset=null;
+let tab='overview',artSec='heroes',aiSec='director',edSec='heroes',edUiView='home',edUiScr='home',patchPreset=null;
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function toast(t,bad){const e=$('#toast');e.textContent=t;e.style.borderColor=bad?'#a8433a':'';e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',3500)}
 function hdr(extra){return Object.assign({'X-Admin-Token':sessionStorage.getItem('tok')||'','X-Admin-Name':encodeURIComponent(sessionStorage.getItem('who')||'owner')},extra||{})}
@@ -407,22 +410,71 @@ async ui(box){const d=await api('/game/layout');let L=JSON.parse(JSON.stringify(
    <label class="chk"><input type="checkbox" id="uh" ${it.hidden?'checked':''} ${core?'disabled':''}> Скрыть у игроков ${core?'<span class="small muted">(эту кнопку убрать нельзя)</span>':''}</label>
    <div class="row"><button id="uup">↑</button><button id="udn">↓</button><select id="umv"><option value="">Переместить в…</option>${Object.entries(lists()).filter(([p])=>p!==sel.p&&okFor(p,it.id)).map(([p,n])=>`<option value="${p}">${esc(n)}</option>`).join('')}</select>
    <button class="danger" id="udel" ${core?'disabled':''}>Убрать</button></div>`};
- const render=()=>{edUiView=view;box.innerHTML=`<div class="card"><h2>Интерфейс игры</h2><p class="small muted">Визуальный редактор главного меню: нижняя панель, главный экран и «Ещё». Кнопки открывают только существующие разделы; «Главная» и «Ещё» всегда остаются на панели. Игроки получают раскладку при входе в игру (и на главном экране раз в 5 минут) — без обновления APK, начиная с версии игры 0.7.7.</p>
-  <div class="row"><button class="${view==='home'?'on':''}" id="vh">Главный экран</button><button class="${view==='more'?'on':''}" id="vm">Экран «Ещё»</button>
+ const hdrHtml=()=>`<div class="card"><h2>Интерфейс игры</h2><p class="small muted">Визуальный редактор интерфейса: нижняя панель, главный экран, «Ещё» и <b>все экраны игры</b> (подписи, видимость, цвет, порядок и куда ведёт каждая кнопка). Кнопки открывают только существующие разделы; «Главная» и «Ещё» всегда остаются на панели. Игроки получают раскладку при входе в игру (и на главном экране раз в 5 минут) — без обновления APK, начиная с версии игры 0.7.7.</p>
+  <div class="row"><button class="${view==='home'?'on':''}" id="vh">Главный экран</button><button class="${view==='more'?'on':''}" id="vm">Экран «Ещё»</button><button class="${view==='screens'?'on':''}" id="vs">Все экраны</button>
   <span id="uidirty" class="tag g" style="flex:0 0 auto;${dirty?'':'display:none'}">есть неопубликованные изменения</span><span style="flex:1"></span>${PB('ui_layout','*')}<button class="primary" id="upub">Опубликовать</button></div></div>
-  <div class="uiwrap"><div class="phone"><div class="ptop">👤 Игрок · ур. 12 <span>🪙 12 400 💎 350</span></div><div class="pscreen">${view==='home'?homeMock():moreMock()}</div>${listHtml('nav','pnav')}</div>
+  `;
+ const verHtml=()=>`<div class="card"><h3>Версии</h3><p class="small">Опубликована: <b>${d.version?('версия '+d.version):'стандартная раскладка игры'}</b></p>
+    <div class="row"><button id="urel">Отменить несохранённое</button><button id="urb" ${d.history.length?'':'disabled'}>Откатить публикацию</button><button class="danger" id="urs">Сбросить к стандартной</button></div>
+    <div class="small muted" style="margin-top:6px">${d.history.slice(-6).reverse().map(h=>`${esc(h.at.slice(0,16).replace('T',' '))} · ${esc(h.by)} · ${h.action==='ui_layout_reset'?'сброс':h.action==='ui_layout_rollback'?'откат':'публикация'}`).join('<br>')}</div></div>`;
+ let scr=edUiScr,esel=null,MAP=null;const SIMG={};
+ const rulesOf=s=>{L.screens=L.screens||{};L.screens[s]=L.screens[s]||{rules:[]};return L.screens[s].rules};
+ const ruleFor=(s,k,key)=>((L.screens||{})[s]?.rules||[]).find(r=>r.kind===k&&r.key===key);
+ const ensureRule=(s,k,key)=>{let r=ruleFor(s,k,key);if(!r){r={key,kind:k,hidden:false,label:'',color:'',action:'',move:0};rulesOf(s).push(r)}return r};
+ const cleanRules=()=>{for(const s in (L.screens||{})){L.screens[s].rules=L.screens[s].rules.filter(r=>r.hidden||r.label||r.color||r.action||r.move);if(!L.screens[s].rules.length)delete L.screens[s]}};
+ const rtag=e=>{const r=ruleFor(scr,e.kind,e.key);if(!r)return '';const t=[];if(r.hidden)t.push('скрыт');if(r.label)t.push('→ «'+r.label+'»');if(r.action)t.push(r.action==='none'?'выключен':'ведёт: '+((T[r.action]||{}).label||r.action));if(r.color)t.push('цвет');if(r.move)t.push('сдвиг '+r.move);return t.join(' · ')};
+ const eprops=()=>{if(!esel)return `<p class="small muted">Выберите кнопку или текст на снимке экрана. Можно: переименовать, скрыть, перекрасить, сдвинуть среди соседних и — для кнопок — выбрать, <b>куда она ведёт</b>.</p>`;
+  const r=ruleFor(scr,esel.kind,esel.key)||{hidden:false,label:'',color:'',action:'',move:0};const btn=esel.kind==='button';
+  return `<h3>${btn?'Кнопка':'Текст'}: «${esc(esel.text||esel.key)}»</h3><p class="small muted">Ищется в игре по тексту «${esc(esel.key)}» (цифры не учитываются)${esel.count>1?` · таких на экране: ${esel.count} — правило применится ко всем`:''}</p>
+   <label class="small">Новая подпись (пусто — как в игре)<input id="eL" maxlength="40" value="${esc(r.label)}"></label>
+   ${btn?`<label class="small" style="display:block;margin-top:8px">Куда ведёт<select id="eA"><option value="">как в игре</option><option value="none" ${r.action==='none'?'selected':''}>никуда (кнопка выключена)</option>${d.targets.filter(t=>t.kind!=='locked').map(t=>`<option value="${t.id}" ${r.action===t.id?'selected':''}>${esc(t.label)}</option>`).join('')}</select></label>`:''}
+   <div class="row" style="margin-top:8px"><label class="chk"><input type="checkbox" id="eH" ${r.hidden?'checked':''}> Скрыть</label><label class="chk"><input type="checkbox" id="eCo" ${r.color?'checked':''}> Цвет<input type="color" id="eC" value="${r.color||'#ffcc66'}" style="width:60px;height:34px;padding:2px"></label>
+   <label class="small">Сдвиг среди соседних (−20…20)<input type="number" id="eM" min="-20" max="20" value="${r.move||0}"></label></div>
+   <div class="row" style="margin-top:8px"><button id="eX">Убрать правило</button></div>`};
+ const renderScreens=async()=>{edUiView=view;edUiScr=scr;if(!MAP)MAP=await api('/game/layout/map');const M=MAP.screens[scr]||{elements:[]};
+  if(M.image&&!SIMG[scr]){const r=await fetch('/admin/api/game/layout/map/'+scr+'.jpg',{headers:hdr()});if(r.ok)SIMG[scr]=URL.createObjectURL(await r.blob())}
+  const els=M.elements.map(e=>({...e}));((L.screens||{})[scr]?.rules||[]).forEach(r=>{if(!els.some(e=>e.kind===r.kind&&e.key===r.key))els.push({key:r.key,kind:r.kind,text:r.key,rect:null,count:1})});
+  const isSel=e=>esel&&esel.kind===e.kind&&esel.key===e.key;
+  box.innerHTML=hdrHtml()+`<div class="uiwrap"><div class="shot">${SIMG[scr]?`<img src="${SIMG[scr]}" alt="">`:'<div class="empty">Нет снимка этого экрана — снимите карту интерфейса</div>'}
+   ${els.map((e,i)=>e.rect?`<div class="hot ${e.kind}${isSel(e)?' sel':''}${ruleFor(scr,e.kind,e.key)?' has':''}" data-ei="${i}" style="left:${e.rect[0]*100}%;top:${e.rect[1]*100}%;width:${e.rect[2]*100}%;height:${e.rect[3]*100}%" title="${esc(e.text)}"></div>`:'').join('')}</div>
+   <div class="uiside"><div class="card"><label class="small">Экран<select id="scrsel">${Object.entries(d.screens).map(([k,t])=>`<option value="${k}" ${k===scr?'selected':''}>${esc(t)}${((L.screens||{})[k]?.rules||[]).length?' · правил: '+L.screens[k].rules.length:''}</option>`).join('')}</select></label>
+    <p class="small muted">Снимок: ${M.at?esc(M.at.slice(0,16).replace('T',' '))+(M.source==='bundled'?' · из комплекта игры':' · снял '+esc(M.by||'')):'нет'}. Рамки на снимке — кнопки (золотые) и тексты (бирюзовые); зелёная заливка — есть правило.</p></div>
+    <div class="card" id="eprops">${eprops()}</div>
+    <div class="card"><h3>Элементы экрана</h3><div class="elist">${els.map((e,i)=>`<div class="erow${isSel(e)?' sel':''}" data-ei="${i}"><span class="tag${e.kind==='button'?' g':''}">${e.kind==='button'?'кнопка':'текст'}</span> ${esc((e.text||e.key).slice(0,70))}${e.count>1?` <span class="muted">×${e.count}</span>`:''} <span class="small ok">${esc(rtag(e))}</span></div>`).join('')||'<p class="small muted">Нет данных</p>'}</div>
+     <div class="row" style="margin-top:8px"><select id="mkind" style="flex:0 0 110px"><option value="button">кнопка</option><option value="label">текст</option></select><input id="mkey" placeholder="Текст элемента, как в игре"><button id="madd">Добавить</button></div></div>
+    <div class="card"><h3>Карта интерфейса</h3><p class="small muted">Снимки и списки кнопок делает сама игра (версия 0.7.8+). Разрешите своему аккаунту (Uralia ID — в профиле игры), затем в игре: Настройки → «Снять карту интерфейса». Так карта обновляется после новых версий игры.</p>
+     <div class="row"><input id="mpid" placeholder="Uralia ID игрока"><button id="mpon">Разрешить снимать карту</button></div><p class="small">Картографы: ${MAP.mappers.map(m=>`${esc(m.nickname)} (${esc(m.uralia_id)}) <a href="#" data-mpoff="${esc(m.uralia_id)}">убрать</a>`).join(', ')||'нет'}</p></div>
+    ${verHtml()}</div></div>`;
+  bindCommon();
+  $('#scrsel').onchange=()=>{scr=$('#scrsel').value;esel=null;renderScreens()};
+  box.querySelectorAll('[data-ei]').forEach(x=>x.onclick=()=>{esel=els[+x.dataset.ei];renderScreens()});
+  if(esel){const upd=f=>{const r=ensureRule(scr,esel.kind,esel.key);f(r);mark()};
+   $('#eL').onchange=e=>{upd(r=>r.label=e.target.value.trim());renderScreens()};
+   if($('#eA'))$('#eA').onchange=e=>{upd(r=>r.action=e.target.value);renderScreens()};
+   $('#eH').onchange=e=>{upd(r=>r.hidden=e.target.checked);renderScreens()};
+   $('#eCo').onchange=e=>{upd(r=>r.color=e.target.checked?$('#eC').value:'');renderScreens()};
+   $('#eC').onchange=e=>{if($('#eCo').checked){upd(r=>r.color=e.target.value);renderScreens()}};
+   $('#eM').onchange=e=>{upd(r=>r.move=Math.max(-20,Math.min(20,+e.target.value||0)));renderScreens()};
+   $('#eX').onclick=()=>{const rs=rulesOf(scr);const i=rs.findIndex(r=>r.kind===esel.kind&&r.key===esel.key);if(i>=0)rs.splice(i,1);mark();renderScreens()}}
+  $('#madd').onclick=()=>{const k=$('#mkey').value.trim();if(!k)return;esel={key:k,kind:$('#mkind').value,text:k,count:1};renderScreens()};
+  $('#mpon').onclick=async()=>{await api('/game/layout/mappers','POST',{uralia_id:$('#mpid').value.trim(),on:true});MAP=null;toast('Готово: этот игрок может снимать карту');renderScreens()};
+  box.querySelectorAll('[data-mpoff]').forEach(a=>a.onclick=async ev=>{ev.preventDefault();await api('/game/layout/mappers','POST',{uralia_id:a.dataset.mpoff,on:false});MAP=null;renderScreens()})};
+ const render=()=>{if(view==='screens')return renderScreens();edUiView=view;box.innerHTML=`${hdrHtml()}<div class="uiwrap"><div class="phone"><div class="ptop">👤 Игрок · ур. 12 <span>🪙 12 400 💎 350</span></div><div class="pscreen">${view==='home'?homeMock():moreMock()}</div>${listHtml('nav','pnav')}</div>
   <div class="uiside"><div class="card" id="uprops">${props()}</div>
    ${view==='home'?`<div class="card"><h3>Блоки главного экрана</h3>${L.home.blocks.map((b,i)=>`<div class="row" style="margin:4px 0"><label class="chk" style="flex:1 1 0;min-width:0"><input type="checkbox" data-bv="${i}" ${b.hidden?'':'checked'}> ${esc(BL[b.id])}</label><button class="small" data-bu="${i}">↑</button><button class="small" data-bd="${i}">↓</button></div>`).join('')}</div>`
     :`<div class="card"><h3>Экран «Ещё»</h3><div class="row"><label class="small">Колонок<select id="mcols">${[2,3,4].map(n=>`<option ${n===L.more.columns?'selected':''}>${n}</option>`).join('')}</select></label><button id="gadd">+ Группа</button></div><p class="small muted">Нажмите на название группы, чтобы переименовать или переставить её.</p></div>`}
    <div class="card"><h3>Добавить кнопку</h3><div class="row"><select id="at">${d.targets.map(t=>`<option value="${t.id}">${esc(t.label)}${t.kind==='locked'?' (скоро)':''}</option>`).join('')}</select>
     <select id="ato">${Object.entries(lists()).map(([p,n])=>`<option value="${p}">${esc(n)}</option>`).join('')}</select><button id="aadd">Добавить</button></div></div>
-   <div class="card"><h3>Версии</h3><p class="small">Опубликована: <b>${d.version?('версия '+d.version):'стандартная раскладка игры'}</b></p>
-    <div class="row"><button id="urel">Отменить несохранённое</button><button id="urb" ${d.history.length?'':'disabled'}>Откатить публикацию</button><button class="danger" id="urs">Сбросить к стандартной</button></div>
-    <div class="small muted" style="margin-top:6px">${d.history.slice(-6).reverse().map(h=>`${esc(h.at.slice(0,16).replace('T',' '))} · ${esc(h.by)} · ${h.action==='ui_layout_reset'?'сброс':h.action==='ui_layout_rollback'?'откат':'публикация'}`).join('<br>')}</div></div></div></div>`;
+   ${verHtml()}</div></div>`;
   bind()};
  const move=(fp,fi,tp,ti)=>{const it=get(fp).splice(fi,1)[0];if(!okFor(tp,it.id)){get(fp).splice(fi,0,it);toast('Эту кнопку сюда поставить нельзя',true);return false}
   if(tp==='home.actions'&&it.ratio===undefined){it.ratio=1;it.color=it.color||'#1d4f8a'}get(tp).splice(Math.min(ti,get(tp).length),0,it);sel={p:tp,i:Math.min(ti,get(tp).length-1)};mark();return true};
- const bind=()=>{$('#vh').onclick=()=>{view='home';sel=null;render()};$('#vm').onclick=()=>{view='more';sel=null;render()};
+ const bindCommon=()=>{$('#vh').onclick=()=>{view='home';sel=null;render()};$('#vm').onclick=()=>{view='more';sel=null;render()};$('#vs').onclick=()=>{view='screens';sel=null;render()};
+  $('#upub').onclick=async()=>{cleanRules();const r=await api('/game/layout','POST',{layout:L});d.version=r.version;L=r.layout;dirty=false;toast('Опубликовано: версия '+r.version);ED.ui(box)};
+  $('#urel').onclick=()=>{if(!dirty||confirm('Отменить несохранённые изменения?'))ED.ui(box)};
+  $('#urb').onclick=async()=>{if(!confirm('Вернуть предыдущую опубликованную раскладку?'))return;const r=await api('/game/layout/rollback','POST',{});toast('Откачено, версия '+r.version);ED.ui(box)};
+  $('#urs').onclick=async()=>{if(!confirm('Сбросить меню к стандартному виду игры? (текущую можно будет вернуть откатом)'))return;await api('/game/layout/reset','POST',{});toast('Сброшено');ED.ui(box)}};
+ const bind=()=>{
   box.querySelectorAll('.pi').forEach(e=>e.onclick=ev=>{ev.stopPropagation();sel={p:e.dataset.p,i:+e.dataset.i};render()});
   box.querySelectorAll('.pgrp').forEach(e=>e.onclick=()=>{sel={g:+e.dataset.g};render()});
   if(window.Sortable)box.querySelectorAll('[data-list]').forEach(el=>{const p=el.dataset.list;const grp=p==='nav'?'nav':p==='home.actions'?'act':p.startsWith('home.')?'side':'more';
@@ -449,10 +501,7 @@ async ui(box){const d=await api('/game/layout');let L=JSON.parse(JSON.stringify(
   $('#aadd').onclick=()=>{const id=$('#at').value,p=$('#ato').value,t=T[id];if(!okFor(p,id))return toast('Эту кнопку сюда поставить нельзя',true);
    const it={id,label:t.label,icon:t.icon,hidden:false};if(p==='home.actions'){it.color='#1d4f8a';it.ratio=1}get(p).push(it);sel={p,i:get(p).length-1};
    if(p.startsWith('more'))view='more';else if(p.startsWith('home'))view='home';mark();render()};
-  $('#upub').onclick=async()=>{const r=await api('/game/layout','POST',{layout:L});d.version=r.version;L=r.layout;dirty=false;toast('Опубликовано: версия '+r.version);ED.ui(box)};
-  $('#urel').onclick=()=>{if(!dirty||confirm('Отменить несохранённые изменения?'))ED.ui(box)};
-  $('#urb').onclick=async()=>{if(!confirm('Вернуть предыдущую опубликованную раскладку?'))return;const r=await api('/game/layout/rollback','POST',{});toast('Откачено, версия '+r.version);ED.ui(box)};
-  $('#urs').onclick=async()=>{if(!confirm('Сбросить меню к стандартному виду игры? (текущую можно будет вернуть откатом)'))return;await api('/game/layout/reset','POST',{});toast('Сброшено');ED.ui(box)}};
+  bindCommon()};
  render()},
 
 async patches(box){const pre=patchPreset||{};patchPreset=null;const T=(await api('/game/patches/types')).types;

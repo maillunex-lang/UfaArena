@@ -81,7 +81,13 @@
 ```json
 {"type": "ui_layout", "merge": {"home": {"left": [{"id": "arena", "label": "Поединки", "icon": "arena"}]}}}
 {"type": "ui_layout", "layout": {"nav": […], "home": {…}, "more": {…}}}
+{"type": "ui_layout", "merge": {"screens": {"shop": {"rules": [
+  {"key": "Купить", "kind": "button", "label": "Взять", "color": "#7fe39a"},
+  {"key": "Назад", "kind": "button", "action": "home"},
+  {"key": "Акции", "kind": "label", "hidden": true}]}}}}
 ```
+`screens` — правила для любого экрана: подпись, скрытие, цвет, сдвиг и `action` (куда ведёт кнопка: id раздела,
+`none` выключает кнопку). Список экранов и снятых с игры элементов админка вставляет в задание.
 
 ### Настройки ИИ-жителей — `ai_settings`
 ```json

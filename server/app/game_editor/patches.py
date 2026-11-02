@@ -415,8 +415,12 @@ class LayoutT(T):
                     new["more"] = {**new["more"], **v}
                 elif k in ("nav",):
                     new[k] = v
+                elif k == "screens" and isinstance(v, dict):
+                    sc = dict(new.get("screens") or {})
+                    sc.update(v)  # a screen given here replaces that screen's rules; others stay
+                    new["screens"] = sc
                 else:
-                    raise PatchError(f"merge: неизвестная часть «{k}» (nav, home, more)")
+                    raise PatchError(f"merge: неизвестная часть «{k}» (nav, home, more, screens)")
         else:
             raise PatchError("нужно layout (вся раскладка) или merge (часть: nav / home / more)")
         LAYOUT.save(db, LAYOUT.validate(new), who, "ui_layout_patch")
@@ -440,7 +444,23 @@ class LayoutT(T):
 - home.left / home.right — боковые колонки (до 7 кнопок, без повторов между колонками); home.actions — большие кнопки (1–4).
 - more.columns — 2, 3 или 4; more.groups — до 10 групп {{"title": "до 32 символов", "items": [кнопки, до 12]}}.
 - Действия (id): {targets}.
-- Иконки: {", ".join(LAYOUT.ICONS)}."""
+- Иконки: {", ".join(LAYOUT.ICONS)}.
+- screens — правила для ЛЮБОГО экрана игры: {{"<экран>": {{"rules": [{{"key": "текст элемента как в игре (без цифр)",
+  "kind": "button|label", "label": "новая подпись до 40 (или пусто)", "hidden": false, "color": "#RRGGBB или пусто",
+  "action": "куда ведёт кнопка: id действия из списка выше, \"none\" — выключить, пусто — как в игре",
+  "move": -20…20 (сдвиг среди соседних)}}]}}}}. В merge экран из screens целиком заменяет правила этого экрана.
+- Экраны: {"; ".join(f"{k} — {v}" for k, v in LAYOUT.SCREEN_IDS.items())}.
+- Элементы экранов (kind:key), снятые с игры:
+{self._elements()}"""
+
+    def _elements(self) -> str:
+        idx = LAYOUT.map_index()
+        lines = []
+        for sid, m in idx.items():
+            els = [f"{'b' if e['kind'] == 'button' else 't'}:{e['key'][:40]}" for e in m["elements"]][:60]
+            if els:
+                lines.append(f"  {sid}: " + "; ".join(els))
+        return "\n".join(lines) or "  (карта интерфейса ещё не снята)"
 
 
 def _sections() -> dict:
