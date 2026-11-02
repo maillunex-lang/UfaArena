@@ -2,12 +2,17 @@ package ru.uralia.admin;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
+import android.provider.MediaStore;
+import android.util.Base64;
+import android.webkit.JavascriptInterface;
 import android.text.InputType;
 import android.view.View;
 import android.view.Window;
@@ -50,7 +55,7 @@ public class MainActivity extends Activity {
         s.setUseWideViewPort(true);
         s.setBuiltInZoomControls(true);
         s.setDisplayZoomControls(false);
-        s.setUserAgentString(s.getUserAgentString() + " UraliaAdmin/1.0");
+        s.setUserAgentString(s.getUserAgentString() + " UraliaAdmin/1.1");
         web.setWebViewClient(new WebViewClient() {
             @Override
             public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
@@ -84,12 +89,39 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
+        web.addJavascriptInterface(new Bridge(), "UraliaApp");  // only saveFile(): templates and patches to «Загрузки»
         setContentView(web);
         immersive();
         if (b != null) web.restoreState(b); else web.loadUrl(url());
     }
 
     String url() { return prefs.getString("url", DEFAULT_URL); }
+
+    /** The page calls UraliaApp.saveFile(name, base64, mime): WebView cannot download blob: links by itself. */
+    class Bridge {
+        @JavascriptInterface
+        public boolean saveFile(String name, String b64, String mime) {
+            try {
+                byte[] data = Base64.decode(b64, Base64.DEFAULT);
+                String safe = name.replaceAll("[^A-Za-z0-9._-]", "_");
+                if (Build.VERSION.SDK_INT >= 29) {
+                    ContentValues v = new ContentValues();
+                    v.put(MediaStore.Downloads.DISPLAY_NAME, safe);
+                    v.put(MediaStore.Downloads.MIME_TYPE, mime);
+                    Uri u = getContentResolver().insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
+                    if (u == null) return false;
+                    try (java.io.OutputStream o = getContentResolver().openOutputStream(u)) { o.write(data); }
+                } else {
+                    java.io.File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+                    if (dir == null) return false;
+                    try (java.io.FileOutputStream o = new java.io.FileOutputStream(new java.io.File(dir, safe))) { o.write(data); }
+                }
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
+        }
+    }
 
     void immersive() {
         if (Build.VERSION.SDK_INT >= 30) {

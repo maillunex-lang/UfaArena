@@ -638,25 +638,18 @@ def set_model_settings(path: str, scale: float, anims: dict) -> dict:
     return meta
 
 
-def stage(path: str, data: bytes) -> dict:
+def check(path: str, data: bytes) -> dict:
+    """Validates a file for a slot without saving it (also used by ZIP patches for a dry run)."""
     info_slot = slot_info(path)
     if info_slot is None:
-        raise ValueError("Неизвестный слот графики")
+        raise ValueError(f"Неизвестный слот графики: {path}")
     if info_slot.get("model"):
         if len(data) > MODEL_MAX_BYTES:
             raise ValueError("Файл модели больше 40 МБ")
         gi = glb_info(data)
         if gi is None:
             raise ValueError("Нужен файл GLB (binary glTF 2.0)")
-        dst = staging() / path
-        dst.parent.mkdir(parents=True, exist_ok=True)
-        dst.write_bytes(data)
-        idx = index()
-        idx["files"][path] = {"size": len(data), "format": "glb", "uploaded_at": utcnow().isoformat(), "published": False,
-                              "scale": 1.0, "anims": guess_anims(gi["animations"]), **gi}
-        idx["dirty_models"] = True
-        _save_index(idx)
-        return idx["files"][path]
+        return {"size": len(data), "format": "glb", "scale": 1.0, "anims": guess_anims(gi["animations"]), **gi}
     if len(data) > MAX_BYTES:
         raise ValueError("Файл больше 8 МБ")
     info = image_size(data)
@@ -667,12 +660,17 @@ def stage(path: str, data: bytes) -> dict:
         raise ValueError("WEBP не поддерживается: сохраните картинку как PNG или JPEG")
     if fmt == "jpg" and info_slot["alpha"]:
         raise ValueError("Этому элементу нужен прозрачный фон — загрузите PNG (JPEG не хранит прозрачность)")
+    return {"size": len(data), "width": w, "height": h, "format": fmt}
+
+
+def stage(path: str, data: bytes) -> dict:
+    meta = check(path, data)
     dst = staging() / path
     dst.parent.mkdir(parents=True, exist_ok=True)
     dst.write_bytes(data)
     idx = index()
-    idx["files"][path] = {"size": len(data), "width": w, "height": h, "format": fmt, "uploaded_at": utcnow().isoformat(), "published": False}
-    idx["dirty_art"] = True
+    idx["files"][path] = {**meta, "uploaded_at": utcnow().isoformat(), "published": False}
+    idx["dirty_models" if meta["format"] == "glb" else "dirty_art"] = True
     _save_index(idx)
     return idx["files"][path]
 

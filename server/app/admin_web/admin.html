@@ -71,7 +71,7 @@ display:flex;align-items:center;justify-content:center;overflow:hidden}.slot .pv
 <script>
 const $=s=>document.querySelector(s);const main=$('#main');
 const TABS=[['overview','Обзор'],['server','Сервер и APK'],['events','События'],['chat','Чат'],['players','Игроки и модерация'],['ai','ИИ-жители'],['editor','Редактор игры'],['art','Графика'],['shop','Магазин']];
-let tab='overview',artSec='heroes',aiSec='director',edSec='heroes',edUiView='home';
+let tab='overview',artSec='heroes',aiSec='director',edSec='heroes',edUiView='home',patchPreset=null;
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function toast(t,bad){const e=$('#toast');e.textContent=t;e.style.borderColor=bad?'#a8433a':'';e.style.display='block';clearTimeout(e._t);e._t=setTimeout(()=>e.style.display='none',3500)}
 function hdr(extra){return Object.assign({'X-Admin-Token':sessionStorage.getItem('tok')||'','X-Admin-Name':encodeURIComponent(sessionStorage.getItem('who')||'owner')},extra||{})}
@@ -81,6 +81,11 @@ async function api(p,m='GET',b,raw){const o={method:m,headers:hdr(raw?{'Content-
 async function copyText(t){try{if(navigator.clipboard&&window.isSecureContext){await navigator.clipboard.writeText(t);return true}}catch(e){}
  const ta=document.createElement('textarea');ta.value=t;ta.setAttribute('readonly','');ta.style.position='fixed';ta.style.top='-1000px';document.body.appendChild(ta);
  ta.select();ta.setSelectionRange(0,t.length);let ok=false;try{ok=document.execCommand('copy')}catch(e){}document.body.removeChild(ta);return ok}
+function saveBlob(blob,name){if(window.UraliaApp&&UraliaApp.saveFile){const fr=new FileReader();fr.onload=()=>{const ok=UraliaApp.saveFile(name,String(fr.result).split(',')[1],blob.type||'application/octet-stream');toast(ok?'Сохранено в «Загрузки»: '+name:'Не удалось сохранить файл',!ok)};fr.readAsDataURL(blob);return}
+ const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove()},1000)}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-patch]');if(!b)return;e.preventDefault();const s=b.dataset.patch,i=s.indexOf(':');
+ patchPreset={type:s.slice(0,i),id:s.slice(i+1)};tab='editor';edSec='patches';renderNav();show('editor').then(()=>window.scrollTo(0,0))});
+const PB=(t,id,txt)=>`<button class="small" data-patch="${t}:${esc(id)}" title="Изменить с помощью ИИ или ZIP-патча">🤖 ${txt||'ИИ / патч'}</button>`;
 function logout(){sessionStorage.removeItem('tok');try{localStorage.removeItem('tok')}catch(e){}location.reload()}
 $('#logout').onclick=logout;
 function login(){main.innerHTML=`<div class="card login"><h2>Вход</h2><p class="muted small">Токен — значение URALIA_ADMIN_TOKEN из файла .env на сервере (команда: grep URALIA_ADMIN_TOKEN /opt/uralia/.env).</p>
@@ -177,7 +182,7 @@ async art(){const d=await api('/web/art');
  $('#afind').onchange=()=>{sessionStorage.setItem('afind',$('#afind').value.trim());VIEWS.art()};
  $('#slots').innerHTML=`<div class="card"><div class="row"><p class="muted small" style="flex:1 1 300px">${esc(sec.hint)} Нажмите на текст промпта или на кнопку — он скопируется.</p><button class="copy" id="copyall">📋 Копировать все промпты раздела</button></div><div class="grid">${sec.slots.map((s,i)=>`<div class="slot" data-i="${i}">
   <b>${esc(s.title)}</b><span class="small">${s.model?'Формат: <span class="size">GLB (3D)</span>':`Размер: <span class="size">${esc(s.size)} px</span> · ${esc(s.formats)}`}${s.alpha?' <span class="tag g">прозрачный фон</span>':''} <span class="muted">· ${esc(s.path)}</span></span>
-  <span class="small muted">Где в игре: ${esc(s.where||'')}</span>
+  <span class="small muted">Где в игре: ${esc(s.where||'')}</span><span>${PB('art',s.path)}</span>
   <div class="pv">${s.staged?(s.model?`<model-viewer data-glb="${esc(s.path)}" camera-controls auto-rotate autoplay shadow-intensity="1" style="width:100%;height:150px;background:#081010"></model-viewer>`:`<img data-src="${esc(s.path)}" alt="">`):`<div class="empty">${s.model?'Встроенная модель':'Встроенная графика'}<br>(слот пуст)</div>`}</div>
   ${s.staged?(s.model?`<span class="small">${(s.staged.size/1048576).toFixed(1)} МБ · анимаций ${(s.staged.animations||[]).length} · скелет ${s.staged.skins?'есть':'нет'} ${s.staged.published?'<span class="tag">в игре</span>':'<span class="tag g">не опубликовано</span>'}</span>
    ${s.kind==='hero'?`<div class="small" data-mset="${i}">${Object.entries(d.anim_keys).map(([k,n])=>`<label class="small" style="display:block">${esc(n)}<select data-ak="${k}"><option value="">— встроенная —</option>${(s.staged.animations||[]).map(a=>`<option ${s.staged.anims?.[k]===a?'selected':''}>${esc(a)}</option>`).join('')}</select></label>`).join('')}
@@ -202,8 +207,8 @@ async art(){const d=await api('/web/art');
   toast(`Загружено ${r.width}×${r.height}`+((w&&(r.width/r.height).toFixed(2)!==(w/h).toFixed(2))?' — пропорции отличаются от рекомендованных':''));VIEWS.art()});
  document.querySelectorAll('[data-rm]').forEach(b=>b.onclick=async()=>{await api('/web/art/remove?path='+encodeURIComponent(sec.slots[+b.dataset.rm].path),'POST',{});VIEWS.art()})},
 
-async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a></div>`},
-async editor(){const SECS=[['heroes','Герои'],['balance','Баланс'],['campaign','Кампания'],['map','Редактор карты'],['ui','Интерфейс'],['history','История правок']];
+async shop(){main.innerHTML=`<div class="card"><h2>Магазин и монетизация</h2><p>Каталог, цены, скидки, заказы, возвраты, промокоды, аналитика и режим платежей — на отдельной странице (тот же токен).</p><a class="btn primary" href="/admin/shop">Открыть магазин</a> ${PB('shop_product','*','ИИ / патч товаров')}</div>`},
+async editor(){const SECS=[['heroes','Герои'],['balance','Баланс'],['campaign','Кампания'],['map','Редактор карты'],['ui','Интерфейс'],['patches','ZIP-патчи и ИИ'],['history','История правок']];
  main.innerHTML=`<nav style="border:0;padding:0 0 12px;background:none;flex-wrap:wrap">${SECS.map(([k,t])=>`<button class="${k===edSec?'on':''}" data-eds="${k}">${t}</button>`).join('')}</nav><div id="edbox"><p class="muted">Загрузка…</p></div>`;
  document.querySelectorAll('[data-eds]').forEach(b=>b.onclick=()=>{edSec=b.dataset.eds;VIEWS.editor()});
  await ED[edSec]($('#edbox'))},
@@ -216,7 +221,7 @@ const RAR_N={1:'Обычный',2:'Необычный',3:'Редкий',4:'Эп�
 const ED={
 async heroes(box,openCode){const [d,m]=await Promise.all([api('/game/heroes?enemies=1'),api('/game/meta')]);const FN={},CN={};m.factions.forEach(f=>FN[f.code]=f.name);m.classes.forEach(c=>CN[c.code]=c.name);
  box.innerHTML=`<div class="card"><h2>Герои</h2><p class="small muted">Правки хранятся отдельно от кода игры: перезапуск и обновления сервера их не сотрут; каждая правка — в «Истории правок» с откатом. «Отключить» убирает героя из призыва и каталога; у игроков, которые его уже получили, герой остаётся. Новые герои сразу доступны серверу; их вид в приложении — встроенная модель (поле «Модель»), портрет — в «Графике» → «Портреты героев».</p>
- <div class="row"><button class="primary" id="hnew">Создать героя</button><input id="hq" placeholder="Поиск по имени или коду"><label class="chk" style="flex:0 0 auto"><input type="checkbox" id="hen"> враги и боссы</label></div>
+ <div class="row"><button class="primary" id="hnew">Создать героя</button>${PB('hero','*','ИИ / патч (все герои)')}<input id="hq" placeholder="Поиск по имени или коду"><label class="chk" style="flex:0 0 auto"><input type="checkbox" id="hen"> враги и боссы</label></div>
  <table style="margin-top:8px"><tr><th>Герой</th><th>Редкость / класс / фракция</th><th>Здоровье · атака · защита · скорость</th><th>У игроков</th><th></th></tr><tbody id="hrows"></tbody></table></div><div id="hedit"></div>`;
  const draw=()=>{const q=$('#hq').value.toLowerCase(),en=$('#hen').checked;$('#hrows').innerHTML=d.items.filter(h=>(en||!h.is_enemy)&&(!q||(h.name+' '+h.code).toLowerCase().includes(q))).map(h=>`<tr><td><a href="#" data-he="${h.code}"><b>${esc(h.name)}</b></a> <span class="small muted">${h.code}</span> ${h.custom?'<span class="tag g">свой</span>':''}${h.edited?'<span class="tag">изменён</span>':''}${h.disabled?'<span class="tag r">отключён</span>':''}${h.is_enemy?'<span class="tag r">враг</span>':''}</td>
   <td class="small">${RAR_N[h.rarity]||h.rarity} · ${esc(CN[h.class_code]||h.class_code)} · ${esc(FN[h.faction_code]||h.faction_code)}</td><td class="small">${fmt(h.base_hp)} · ${h.base_atk} · ${h.base_def} · ${h.base_spd}</td><td class="small">${h.owners}</td>
@@ -249,7 +254,7 @@ heroForm(el,m,h){const isNew=!h;h=h||{code:'',name:'',title:'',faction_code:m.fa
  <label class="small" style="display:block;margin-top:8px">Внешность (для промптов портрета)<input id="x_appearance" value="${esc(ex.appearance||'')}"></label>
  <details style="margin-top:8px"><summary class="small">Набор умений (для опытных, JSON) — базовая атака, умения, ульта, пассивка</summary><textarea id="f_kit" style="min-height:200px;font-family:monospace;font-size:12px">${esc(h.kit?JSON.stringify(h.kit,null,1):'')}</textarea>
  <div class="row"><button class="small" id="kitsample">Вставить образец</button></div><p class="small muted">Пусто — набор собирается из простого умения выше. Урон одного умения (множитель × число ударов) не больше 15.</p></details>
- <div class="row" style="margin-top:10px"><button class="primary" id="hsave">${isNew?'Создать':'Сохранить'}</button>${!isNew&&(h.custom||h.edited)?`<button class="danger" id="hreset">${h.custom?'Удалить героя':'Вернуть как в игре'}</button>`:''}<button id="hbal">Проверить баланс</button></div></div>`;
+ <div class="row" style="margin-top:10px"><button class="primary" id="hsave">${isNew?'Создать':'Сохранить'}</button>${isNew?'':PB('hero',h.code)}${!isNew&&(h.custom||h.edited)?`<button class="danger" id="hreset">${h.custom?'Удалить героя':'Вернуть как в игре'}</button>`:''}<button id="hbal">Проверить баланс</button></div></div>`;
  $('#kitsample').onclick=()=>{$('#f_kit').value=JSON.stringify(m.kit_sample,null,1)};
  $('#hsave').onclick=async()=>{const v=id=>$('#'+id).value;let kit=null;if(v('f_kit').trim()){try{kit=JSON.parse(v('f_kit'))}catch(e){return toast('Набор умений: ошибка в JSON',true)}}
   const f={name:v('f_name'),title:v('f_title'),faction_code:v('f_faction_code'),class_code:v('f_class_code'),rarity:+v('f_rarity'),model:v('f_model'),base_hp:+v('f_base_hp'),base_atk:+v('f_base_atk'),base_def:+v('f_base_def'),base_spd:+v('f_base_spd'),
@@ -275,8 +280,8 @@ async balance(box){box.innerHTML=`<div class="card"><h2>Баланс герое�
 
 async campaign(box,openNode){const d=await api('/game/campaign');const HN={};d.heroes.forEach(h=>HN[h.code]=h.name);
  box.innerHTML=`<div class="card"><h2>Кампания</h2><p class="small muted">Главы и этапы в порядке прохождения. Правки хранятся слоем поверх игры (с откатом в «Истории правок»). Пройденное игроками не теряется: скрытый этап просто выпадает из цепочки; этап, вставленный раньше текущего места игрока, станет для него следующим. Позиции точек на карте — в «Редакторе карты».</p>
- <div class="row"><button class="primary" id="cnewr">Новая глава</button><button class="primary" id="cnewn">Новый этап</button></div></div>
- ${d.regions.map(r=>{const ns=d.nodes.filter(n=>n.region_code===r.code).sort((a,b)=>a.order-b.order);return `<div class="card"><div class="row"><h2 style="flex:1 1 300px">${r.order}. ${esc(r.name)} <span class="small muted">${r.code}</span> ${r.custom?'<span class="tag g">своя</span>':''}${r.edited?'<span class="tag">изменена</span>':''}${r.hidden?'<span class="tag r">скрыта</span>':''}</h2>
+ <div class="row"><button class="primary" id="cnewr">Новая глава</button><button class="primary" id="cnewn">Новый этап</button>${PB('node','*','ИИ / патч (все этапы)')}${PB('region','*','ИИ / патч (главы)')}</div></div>
+ ${d.regions.map(r=>{const ns=d.nodes.filter(n=>n.region_code===r.code).sort((a,b)=>a.order-b.order);return `<div class="card"><div class="row"><h2 style="flex:1 1 300px">${r.order}. ${esc(r.name)} <span class="small muted">${r.code}</span> ${r.custom?'<span class="tag g">своя</span>':''}${r.edited?'<span class="tag">изменена</span>':''}${r.hidden?'<span class="tag r">скрыта</span>':''}</h2>${PB('node','region:'+r.code,'ИИ / патч главы')}
   <button class="small" data-redit="${r.code}">Изменить главу</button><button class="small" data-rhide="${r.code}" data-on="${r.hidden?0:1}">${r.hidden?'Показать':'Скрыть'}</button></div>
   <p class="small muted">${esc(r.real_place)} — ${esc((r.description||'').slice(0,240))}</p>
   <table>${ns.map((n,i)=>`<tr><td class="small">${n.order}</td><td><a href="#" data-nedit="${n.code}"><b>${esc(n.name)}</b></a> <span class="small muted">${n.code}</span> ${n.is_boss?'<span class="tag r">босс</span>':''}${n.custom?'<span class="tag g">свой</span>':''}${n.edited?'<span class="tag">изменён</span>':''}${n.hidden?'<span class="tag r">скрыт</span>':''}</td>
@@ -331,7 +336,7 @@ nodeForm(el,d,n){const isNew=!n;n=n||{code:'',region_code:d.regions[d.regions.le
 
 async map(box,regionCode){const d=await api('/game/campaign/map');let mode=regionCode?'region':'world';let rc=regionCode||d.regions[0]?.code;
  const render=async()=>{box.innerHTML=`<div class="card"><h2>Редактор карты</h2><div class="row"><button class="${mode==='world'?'on':''}" id="mw">Карта мира</button><button class="${mode==='region'?'on':''}" id="mr">Карта региона</button>
-  ${mode==='region'?`<select id="mrs" style="flex:0 1 260px">${d.regions.map(r=>`<option value="${r.code}" ${r.code===rc?'selected':''}>${esc(r.name)}</option>`).join('')}</select>`:''}<button class="primary" id="msave">Сохранить расположение</button></div>
+  ${mode==='region'?`<select id="mrs" style="flex:0 1 260px">${d.regions.map(r=>`<option value="${r.code}" ${r.code===rc?'selected':''}>${esc(r.name)}</option>`).join('')}</select>`:''}${PB('map','*')}<button class="primary" id="msave">Сохранить расположение</button></div>
   <p class="small muted">${mode==='world'?'Перетащите регионы мышью или пальцем. Линии — дороги каравана. Положение на карте мира видно в приложении после следующей сборки APK.':'Перетащите точки этапов: они прилипают к сетке, которую понимает игра (видно уже в нынешнем приложении после публикации — сохранение применяется сразу). Путь идёт по порядку этапов снизу вверх; порядок меняется в разделе «Кампания».'}</p>
   <div id="mcanvas" style="background:#081314;border:1px solid var(--line);border-radius:12px;touch-action:none;user-select:none"></div><p class="small muted" id="mhint"></p></div>`;
   $('#mw').onclick=()=>{mode='world';render()};$('#mr').onclick=()=>{mode='region';render()};if($('#mrs'))$('#mrs').onchange=()=>{rc=$('#mrs').value;render()};
@@ -404,7 +409,7 @@ async ui(box){const d=await api('/game/layout');let L=JSON.parse(JSON.stringify(
    <button class="danger" id="udel" ${core?'disabled':''}>Убрать</button></div>`};
  const render=()=>{edUiView=view;box.innerHTML=`<div class="card"><h2>Интерфейс игры</h2><p class="small muted">Визуальный редактор главного меню: нижняя панель, главный экран и «Ещё». Кнопки открывают только существующие разделы; «Главная» и «Ещё» всегда остаются на панели. Игроки получают раскладку при входе в игру (и на главном экране раз в 5 минут) — без обновления APK, начиная с версии игры 0.7.7.</p>
   <div class="row"><button class="${view==='home'?'on':''}" id="vh">Главный экран</button><button class="${view==='more'?'on':''}" id="vm">Экран «Ещё»</button>
-  <span id="uidirty" class="tag g" style="flex:0 0 auto;${dirty?'':'display:none'}">есть неопубликованные изменения</span><span style="flex:1"></span><button class="primary" id="upub">Опубликовать</button></div></div>
+  <span id="uidirty" class="tag g" style="flex:0 0 auto;${dirty?'':'display:none'}">есть неопубликованные изменения</span><span style="flex:1"></span>${PB('ui_layout','*')}<button class="primary" id="upub">Опубликовать</button></div></div>
   <div class="uiwrap"><div class="phone"><div class="ptop">👤 Игрок · ур. 12 <span>🪙 12 400 💎 350</span></div><div class="pscreen">${view==='home'?homeMock():moreMock()}</div>${listHtml('nav','pnav')}</div>
   <div class="uiside"><div class="card" id="uprops">${props()}</div>
    ${view==='home'?`<div class="card"><h3>Блоки главного экрана</h3>${L.home.blocks.map((b,i)=>`<div class="row" style="margin:4px 0"><label class="chk" style="flex:1 1 0;min-width:0"><input type="checkbox" data-bv="${i}" ${b.hidden?'':'checked'}> ${esc(BL[b.id])}</label><button class="small" data-bu="${i}">↑</button><button class="small" data-bd="${i}">↓</button></div>`).join('')}</div>`
@@ -450,6 +455,43 @@ async ui(box){const d=await api('/game/layout');let L=JSON.parse(JSON.stringify(
   $('#urs').onclick=async()=>{if(!confirm('Сбросить меню к стандартному виду игры? (текущую можно будет вернуть откатом)'))return;await api('/game/layout/reset','POST',{});toast('Сброшено');ED.ui(box)}};
  render()},
 
+async patches(box){const pre=patchPreset||{};patchPreset=null;const T=(await api('/game/patches/types')).types;
+ let type=pre.type||T[0].type,id=pre.id||'*',payload=null;
+ box.innerHTML=`<div class="card"><h2>ZIP-патчи и задания для ИИ</h2><p class="small muted">Любую настройку можно менять вручную или патчем. Патч — ZIP-архив с <b>patch.json</b> (картинки и 3D-модели — в папке files/) или просто текст JSON. Сделать патч можно самому или поручить ИИ (Gemini, Claude, ChatGPT, Grok): выберите настройку, опишите своими словами, что хотите, скопируйте задание (или скачайте шаблон ZIP и приложите его к чату) — ИИ вернёт патч. Админка проверит каждое поле и покажет, что изменится. Применяется всё или ничего; последний патч можно откатить.</p></div>
+ <div class="card"><h3>1. Задание для ИИ</h3><div class="row"><label class="small">Настройка<select id="pt">${T.map(t=>`<option value="${t.type}" ${t.type===type?'selected':''}>${esc(t.title)}</option>`).join('')}</select></label><label class="small">Объект<select id="pid"></select></label></div>
+  <label class="small" style="display:block;margin-top:8px">Что вы хотите (своими словами)</label><textarea id="pwish" placeholder="Например: усиль героя на 10%, но сделай медленнее; перенеси Арену в левую колонку и переименуй в «Поединки»; придумай новую главу про озеро Аслыкуль…"></textarea>
+  <div class="row" style="margin-top:8px"><button class="copy" id="pcopy">📋 Скопировать задание для ИИ</button><button id="pzip">⬇ Шаблон ZIP</button><button id="pshow">Показать задание</button></div>
+  <pre id="pprompt" class="prompt" style="display:none;max-height:320px"></pre></div>
+ <div class="card"><h3>2. Загрузить патч</h3><input type="file" id="pfile" accept=".zip,.json,application/zip,application/json">
+  <label class="small" style="display:block;margin-top:8px">…или вставьте JSON из ответа ИИ</label><textarea id="ptext" placeholder='{"format": "uralia-patch/1", "changes": [ … ]}'></textarea>
+  <div class="row" style="margin-top:8px"><button class="primary" id="pcheck">Проверить патч</button></div><div id="preport"></div></div>
+ <div class="card"><h3>3. История патчей</h3><div id="phist" class="small muted">Загрузка…</div></div>`;
+ const loadT=async()=>{const r=await api('/game/patches/targets?type='+type);$('#pid').innerHTML=r.targets.map(t=>`<option value="${esc(t.id)}" ${t.id===id?'selected':''}>${esc(t.name)}</option>`).join('');if(![...$('#pid').options].some(o=>o.value===id))id=$('#pid').value};
+ await loadT();
+ $('#pt').onchange=async()=>{type=$('#pt').value;id='*';await loadT();$('#pprompt').style.display='none'};
+ $('#pid').onchange=()=>{id=$('#pid').value;$('#pprompt').style.display='none'};
+ const prompt=async()=>(await api(`/game/patches/task?type=${type}&id=${encodeURIComponent(id)}`)).prompt.replace('{{WISH}}',$('#pwish').value.trim()||'(опишите здесь, что вы хотите изменить)');
+ $('#pcopy').onclick=async()=>{const t=await prompt();if(await copyText(t))toast('Задание скопировано — вставьте его в чат ИИ');else{$('#pprompt').textContent=t;$('#pprompt').style.display='block';toast('Скопируйте текст задания вручную',true)}};
+ $('#pshow').onclick=async()=>{const e=$('#pprompt');e.textContent=await prompt();e.style.display='block'};
+ $('#pprompt').onclick=async()=>{if(await copyText($('#pprompt').textContent))toast('Задание скопировано')};
+ $('#pzip').onclick=async()=>{const r=await fetch(`/admin/api/game/patches/template?type=${type}&id=${encodeURIComponent(id)}&wish=${encodeURIComponent($('#pwish').value.slice(0,3000))}`,{headers:hdr()});if(!r.ok)return toast('Не удалось собрать шаблон',true);saveBlob(await r.blob(),`uralia_patch_template_${type}.zip`)};
+ const val=v=>{const s=typeof v==='string'?v:JSON.stringify(v);return esc(s===undefined?'—':s.length>90?s.slice(0,90)+'…':s)};
+ const show=r=>{const art=r.changes.some(c=>c.type==='art');$('#preport').innerHTML=`<div class="card" style="margin-top:10px;background:var(--panel2)"><b>${esc(r.title||'Патч без названия')}</b> ${r.author?`<span class="tag">${esc(r.author)}</span>`:''}<p class="small">${esc(r.description||'')}</p>
+  <p class="${r.ok?'ok':'bad'}">${r.ok?`✓ Проверка пройдена: ${r.changes.length} изм. Ничего ещё не записано.`:'✗ Есть ошибки — патч нельзя применить. Исправьте (или попросите ИИ исправить по тексту ошибки).'}</p>
+  <table>${r.changes.map(c=>`<tr><td>${c.n}</td><td>${esc(c.title)}<br><span class="small muted">${esc(c.object||'')}</span> ${c.new?'<span class="tag g">новый</span>':''}</td><td>${c.ok?'<span class="ok">✓</span>':'<span class="bad">✗ '+esc(c.error)+'</span>'}${c.ok?(c.diff.length?`<div class="small">${c.diff.map(x=>`<div><b>${esc(x.field)}</b>: <span class="muted">${val(x.before)}</span> → ${val(x.after)}</div>`).join('')}</div>`:'<div class="small muted">без изменений</div>'):''}</td></tr>`).join('')}</table>
+  ${r.unused_files&&r.unused_files.length?`<p class="small muted">Файлы в архиве, которые патч не использует: ${r.unused_files.map(esc).join(', ')}</p>`:''}
+  ${r.ok?`${art?'<label class="chk"><input type="checkbox" id="ppub"> Сразу опубликовать графику (иначе — в «Графика» → «Опубликовать»)</label>':''}<div class="row"><button class="primary" id="papply">Применить патч</button></div>`:''}</div>`;
+  if($('#papply'))$('#papply').onclick=async()=>{if(!confirm('Применить патч? Все изменения запишутся сразу, последний патч можно откатить.'))return;
+   const res=await api('/game/patches/apply?publish_art='+($('#ppub')&&$('#ppub').checked?1:0),'POST',payload,true);toast(`Патч применён: ${res.applied} изм.`);$('#preport').innerHTML='';$('#ptext').value='';$('#pfile').value='';hist()}};
+ $('#pcheck').onclick=async()=>{const f=$('#pfile').files[0],t=$('#ptext').value.trim();payload=f?new Uint8Array(await f.arrayBuffer()):t?new TextEncoder().encode(t):null;
+  if(!payload)return toast('Выберите файл или вставьте JSON',true);$('#preport').innerHTML='<p class="muted">Проверяю…</p>';try{show(await api('/game/patches/check','POST',payload,true))}catch(e){$('#preport').innerHTML=`<p class="bad">${esc(e.message)}</p>`}};
+ const hist=async()=>{const d=await api('/game/patches');const last=d.items.find(x=>x.status==='applied');
+  $('#phist').innerHTML=d.items.length?`<table>${d.items.map(x=>`<tr><td class="small">${esc(x.at.slice(0,16).replace('T',' '))}<br>${esc(x.by)}</td><td><b>${esc(x.title||'без названия')}</b> ${x.author?`<span class="tag">${esc(x.author)}</span>`:''}<br><span class="small muted">${x.count} изм. · ${x.types.map(esc).join(', ')}</span></td>
+   <td>${x.status==='applied'?'<span class="tag g">применён</span>':'<span class="tag r">откачен</span>'}</td><td><button class="small" data-pdl="${x.id}">⬇</button> ${last&&last.id===x.id?`<button class="small danger" data-prb="${x.id}">Откатить</button>`:''}</td></tr>`).join('')}</table>`:'Патчей ещё не было.';
+  document.querySelectorAll('[data-prb]').forEach(b=>b.onclick=async()=>{if(!confirm('Откатить этот патч? Вернётся всё, что он изменил.'))return;await api('/game/patches/rollback','POST',{id:b.dataset.prb});toast('Патч откачен');hist()});
+  document.querySelectorAll('[data-pdl]').forEach(b=>b.onclick=async()=>{const r=await fetch(`/admin/api/game/patches/${b.dataset.pdl}/file`,{headers:hdr()});if(!r.ok)return toast('Файл не найден',true);saveBlob(await r.blob(),`uralia_patch_${b.dataset.pdl}.${r.headers.get('content-type').includes('zip')?'zip':'json'}`)})};
+ hist()},
+
 async history(box){const d=await api('/game/history');
  box.innerHTML=`<div class="card"><h2>История правок игры</h2><p class="small muted">Каждая правка героев, кампании и карты. «Откатить последнюю» возвращает состояние до неё (игровой прогресс игроков не меняется).</p><div class="row"><button class="danger" id="grb">Откатить последнюю правку</button></div>
  <table style="margin-top:8px">${d.items.map(i=>`<tr><td class="small">${time(i.at)}</td><td class="small">${esc(i.by)}</td><td class="small">${esc(i.action)}</td></tr>`).join('')||'<tr><td class="muted">Правок пока нет</td></tr>'}</table></div>`;
@@ -492,7 +534,7 @@ async director(box){const d=await api('/ai/director');const st=d.status||{},h=st
  <p class="small muted">${esc(d.modes[s.mode])}. «Тестовый» — Director только планирует и пишет журнал, мир не меняется. «Выключен» — работает прежний движок ИИ.</p></div>
  <div class="card"><h2>Настройки</h2><div class="grid">${Object.keys(AI_SET).filter(k=>k in s).map(k=>`<label class="small">${AI_SET[k][0]}<input type="number" data-set="${k}" value="${s[k]}" min="${d.limits[k]?.[0]??''}" max="${d.limits[k]?.[1]??''}">
   <span class="muted">${esc(AI_SET[k][1])}${s[k]!==d.defaults[k]?` · по умолчанию ${d.defaults[k]}`:''}</span></label>`).join('')}</div>
- <div class="row" style="margin-top:10px"><button class="primary" id="aisave">Сохранить</button><button id="airb">Откатить к предыдущим</button><button id="aidef">Вернуть значения по умолчанию</button></div>
+ <div class="row" style="margin-top:10px"><button class="primary" id="aisave">Сохранить</button><button id="airb">Откатить к предыдущим</button><button id="aidef">Вернуть значения по умолчанию</button>${PB('ai_settings','director')}</div>
  <p class="small muted">Каждое изменение проверяется, записывается в журнал администраторов, предыдущая версия сохраняется для отката.</p></div>`;
  box.querySelectorAll('[data-mode]').forEach(b=>b.onclick=async()=>{if(b.dataset.mode===s.mode)return;if(!confirm('Переключить Director в режим «'+b.textContent+'»?'))return;
   await api('/ai/director','POST',{mode:b.dataset.mode});toast('Режим изменён');AI.director(box)});
@@ -503,7 +545,7 @@ async director(box){const d=await api('/ai/director');const st=d.status||{},h=st
   if(!confirm('Вернуть значения по умолчанию? Режим не меняется.'))return;await api('/ai/director','POST',ch);toast('Сохранено');AI.director(box)}},
 
 async switches(box){const ai=await api('/social/ai-switches');
- box.innerHTML=`<div class="card"><h2>ИИ-жители: переключатели для всего сервера</h2><div id="aisw"></div><p class="muted small">Глава гильдии и каждый игрок могут дополнительно ограничить ИИ у себя. ИИ всегда помечены как ИИ.</p></div>`;
+ box.innerHTML=`<div class="card"><h2>ИИ-жители: переключатели для всего сервера</h2>${PB('ai_switches','*')}<div id="aisw"></div><p class="muted small">Глава гильдии и каждый игрок могут дополнительно ограничить ИИ у себя. ИИ всегда помечены как ИИ.</p></div>`;
  const b=$('#aisw');b.innerHTML=Object.entries(ai.names).map(([k,n])=>`<label class="chk"><input type="checkbox" data-k="${k}" ${ai.switches[k]?'checked':''}> ${esc(n)}</label>`).join('');
  b.querySelectorAll('input').forEach(c=>c.onchange=async()=>{await api('/social/ai-switches','POST',{[c.dataset.k]:c.checked});toast('Сохранено')})},
 
@@ -592,7 +634,7 @@ async section(box,name,title,note,extra){const d=await api('/ai/settings/'+name)
   if(f.kind==='choice')return `<label class="small">${esc(d.names[k]||k)}<select data-sk="${k}">${f.args.map(o=>`<option value="${o}" ${o===v?'selected':''}>${esc((AI_CHOICE[o]||o))}</option>`).join('')}</select></label>`;
   return `<label class="small">${esc(d.names[k]||k)}<input data-sk="${k}" ${f.kind==='int'?`type="number" min="${f.args[0]}" max="${f.args[1]}"`:''} value="${esc(v)}">${v!==d.defaults[k]?`<span class="muted">по умолчанию ${esc(d.defaults[k])}</span>`:''}</label>`};
  box.innerHTML=`<div class="card"><h2>${title}</h2><p class="small muted">${note}</p>${extra?extra(d):''}<div class="grid">${Object.keys(d.fields).map(inp).join('')}</div>
- <div class="row" style="margin-top:10px"><button class="primary" id="ssave">Сохранить</button><button id="srb">Откатить к предыдущим</button></div></div><div id="sx"></div>`;
+ <div class="row" style="margin-top:10px"><button class="primary" id="ssave">Сохранить</button><button id="srb">Откатить к предыдущим</button>${PB('ai_settings',name)}</div></div><div id="sx"></div>`;
  box.querySelector('#ssave').onclick=async()=>{const ch={};box.querySelectorAll('[data-sk]').forEach(i=>{const k=i.dataset.sk,f=d.fields[k];const v=f.kind==='bool'?i.checked:f.kind==='int'?+i.value:i.value;if(v!==S[k])ch[k]=v});
   if(!Object.keys(ch).length)return toast('Изменений нет');await api('/ai/settings/'+name,'POST',ch);toast('Сохранено');VIEWS.ai()};
  box.querySelector('#srb').onclick=async()=>{if(!confirm('Вернуть предыдущую версию настроек?'))return;await api('/ai/settings/'+name+'/rollback','POST',{});toast('Откат выполнен');VIEWS.ai()};
