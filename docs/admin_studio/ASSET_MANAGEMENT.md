@@ -17,9 +17,30 @@
 
 ```mermaid
 classDiagram
-  class Asset { id; kind: image|model|audio|font|video; slot_path?; title; tags[]; created_by }
-  class AssetVersion { asset_id; version; sha256; size; format; meta(json: w,h,alpha,anims,duration); status: uploaded|checked|rejected; created_at }
-  class AssetUsage { asset_id; ref_type: hero|ui_node|slot|node|region; ref_id; config_version_id }
+  class Asset {
+    id
+    kind
+    slot_path
+    title
+    tags
+    created_by
+  }
+  class AssetVersion {
+    asset_id
+    version
+    sha256
+    size
+    format
+    meta
+    status
+    created_at
+  }
+  class AssetUsage {
+    asset_id
+    ref_type
+    ref_id
+    config_version_id
+  }
   Asset "1" --> "*" AssetVersion
   Asset "1" --> "*" AssetUsage
 ```

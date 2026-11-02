@@ -22,13 +22,11 @@ Playwright: кнопки во всех редакторах, задание, п�
 **План:** аудит репозитория (клиент Godot, сервер FastAPI, БД, контент-пакеты, админка, деплой, тесты), затем 18
 документов в `docs/admin_studio/` + диаграммы (Mermaid). Код, БД, API, сцены не меняются. После — остановка до
 подтверждения владельца.
-**Итог (частично, остановлено заказчиком):** готовы 9 из 19 файлов `docs/admin_studio/`: README, AUDIT_CURRENT_STATE,
-ADMIN_STUDIO_ARCHITECTURE, SYSTEM_COMPONENTS, TECHNOLOGY_SELECTION, GAME_CONTROL_MATRIX, CONFIGURATION_SYSTEM,
-UI_EDITOR_ARCHITECTURE, PREVIEW_SYSTEM. Не написаны: ASSET_MANAGEMENT, DRAFT_PUBLISHING_WORKFLOW, VERSION_MANAGEMENT,
-GODOT_INTEGRATION, SECURITY_MODEL, DATABASE_DESIGN, API_CONTRACTS, ENVIRONMENTS_AND_RELEASES,
-PERFORMANCE_AND_SCALABILITY, IMPLEMENTATION_ROADMAP, OPEN_QUESTIONS_AND_DECISIONS, REPORT. Новый запрос заказчика
-(в ожидании): ZIP-патчи для каждой настройки (герои… кнопки, экраны) + шаблон/промпт для внешних ИИ
-(Gemini, Claude, ChatGPT, Grok), загрузка патча через сайт или APK админки.
+**Итог:** фаза 01 завершена — 21 файл в `docs/admin_studio/` (аудит, архитектура, компоненты, технология, матрица
+управления, реестр конфигураций, UI-редактор, предпросмотр, медиатека, публикация, версии, Godot, безопасность, БД,
+API, окружения, производительность, план, 18 вопросов на согласование, итоговый отчёт из 17 пунктов). 14 диаграмм
+Mermaid проверены парсером mermaid 10.9.1. Код/БД/API в рамках фазы не менялись. ZIP-патчи (сделаны отдельно по
+просьбе заказчика) учтены как реализованная часть. **Ждём решения владельца по OPEN_QUESTIONS; к фазе 02 не переходим.**
 
 ---
 

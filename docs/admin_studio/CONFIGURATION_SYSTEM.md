@@ -11,38 +11,49 @@
 ```mermaid
 classDiagram
   class ConfigModule {
-    id: "economy" | "ui" | "ai.speech" ...
+    id
     owner_component
-    scope: server | client | both
-    min_client / max_client
+    scope
+    min_client
+    max_client
   }
   class ConfigDefinition {
-    id: "economy.starting_wallet"
+    id
     module_id
-    title, category A|B|C|D
-    schema_id, schema_version
+    title
+    category
+    schema_id
+    schema_version
     default_document
-    depends_on[]
+    depends_on
   }
   class ConfigVersion {
-    config_id, version (1..n)
+    config_id
+    version
     status
-    document (JSON)
+    document
     sha256
-    author, created_at
+    author
+    created_at
     base_version
     schema_version
   }
   class Draft {
-    id, config_id, base_version
-    document | patch
-    etag, author, updated_at
+    id
+    config_id
+    base_version
+    document
+    etag
+    author
+    updated_at
     branch_name
   }
   class Activation {
-    config_id, environment
+    config_id
+    environment
     version
-    activated_by, at
+    activated_by
+    activated_at
   }
   ConfigModule "1" --> "*" ConfigDefinition
   ConfigDefinition "1" --> "*" ConfigVersion
