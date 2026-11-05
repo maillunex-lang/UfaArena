@@ -7,8 +7,11 @@ signal finished(profile: Dictionary)
 
 var _nick: LineEdit
 var _adult: Button
+var _male: Button
+var _female: Button
 var _err: Label
 var _busy := false
+var _gender := ""  # "m" | "f"
 
 
 static func open(parent: Node, first_time := true) -> Control:
@@ -32,8 +35,8 @@ func _ready() -> void:
 	p.anchor_bottom = 0.5
 	p.offset_left = -460
 	p.offset_right = 460
-	p.offset_top = -380
-	p.offset_bottom = 380
+	p.offset_top = -460
+	p.offset_bottom = 460
 	p.grow_horizontal = Control.GROW_DIRECTION_BOTH
 	p.grow_vertical = Control.GROW_DIRECTION_BOTH
 	var v := VBoxContainer.new()
@@ -58,11 +61,38 @@ func _ready() -> void:
 	_adult.button_pressed = str(Game.profile.get("age_group", "")) == "adult"
 	_adult.text = ("☑  " if _adult.button_pressed else "☐  ") + "Мне исполнилось 18 лет"
 	v.add_child(_adult)
-	var note := UI.label("В Уралии живут ИИ-персонажи (они помечены значком «ИИ»). Игрокам 18+ они могут писать в личку, "
-		+ "флиртовать и шутить по-взрослому — это можно выключить в настройках. Игрокам младше 18 ИИ в личку не пишут.",
+	var note := UI.label("В Уралии живут ИИ-персонажи (они помечены значком «ИИ»). Игрокам 18+ они могут писать в личку и флиртовать. Это можно выключить в настройках. Игрокам младше 18 ИИ в личку не пишут.",
 		UI.FS.caption, UI.MUTED)
 	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(note)
+	v.add_child(UI.label("Кто вы? От этого зависит, кто будет флиртовать с вами в личке (только 18+).", UI.FS.body, UI.TEXT))
+	var grow := HBoxContainer.new()
+	grow.add_theme_constant_override("separation", 16)
+	_male = UI.button("Я мужчина", "glass", 0, 88)
+	_female = UI.button("Я женщина", "glass", 0, 88)
+	_male.toggle_mode = true
+	_female.toggle_mode = true
+	_male.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_female.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var cur := str(Game.profile.get("gender", ""))
+	_gender = cur
+	_male.button_pressed = cur == "m"
+	_female.button_pressed = cur == "f"
+	_male.toggled.connect(func(on: bool):
+		if on:
+			_female.button_pressed = false
+			_gender = "m"
+		elif not _female.button_pressed:
+			_gender = "")
+	_female.toggled.connect(func(on: bool):
+		if on:
+			_male.button_pressed = false
+			_gender = "f"
+		elif not _male.button_pressed:
+			_gender = "")
+	grow.add_child(_male)
+	grow.add_child(_female)
+	v.add_child(grow)
 	_err = UI.label("", UI.FS.caption, Color("#ff8a7a"))
 	_err.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	v.add_child(_err)
@@ -82,7 +112,11 @@ func _submit() -> void:
 		_err.text = "Никнейм — от 3 до 20 символов"
 		return
 	_busy = true
-	var body := {"adult": _adult.button_pressed}
+	if _gender not in ["m", "f"]:
+		_err.text = "Выберите пол"
+		_busy = false
+		return
+	var body := {"adult": _adult.button_pressed, "gender": _gender}
 	if n != str(Game.profile.get("nickname", "")):
 		body["nickname"] = n
 	var r := await Api.post_json("/player/setup", body)
