@@ -191,7 +191,14 @@ func spawn(code: String) -> Node3D:
 		ba.add_child(w)
 	if lk.has("tint"):
 		_tint(inst, lk.tint, lk.get("glow", Color.BLACK), float(lk.get("alpha", 1.0)))
-	var s: float = lk.get("scale", 1.0)
+	var s: float = float(lk.get("scale", 1.0))
+	if rig.begins_with("content:"):
+		# Meshy/Mixamo files often keep a centimeter skeleton. Measure the bones and
+		# stand the hero on the arena at ~1.8 m. A scale of 100 in the admin was a
+		# workaround that put the camera inside the mesh, so ignore extreme values.
+		_fit_content(root, inst)
+		if s < 0.4 or s > 3.0:
+			s = 1.0
 	root.scale = Vector3.ONE * s
 	var ap: AnimationPlayer = inst.find_child("AnimationPlayer", true, false)
 	if ap:
@@ -221,6 +228,56 @@ func spawn(code: String) -> Node3D:
 		l.position = Vector3(0, 1.6, 0.6)
 		root.add_child(l)
 	return root
+
+
+func _local_in(ancestor: Node3D, node: Node3D) -> Transform3D:
+	var xf := Transform3D.IDENTITY
+	var n: Node = node
+	while n is Node3D and n != ancestor:
+		xf = (n as Node3D).transform * xf
+		n = n.get_parent()
+	return xf
+
+
+## Brings an uploaded GLB to arena height. Shows every mesh (the KayKit "hide unused weapons"
+## pass must not blank a whole Meshy character) and turns off backface culling.
+func _fit_content(root: Node3D, inst: Node3D) -> void:
+	for m in inst.find_children("*", "MeshInstance3D", true, false):
+		var mi := m as MeshInstance3D
+		mi.visible = true
+		if mi.mesh == null:
+			continue
+		for i in mi.mesh.get_surface_count():
+			var base: Material = mi.get_active_material(i)
+			if base is BaseMaterial3D:
+				var mat := (base as BaseMaterial3D).duplicate() as BaseMaterial3D
+				mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+				mi.set_surface_override_material(i, mat)
+	var min_y := 1e9
+	var max_y := -1e9
+	var skel: Skeleton3D = inst.find_child("Skeleton3D", true, false)
+	if skel != null and skel.get_bone_count() > 0:
+		var to_root := _local_in(root, skel)
+		for i in skel.get_bone_count():
+			var p: Vector3 = (to_root * skel.get_bone_global_rest(i)).origin
+			min_y = minf(min_y, p.y)
+			max_y = maxf(max_y, p.y)
+	if max_y <= min_y:
+		for m in inst.find_children("*", "MeshInstance3D", true, false):
+			var mi2 := m as MeshInstance3D
+			if mi2.mesh == null:
+				continue
+			var b: AABB = _local_in(root, mi2) * mi2.get_aabb()
+			min_y = minf(min_y, b.position.y)
+			max_y = maxf(max_y, b.position.y + b.size.y)
+	var h := max_y - min_y
+	if h < 0.05 or (h >= 0.7 and h <= 3.2):
+		if min_y > 0.4 or min_y < -0.2:
+			inst.position.y -= min_y
+		return
+	var k := 1.8 / h
+	inst.scale *= k
+	inst.position.y -= min_y * k
 
 
 func _tint(n: Node, tint: Color, glow: Color, alpha := 1.0) -> void:
@@ -297,11 +354,13 @@ func portrait(code: String, size := 256) -> Texture2D:
 		ap.seek(0.4, true)
 		ap.pause()
 	var cam := Camera3D.new()
-	var s: float = look(code).get("scale", 1.0)
+	var s: float = actor.scale.y
+	if s < 0.3 or s > 4.0:
+		s = 1.0
 	cam.fov = 30
 	cam.position = Vector3(0.55, 2.15, 3.2) * s
 	vp.add_child(cam)
-	cam.look_at(Vector3(0, 1.75 * s, 0))
+	cam.look_at(Vector3(0, 1.6 * s, 0))
 	var key_l := DirectionalLight3D.new()
 	key_l.rotation_degrees = Vector3(-35, 30, 0)
 	key_l.light_energy = 1.3
