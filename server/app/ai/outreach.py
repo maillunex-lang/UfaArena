@@ -248,7 +248,7 @@ def consider(db: Session, player: PlayerProfile, rng: random.Random, s: dict) ->
             return None
         pref = [p for p in cands if ADULT.prefer_for(player.gender, p)]
         persona = (pref or cands)[0]
-        send(db, persona, player, "flirt", ADULT.opener(rng, player.nickname, player.gender), rng)
+        send(db, persona, player, "flirt", ADULT.opener(rng, player.nickname, player.gender, db), rng)
         fl = dict(w.flags or {})
         fl["flirt_week"] = {"week": w.week, "n": int((fl.get("flirt_week") or {}).get("n", 0)) + 1 if (fl.get("flirt_week") or {}).get("week") == w.week else 1}
         fl["flirt_unanswered"] = int(fl.get("flirt_unanswered", 0)) + 1

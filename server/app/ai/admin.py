@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import timedelta
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -873,3 +873,32 @@ def player_set_age(uralia_id: str, body: AgeIn, who: str = Depends(admin), db: S
     db.add(AdminAction(admin=who, action="player_age", details={"player": p.uralia_id, "age_group": body.age_group}))
     db.commit()
     return {"age_group": p.age_group}
+
+
+@router.get("/adult-templates")
+def adult_templates_get(who: str = Depends(admin), db: Session = Depends(get_db)):
+    from . import adult_doc as DOC
+    return DOC.status(db)
+
+
+@router.post("/adult-templates")
+async def adult_templates_set(request: Request, who: str = Depends(admin), db: Session = Depends(get_db)):
+    """Replace 18+ DM lines with a text document. Used only for adults who enabled 18+."""
+    from . import adult_doc as DOC
+    raw = (await request.body()).decode("utf-8", "replace")
+    try:
+        info = DOC.save(db, raw, who)
+    except ValueError as e:
+        raise GameError("bad_template", str(e), 400)
+    db.add(AdminAction(admin=who, action="ai_adult_templates", details={"rules": info["rules"]}))
+    db.commit()
+    return info
+
+
+@router.delete("/adult-templates")
+def adult_templates_clear(who: str = Depends(admin), db: Session = Depends(get_db)):
+    from . import adult_doc as DOC
+    DOC.clear(db)
+    db.add(AdminAction(admin=who, action="ai_adult_templates_clear", details={}))
+    db.commit()
+    return {"ok": True}

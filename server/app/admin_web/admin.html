@@ -823,13 +823,21 @@ async guilds(box){const d=await api('/ai/guilds');
  await AI.section($('#gset'),'guilds','Настройки гильдий ИИ','Основание гильдий, выборы, дипломатия, войны между ИИ-гильдиями, традиции.')},
 
 async outreach(box){await AI.section(box,'outreach','Общение ИИ с реальными игроками','ИИ первыми пишут только тем, кто сейчас в игре, не чаще лимитов, никогда — если игрок отключил это в настройках, заблокировал ИИ или внесён в исключения. Все сообщения ИИ помечены «ИИ».');
- const sx=$('#sx');const ex=await api('/ai/outreach/exceptions');
- sx.innerHTML=`<div class="card"><h2>Исключения и блокировки</h2><p class="small muted">Игроки в списке никогда не получат первых сообщений и приглашений от ИИ. ИИ из списка никогда не пишут первыми.</p>
+ const sx=$('#sx');const ex=await api('/ai/outreach/exceptions');const ad=await api('/ai/adult-templates');
+ sx.innerHTML=`<div class="card"><h2>Шаблоны лички 18+</h2><p class="small muted">Текстовый документ заменяет встроенные фразы флирта. Их получают только игроки, которые при создании героя указали 18+ и не выключили это в настройках. До 18 и тем, кто не указал возраст, бот эти фразы не пишет. Слова «хватит», «отстань», «стоп» по-прежнему выключают флирт навсегда — их в документ добавлять не нужно.</p>
+ <p class="small">${ad.loaded?`Загружено: ${ad.lines} фраз, ${ad.rules} правил`:'Сейчас бот отвечает встроенными фразами'}</p>
+ <textarea id="adtxt" rows="8" placeholder="Вставьте документ или загрузите файл .txt" style="width:100%"></textarea>
+ <div class="row" style="margin-top:8px"><label class="btn small">Загрузить .txt<input id="adfile" type="file" accept=".txt,text/plain" style="display:none"></label><button class="primary" id="adsave">Сохранить документ</button><button id="adsample">Скачать образец</button>${ad.loaded?'<button class="danger" id="addel">Вернуть встроенные фразы</button>':''}</div></div>
+ <div class="card"><h2>Исключения и блокировки</h2><p class="small muted">Игроки в списке никогда не получат первых сообщений и приглашений от ИИ. ИИ из списка никогда не пишут первыми.</p>
  <div class="row"><input id="exp" placeholder="UR-номер игрока"><button id="expadd">Не писать этому игроку</button></div>
  <div class="small">${ex.players.map(p=>`${esc(p.nickname)} <span class="muted">${p.uralia_id}</span> <button class="small" data-exdel="${p.uralia_id}">убрать</button>`).join(' · ')||'<span class="muted">Нет</span>'}</div>
  <div class="small" style="margin-top:6px">ИИ без права писать первыми: ${ex.personas.map(p=>`${esc(p.nickname)} <button class="small" data-expd="${p.id}">убрать</button>`).join(' · ')||'<span class="muted">нет (добавляются из списка «Персонажи» → карточка)</span>'}</div></div>
  <div class="card"><h2>История общения с игроком</h2><div class="row"><input id="hp" placeholder="UR-номер игрока"><button class="primary" id="hgo">Показать</button></div><div id="hres"></div></div>`;
  $('#expadd').onclick=async()=>{await api('/ai/outreach/exceptions','POST',{uralia_id:$('#exp').value.trim(),add:true});toast('Игрок внесён в исключения');AI.outreach(box)};
+ $('#adfile').onchange=async()=>{const f=$('#adfile').files[0];if(!f)return;$('#adtxt').value=await f.text()};
+ $('#adsave').onclick=async()=>{const t=$('#adtxt').value;if(!t.trim())return toast('Документ пустой',true);await api('/ai/adult-templates','POST',new Blob([t]),true);toast('Шаблоны сохранены');AI.outreach(box)};
+ $('#adsample').onclick=()=>{saveBlob(new Blob([ad.sample],{type:'text/plain'}),'uralia-18-template.txt')};
+ const delBtn=$('#addel');if(delBtn)delBtn.onclick=async()=>{if(!confirm('Убрать загруженный документ и вернуть встроенные фразы?'))return;await api('/ai/adult-templates','DELETE');toast('Снова встроенные фразы');AI.outreach(box)};
  sx.querySelectorAll('[data-exdel]').forEach(b=>b.onclick=async()=>{await api('/ai/outreach/exceptions','POST',{uralia_id:b.dataset.exdel,add:false});AI.outreach(box)});
  sx.querySelectorAll('[data-expd]').forEach(b=>b.onclick=async()=>{await api('/ai/outreach/exceptions','POST',{persona_id:b.dataset.expd,add:false});AI.outreach(box)});
  $('#hgo').onclick=async()=>{const r=await api('/ai/players/'+encodeURIComponent($('#hp').value.trim()));

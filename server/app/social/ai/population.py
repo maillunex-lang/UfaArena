@@ -299,7 +299,7 @@ def handle_dm(db: Session, ai_uid: str, to_user: str, channel: str | None, text:
             w = db.get(AiPlayerWatch, to_user)
             prev = int((w.flags or {}).get("flirt_heat", 0)) if w is not None else 0
             heat = ADULT.heat_of(text, prev)
-            reply = ADULT.reply(_rng, text, target.gender if target else None, heat)
+            reply = ADULT.reply(_rng, text, target.gender if target else None, heat, db, ctx.get("name") or "")
             kind, source = "flirt", "template"
             if w is not None:
                 fl = dict(w.flags or {})

@@ -170,16 +170,26 @@ def _echo(text: str) -> str:
     return " ".join(words[-3:])[:40]
 
 
-def opener(rng: random.Random, name: str, gender: str | None = None) -> str:
-    pool = OPENERS_M if _voice(gender) == "m" else OPENERS_F
+def opener(rng: random.Random, name: str, gender: str | None = None, db=None) -> str:
+    voice = _voice(gender)
+    if db is not None:
+        from . import adult_doc as DOC
+        custom = DOC.opener(db, rng, voice, name)
+        if custom:
+            return custom
+    pool = OPENERS_M if voice == "m" else OPENERS_F
     t = rng.choice(pool)
     return t if rng.random() < 0.55 or not name else f"{name}, {t[0].lower()}{t[1:]}"
 
 
-def reply(rng: random.Random, text: str = "", gender: str | None = None, heat: int = 0) -> str:
-    """Varied reply. Echoes the player's words sometimes. Escalates with heat."""
+def reply(rng: random.Random, text: str = "", gender: str | None = None, heat: int = 0, db=None, name: str = "") -> str:
+    """Varied reply. A document uploaded in the admin replaces the built-in lines."""
     voice = _voice(gender)
     level = heat_of(text, heat)
+    if db is not None:
+        from . import adult_doc as DOC
+        if DOC.active(db):
+            return DOC.pick(db, rng, voice, level, text, name) or "Слушаю тебя. Напиши ещё."
     if level >= 2:
         pool = SEXT_M if voice == "m" else SEXT_F
     elif level == 1:
