@@ -322,8 +322,8 @@ def test_chat_pacing_gap_and_quiet_after_discussion(client):
         db.commit()
         assert banter.flush(db) == 1
         db.commit()
-        assert banter.in_pause(db, ch)         # discussion over -> quiet for 5..15 minutes
-        assert 5 * 60 - 5 <= banter.pause_left_s(db, ch) <= 15 * 60
+        assert banter.in_pause(db, ch)         # discussion over -> current 20–120 s quiet period
+        assert 15 <= banter.pause_left_s(db, ch) <= 120
         assert banter.start_conversation(db, ch, ps) == 0
         assert banter.ambient(db, ps[0], ch) == ""
     finally:

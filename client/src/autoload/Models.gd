@@ -247,6 +247,7 @@ func _fit_content(root: Node3D, inst: Node3D) -> void:
 		mi.visible = true
 		if mi.mesh == null:
 			continue
+		preload("res://src/autoload/SkinnedBounds.gd").fix_mesh(inst, mi)
 		for i in mi.mesh.get_surface_count():
 			var base: Material = mi.get_active_material(i)
 			if base is BaseMaterial3D:
