@@ -638,7 +638,7 @@ def set_model_settings(path: str, scale: float, anims: dict) -> dict:
     meta = idx["files"][path]
     names = set(meta.get("animations", []))
     clean = {k: v for k, v in (anims or {}).items() if k in ANIM_KEYS and v in names}
-    meta["scale"] = max(0.05, min(200.0, float(scale)))
+    meta["scale"] = max(0.001, min(200.0, float(scale)))
     meta["anims"] = clean
     meta["published"] = False
     idx["dirty_models"] = True

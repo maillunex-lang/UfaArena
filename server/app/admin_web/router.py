@@ -305,7 +305,7 @@ async def art_upload(request: Request, path: str = Query(max_length=120), who: s
 
 
 class ModelSettingsIn(BaseModel):
-    scale: float = Field(1.0, ge=0.05, le=200)
+    scale: float = Field(1.0, ge=0.001, le=200)
     anims: dict[str, str] = Field(default_factory=dict)
 
 
