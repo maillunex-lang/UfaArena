@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -14,6 +15,7 @@ from ..models import ServerSetting
 
 KEY = "ai_adult_dm_templates"
 MAX_CHARS = 150_000
+_BUNDLED = Path(__file__).with_name("adult_dm_default.txt")
 _cache: dict = {"at": 0.0, "raw": None, "data": None}
 
 SAMPLE = """# Шаблоны лички 18+. Строка с # — комментарий, бот её не читает.
@@ -156,10 +158,33 @@ def _echo(text: str) -> str:
     return " ".join(words[-3:])[:40]
 
 
+def _bundled() -> str:
+    try:
+        return _BUNDLED.read_text(encoding="utf-8")
+    except OSError:
+        return ""
+
+
+def _source_text(db: Session) -> tuple[str, str]:
+    """Admin upload wins. Otherwise the document shipped with the server."""
+    row = db.get(ServerSetting, KEY)
+    custom = (row.value or {}).get("text") if row is not None else None
+    if custom:
+        return custom, "admin"
+    return _bundled(), "builtin"
+
+
+def _word_in(text: str, word: str) -> bool:
+    text = text.replace("ё", "е")
+    word = word.replace("ё", "е")
+    if len(word) <= 3:
+        return re.search(rf"(?<![0-9a-zа-я]){re.escape(word)}(?![0-9a-zа-я])", text) is not None
+    return word in text
+
+
 def load(db: Session) -> dict | None:
     import time
-    row = db.get(ServerSetting, KEY)
-    raw = (row.value or {}).get("text") if row is not None else None
+    raw, _source = _source_text(db)
     if not raw:
         return None
     now = time.monotonic()
@@ -178,15 +203,16 @@ def active(db: Session) -> bool:
 
 
 def status(db: Session) -> dict:
-    row = db.get(ServerSetting, KEY)
-    if row is None or not (row.value or {}).get("text"):
-        return {"loaded": False, "sample": SAMPLE}
+    raw, source = _source_text(db)
+    if not raw:
+        return {"loaded": False, "source": "", "sample": SAMPLE}
     data = load(db) or {"blocks": [], "openers": {"f": [], "m": []}}
     counts = {}
     for b in data["blocks"]:
         key = f"{b['voice']}:{b['level']}"
         counts[key] = counts.get(key, 0) + len(b["replies"])
-    return {"loaded": True, "updated_at": (row.value or {}).get("updated_at"),
+    row = db.get(ServerSetting, KEY)
+    return {"loaded": True, "source": source, "updated_at": (row.value or {}).get("updated_at") if row else None,
             "lines": sum(counts.values()) + sum(len(v) for v in data["openers"].values()),
             "rules": len(data["blocks"]), "by_level": counts,
             "openers": {k: len(v) for k, v in data["openers"].items()}, "sample": SAMPLE}
@@ -214,14 +240,31 @@ def pick(db: Session, rng, voice: str, level: int, text: str, name: str = "") ->
     data = load(db)
     if not data:
         return None
-    low = (text or "").lower()
+    low = (text or "").lower().replace("ё", "е")
+    best = 0
+    chosen: list[dict] = []
+    for block in data["blocks"]:
+        if block["voice"] != voice or not block["words"]:
+            continue
+        hit = [w for w in block["words"] if _word_in(low, w)]
+        if not hit:
+            continue
+        score = max(len(w) for w in hit)
+        if score > best:
+            best = score
+            chosen = [block]
+        elif score == best:
+            chosen.append(block)
+    if chosen:
+        top = max(b["level"] for b in chosen)
+        pool = [r for b in chosen if b["level"] == top for r in b["replies"]]
+        if pool:
+            return _fill(rng.choice(pool), name, _echo(text))
     for lv in (level, 1, 0):
         if lv > level:
             continue
-        cands = [b for b in data["blocks"] if b["voice"] == voice and b["level"] == lv]
-        hit = [b for b in cands if b["words"] and any(w in low for w in b["words"])]
-        use = hit or [b for b in cands if not b["words"]]
-        pool = [r for b in use for r in b["replies"]]
+        pool = [r for b in data["blocks"]
+                if b["voice"] == voice and b["level"] == lv and not b["words"] for r in b["replies"]]
         if pool:
             return _fill(rng.choice(pool), name, _echo(text))
     return None
