@@ -181,6 +181,11 @@ func spawn(code: String) -> Node3D:
 		for m in att.get_children():
 			if m is MeshInstance3D:
 				m.visible = m.name in keep
+	# A content look ships keep: [] . That must not hide a whole character, KayKit or Meshy.
+	var body := inst.find_children("*", "MeshInstance3D", true, false)
+	if not body.any(func(m): return (m as MeshInstance3D).visible and (m as MeshInstance3D).mesh != null):
+		for m in body:
+			(m as MeshInstance3D).visible = true
 	var skel: Skeleton3D = inst.find_child("Skeleton3D", true, false)
 	var weapons: Dictionary = lk.get("weapons", {}) if skel else {}
 	for side in weapons:
@@ -201,6 +206,8 @@ func spawn(code: String) -> Node3D:
 			s = 1.0
 	root.scale = Vector3.ONE * s
 	var ap: AnimationPlayer = inst.find_child("AnimationPlayer", true, false)
+	if ap and rig.begins_with("content:"):
+		_strip_node_scale(ap)
 	if ap:
 		for a in LOOPING:
 			if ap.has_animation(a):
@@ -245,14 +252,21 @@ func _fit_content(root: Node3D, inst: Node3D) -> void:
 	for m in inst.find_children("*", "MeshInstance3D", true, false):
 		var mi := m as MeshInstance3D
 		mi.visible = true
+		mi.extra_cull_margin = 40.0
 		if mi.mesh == null:
 			continue
+		var skin_skel := mi.get_node_or_null(mi.skeleton) as Skeleton3D
+		if skin_skel != null:
+			mi.skeleton = mi.get_path_to(skin_skel)
 		preload("res://src/autoload/SkinnedBounds.gd").fix_mesh(inst, mi)
 		for i in mi.mesh.get_surface_count():
 			var base: Material = mi.get_active_material(i)
 			if base is BaseMaterial3D:
 				var mat := (base as BaseMaterial3D).duplicate() as BaseMaterial3D
 				mat.cull_mode = BaseMaterial3D.CULL_DISABLED
+				# Meshy writes these as see-through. On the phone that draws nothing.
+				mat.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+				mat.albedo_color.a = 1.0
 				mi.set_surface_override_material(i, mat)
 	var min_y := 1e9
 	var max_y := -1e9
@@ -279,6 +293,18 @@ func _fit_content(root: Node3D, inst: Node3D) -> void:
 	var k := 1.8 / h
 	inst.scale *= k
 	inst.position.y -= min_y * k
+
+
+## Mixamo clips key the armature scale (0.01 or 1). Playing one then flattens or
+## inflates the hero, which looks like an empty ring. Bone animation is kept.
+func _strip_node_scale(ap: AnimationPlayer) -> void:
+	for nm in ap.get_animation_list():
+		var anim := ap.get_animation(nm)
+		for i in range(anim.get_track_count() - 1, -1, -1):
+			if anim.track_get_type(i) != Animation.TYPE_SCALE_3D:
+				continue
+			if anim.track_get_path(i).get_concatenated_subnames().is_empty():
+				anim.remove_track(i)
 
 
 func _tint(n: Node, tint: Color, glow: Color, alpha := 1.0) -> void:
