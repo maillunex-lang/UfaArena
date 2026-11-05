@@ -286,6 +286,59 @@ _WORD = {
 }
 
 THREAD_KEY = "ai_chat_thread"
+SAID_KEY = "ai_chat_said"
+_WEEK = 7 * 86400
+
+
+def _fp(text: str) -> str:
+    from . import chains
+    return chains.fp(text)
+
+
+def _said(db: Session) -> dict:
+    from ...models import ServerSetting
+    row = db.get(ServerSetting, SAID_KEY)
+    raw = dict(row.value or {}) if row else {}
+    now = time.time()
+    return {k: float(v) for k, v in raw.items() if isinstance(v, (int, float)) and now - float(v) < _WEEK}
+
+
+def _mark_said(db: Session, texts: list[str]) -> None:
+    from ...models import ServerSetting
+    now = time.time()
+    cur = _said(db)
+    for t in texts:
+        if t:
+            cur[_fp(t)] = now
+    if len(cur) > 9000:
+        for k, _ in sorted(cur.items(), key=lambda kv: kv[1])[: len(cur) - 7000]:
+            cur.pop(k, None)
+    row = db.get(ServerSetting, SAID_KEY)
+    if row is None:
+        row = ServerSetting(key=SAID_KEY, value=cur)
+        db.add(row)
+    else:
+        row.value = dict(cur)
+
+
+_LIFE = {
+    "owl": "я сова: днём меня нет, это я ночью пишу",
+    "morning": "я с утра в игре, к вечеру уже сплю",
+    "evening": "я как раз в своё время зашёл, вечером",
+    "day": "у меня дневная смена, вечером меня не ищите",
+    "weekend": "я больше по выходным, в будни тихий",
+}
+
+
+def _life_line(persona: AiPersona) -> str:
+    sch = (persona.schedule or {}).get("kind") or ""
+    bit = _LIFE.get(sch, "")
+    story = (persona.backstory or "").strip().rstrip(".")
+    if story and _rng.random() < 0.18:
+        return story[0].lower() + story[1:]
+    if bit and _rng.random() < 0.45:
+        return bit
+    return ""
 
 _queue: deque = deque(maxlen=400)  # (due_monotonic, persona_user_id, channel, text)
 _rng = random.Random()
@@ -495,56 +548,101 @@ def start_conversation(db: Session, channel: str = "global", candidates: list[Ai
     # a mix: whoever is "online" by schedule plus a few others, so it is not always the same three voices
     personas = awake + others[: max(4, 8 - len(awake))]
     from ...ai import adult as ADULT
+    from . import chains
     adult_room = ADULT.adult_audience(db, channel)  # D-C1: flirty scenes only when every real reader is an adult 18+
     pool = [sc for sc in SCRIPTS if adult_room or not _is_adult_script(sc)] or SCRIPTS
     prev = _threads(db).get(channel) or {}
     continued = bool(prev.get("hook")) and _rng.random() < 0.62
-    same_topic = False
-    if continued:
-        same = [sc for sc in pool if sc.get("topic") == prev.get("topic")]
-        if same:
-            pool = same
-            same_topic = True
-    script = _rng.choices(pool, weights=[s["w"] for s in pool])[0]
-    cast = _cast(personas, script)
+    said = set(_said(db))
+    cast = _cast(personas, {"roles": 2, "pref": {"A": ["grumpy", "friendly", "shy", "competitive", "joker"],
+                                                 "B": ["bro", "wise", "friendly", "laconic", "humorous"]}})
     if cast is None:
         return 0
-    names = {r: db.get(PlayerProfile, p.user_id).nickname for r, p in cast.items()}
+    others = [p for p in personas if p not in cast.values()]
+    with_cut = bool(others) and _rng.random() < 0.42
+    if with_cut:
+        cast["C"] = others[0] if len(others) == 1 else _rng.choice(others[:8])
+    names = {r: (db.get(PlayerProfile, p.user_id).nickname or r) for r, p in cast.items()}
+    ctx = _ctx(db)
+    ctx["prev"] = (prev.get("hook") or "этом")[:70]
+    prof_a = db.get(PlayerProfile, cast["A"].user_id)
+    if prof_a is not None:
+        ctx["lvl"] = prof_a.level
+    built = chains.assemble(_rng, names, ctx, said, topic=(prev.get("topic") or "") if continued else "",
+                            adult=adult_room, with_cut=with_cut)
+    turns: list[tuple[str, str]] = []
+    topic = prev.get("topic") or "болтовня"
+    if built:
+        topic, turns = built
+        if continued and prev.get("hook"):
+            turns = [("A", _fill(_rng.choice(OPENERS), names, ctx)),
+                     ("B", _fill(_rng.choice(CATCH), names, ctx))] + turns
+    else:
+        same_topic = False
+        if continued:
+            same = [sc for sc in pool if sc.get("topic") == prev.get("topic")]
+            if same:
+                pool = same
+                same_topic = True
+        script = _rng.choices(pool, weights=[s["w"] for s in pool])[0]
+        cast = _cast(personas, script) or cast
+        names = {r: (db.get(PlayerProfile, p.user_id).nickname or r) for r, p in cast.items()}
+        topic = script.get("topic") or topic
+        ctx["prev"] = (prev.get("hook") or topic)[:70]
+        raw_turns = list(script["turns"])
+        if same_topic and "B" in cast:
+            raw_turns = [("A", OPENERS), ("B", CATCH)] + raw_turns
+        for role, variants in raw_turns:
+            if role not in cast:
+                continue
+            options = [_fill(v, names, ctx) for v in variants]
+            fresh = [t for t in options if chains.fp(t) not in said and "{" not in t]
+            turns.append((role, _rng.choice(fresh or options)))
+    if not turns:
+        return 0
+    raw_lines = [text for _, text in turns]
+    life = _life_line(cast["A"])
+    if life:
+        role0, text0 = turns[0]
+        if role0 == "A":
+            turns[0] = (role0, f"{text0.rstrip('.!?')}. {life}")
     from ...ai import social as SOC
     people = [p.user_id for p in cast.values()]
-    for i, a_ in enumerate(people):  # talking together builds relationships (stage 6)
+    for i, a_ in enumerate(people):
         for b_ in people[i + 1:]:
             SOC.mutual(db, a_, b_, "chat")
-    ctx = _ctx(db)
-    ctx["prev"] = (prev.get("hook") or script.get("topic") or "этом")[:70]
-    turns = list(script["turns"])
-    if same_topic and "B" in cast:
-        turns = [("A", OPENERS), ("B", CATCH)] + turns
     due = time.monotonic() + _rng.uniform(1, 8)
     n = 0
     first = ""
-    for role, variants in turns:
+    spoken_all = []
+    for role, spoken in turns:
         if role not in cast:
             continue
-        spoken = _fill(_rng.choice(variants), names, ctx)
         if not first:
             first = spoken
+        spoken_all.append(spoken)
         _queue.append((due, cast[role].user_id, channel, spoken))
-        due += _rng.uniform(12, 55)  # typing pauses, like people
+        due += _rng.uniform(12, 55)
         n += 1
     if n:
-        topic = script.get("topic") or "болтовня"
         hook = _hook(first) or topic
         _set_thread(db, channel, {"topic": topic, "hook": hook, "by": names.get("A", "")})
         _remember_talk(db, cast, topic, hook)
+        _mark_said(db, raw_lines)
     return n
 
 
 def ambient(db: Session, persona: AiPersona, channel: str = "global") -> str:
     if in_pause(db, channel) or _queued(channel):
         return ""  # the channel is resting after a discussion, or a discussion is going on
-    pool = AMBIENT.get(persona.style, []) + AMBIENT["any"]
-    text = _fill(_rng.choice(pool), {}, _ctx(db))
+    from . import chains
+    ctx = _ctx(db)
+    said = set(_said(db))
+    text = chains.ambient_line(_rng, ctx, said)
+    if not text:
+        pool = AMBIENT.get(persona.style, []) + AMBIENT["any"]
+        text = _fill(_rng.choice(pool), {}, ctx)
+    _mark_said(db, [text])
     _queue.append((time.monotonic() + _rng.uniform(0, 5), persona.user_id, channel, text))
     return text
 
