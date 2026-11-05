@@ -1,0 +1,102 @@
+name: Android APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: chickensoft-games/setup-godot@v2
+        with:
+          version: 4.5.1
+          use-dotnet: false
+          include-templates: true
+
+      - name: Prepare release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+          GODOT_KEYSTORE_BASE64: ${{ secrets.GODOT_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE }}
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          SIGNING_KEY: ${{ secrets.SIGNING_KEY }}
+          RELEASE_KEYSTORE: ${{ secrets.RELEASE_KEYSTORE }}
+          ANDROID_KEYSTORE_USER: ${{ secrets.ANDROID_KEYSTORE_USER }}
+          KEYSTORE_ALIAS: ${{ secrets.KEYSTORE_ALIAS }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.GODOT_ANDROID_KEYSTORE_RELEASE_USER }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD }}
+        run: |
+          set -euo pipefail
+          pick() {
+            local chosen="" value="" name
+            for name in "$@"; do
+              value="${!name-}"
+              if [ -n "$value" ]; then
+                chosen="$name"
+                printf '%s' "$value"
+                echo "using secret: $name" >&2
+                return 0
+              fi
+            done
+            return 1
+          }
+          mkdir -p "$RUNNER_TEMP"
+          if ! b64="$(pick ANDROID_KEYSTORE_BASE64 KEYSTORE_BASE64 RELEASE_KEYSTORE_BASE64 GODOT_KEYSTORE_BASE64 ANDROID_KEYSTORE KEYSTORE SIGNING_KEY RELEASE_KEYSTORE)"; then
+            echo "::error::Keystore secret not found. Add the .keystore/.jks file as base64 under ANDROID_KEYSTORE_BASE64."
+            exit 1
+          fi
+          if ! user="$(pick ANDROID_KEYSTORE_USER KEYSTORE_ALIAS KEY_ALIAS GODOT_ANDROID_KEYSTORE_RELEASE_USER)"; then
+            echo "::error::Keystore alias secret not found. Add ANDROID_KEYSTORE_USER."
+            exit 1
+          fi
+          if ! pass="$(pick ANDROID_KEYSTORE_PASSWORD KEYSTORE_PASSWORD KEY_PASSWORD GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD)"; then
+            echo "::error::Keystore password secret not found. Add ANDROID_KEYSTORE_PASSWORD. Godot needs the keystore password and the key password to be the same."
+            exit 1
+          fi
+          printf '%s' "$b64" | tr -d '[:space:]' | base64 -d > "$RUNNER_TEMP/release.keystore"
+          if ! keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass "$pass" >/dev/null; then
+            echo "::error::Keystore decoded, but alias/password did not open it. Check ANDROID_KEYSTORE_USER and ANDROID_KEYSTORE_PASSWORD."
+            exit 1
+          fi
+          printf '%s' "$user" > "$RUNNER_TEMP/keystore.user"
+          printf '%s' "$pass" > "$RUNNER_TEMP/keystore.pass"
+          echo "keystore bytes: $(wc -c < "$RUNNER_TEMP/release.keystore")"
+
+      - name: Export Android APK
+        working-directory: client
+        env:
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ runner.temp }}/release.keystore
+        run: |
+          set -euo pipefail
+          export GODOT_ANDROID_KEYSTORE_RELEASE_USER="$(cat "$RUNNER_TEMP/keystore.user")"
+          export GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD="$(cat "$RUNNER_TEMP/keystore.pass")"
+          mkdir -p ../build
+          godot --version
+          godot --headless --path . --import --quit
+          godot --headless --path . --export-release "Android" ../build/uralia-release.apk
+          test -s ../build/uralia-release.apk
+          ls -lh ../build/uralia-release.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: uralia-release-apk
+          path: build/uralia-release.apk
+          if-no-files-found: error
+          retention-days: 14
