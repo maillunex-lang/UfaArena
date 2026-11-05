@@ -582,7 +582,7 @@ def test_ai_conversations_keep_chat_alive():
                 m.created_at = utcnow() - timedelta(seconds=11)
             db.flush()
         assert posted >= 3
-        assert B.in_pause(db, "global")  # after the discussion the chat is quiet for 5-15 minutes
+        assert B.in_pause(db, "global")  # after the 5–6 lines the chat rests 20–120 seconds
     with session() as db:
         msgs = db.scalars(select(ChatMessage).where(ChatMessage.id > start, ChatMessage.channel == "global")).all()
         assert len({m.user_id for m in msgs}) >= 2 and all(m.is_ai for m in msgs)

@@ -1314,7 +1314,7 @@
     "chat_cooldown_s": 240,
     "ai_guilds": 4,
     "reply_chance": 0.6,
-    "chat_ai_per_hour": 50,
+    "chat_ai_per_hour": 200,
     "quiet_minutes": 2,
     "conversation_every_s": 200,
     "guild_chat_chance": 0.25,

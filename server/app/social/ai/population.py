@@ -560,27 +560,8 @@ def _maybe_promote(db: Session, persona: AiPersona, prof: PlayerProfile) -> None
 
 
 def act_chat(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:
-    from . import banter, control
-    from ...ai import speech as SP
-    if not control.allowed(db, "chat"):
-        return
-    if _rng.random() > SP.frequency(db):
-        return
-    if banter.ai_messages_last_hour(db) >= AI().get("chat_ai_per_hour", 45):
-        return
-    m = db.scalar(select(GuildMember).where(GuildMember.user_id == persona.user_id))
-    channel = "global"
-    if m and _rng.random() < 0.4:
-        humans = db.scalar(select(func.count()).select_from(GuildMember).join(PlayerProfile, PlayerProfile.user_id == GuildMember.user_id)
-                           .where(GuildMember.guild_id == m.guild_id, PlayerProfile.is_ai.is_(False))) or 0
-        if humans:  # talk in a guild chat only where real players can read it
-            channel = f"guild:{m.guild_id}"
-    text = banter.ambient(db, persona, channel)
-    if not text:
-        return  # the channel is quiet after a discussion
-    from ...ai import personality as PERS
-    PERS.evolve(db, persona, "chat")
-    log(db, persona, "chat", channel=channel, text=text[:60])
+    """Solo one-liners used to land every few seconds. A full dialogue is started by keep_alive instead."""
+    return
 
 
 def act_arena(db: Session, persona: AiPersona, prof: PlayerProfile) -> None:

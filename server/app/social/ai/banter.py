@@ -383,8 +383,8 @@ def _cast(personas: list[AiPersona], script: dict) -> dict[str, AiPersona] | Non
 
 
 # ------------------------------------------------------------------ pacing: like a real chat, not a stream
-# * at most one AI message per channel every `chat_min_gap_s` seconds (10 by default);
-# * when a discussion is over (nothing more queued for the channel) the channel is quiet for a random 5–15 minutes.
+# * one dialogue is 5–6 lines, a few seconds apart so it reads as a conversation;
+# * when it ends, the channel stays quiet for a random 20–120 seconds.
 # The pause is stored in the database (server_settings "ai_chat_pause"), so the API process and the AI Director agree.
 PAUSE_KEY = "ai_chat_pause"
 
@@ -418,7 +418,7 @@ def pause_left_s(db: Session, channel: str) -> int:
 def _set_pause(db: Session, channel: str) -> None:
     from datetime import timedelta
     from ...models import ServerSetting
-    seconds = _rng.uniform(50, 90)  # rest under two minutes; a five-minute hole feels like a dead chat
+    seconds = _rng.uniform(20, 120)  # one dialogue, then a real break — not a new line every few seconds
     row = db.get(ServerSetting, PAUSE_KEY)
     if row is None:
         row = ServerSetting(key=PAUSE_KEY, value={})
@@ -598,8 +598,15 @@ def start_conversation(db: Session, channel: str = "global", candidates: list[Ai
             turns.append((role, _rng.choice(fresh or options)))
     if not turns:
         return 0
-    if len(turns) > 2:
-        turns = turns[:2]  # two voices, then quiet — not a wall of messages
+    target = 5 if _rng.random() < 0.5 else 6
+    while len(turns) < target:
+        role = "B" if turns and turns[-1][0] == "A" and "B" in cast else "A"
+        if role not in cast:
+            role = next(iter(cast))
+        pool = CATCH if role == "B" else OPENERS
+        turns.append((role, _fill(_rng.choice(pool), names, ctx)))
+    if len(turns) > target:
+        turns = turns[:target]
     raw_lines = [text for _, text in turns]
     life = _life_line(cast["A"])
     if life:
@@ -611,7 +618,7 @@ def start_conversation(db: Session, channel: str = "global", candidates: list[Ai
     for i, a_ in enumerate(people):
         for b_ in people[i + 1:]:
             SOC.mutual(db, a_, b_, "chat")
-    due = time.monotonic() + _rng.uniform(1, 8)
+    due = time.monotonic() + _rng.uniform(2, 6)
     n = 0
     first = ""
     spoken_all = []
@@ -622,7 +629,7 @@ def start_conversation(db: Session, channel: str = "global", candidates: list[Ai
             first = spoken
         spoken_all.append(spoken)
         _queue.append((due, cast[role].user_id, channel, spoken))
-        due += _rng.uniform(12, 55)
+        due += _rng.uniform(10, 18)  # inside one dialogue, slower than a 5-second machine gun
         n += 1
     if n:
         hook = _hook(first) or topic
@@ -733,14 +740,9 @@ def keep_alive(db: Session, cfg: dict) -> dict:
     freq = SP.frequency(db)  # admin "chat frequency" scales the hourly AI chat budget
     from .. import channels as _CHN
     if pending == 0 and freq > 0 and _CHN.ai_may_post(db, "global") and \
-            ai_messages_last_hour(db) < cfg.get("chat_ai_per_hour", 45) * freq:
-        if minutes_since_last(db) >= 0.8 and not in_pause(db, "global"):
-            if _rng.random() < 0.65:
-                stats["started"] = start_conversation(db)
-            else:
-                p = db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).order_by(func.random()).limit(1)).first()
-                if p and ambient(db, p):
-                    stats["started"] = 1
+            ai_messages_last_hour(db) < cfg.get("chat_ai_per_hour", 200) * freq:
+        if not in_pause(db, "global"):
+            stats["started"] = start_conversation(db)
             _last_start = time.monotonic()
     from .. import channels as CHN
     # regional, event, alliance and group channels where a real player can read (Living World AI stage 8)
@@ -753,7 +755,7 @@ def keep_alive(db: Session, cfg: dict) -> dict:
                             .where(PlayerProfile.is_ai.is_(False))).scalars().all()
         for gid in set(humans):
             g = db.get(Guild, gid)
-            if g is None or minutes_since_last(db, f"guild:{gid}") < cfg.get("guild_quiet_minutes", 20) or in_pause(db, f"guild:{gid}"):
+            if g is None or in_pause(db, f"guild:{gid}") or _queued(f"guild:{gid}"):
                 continue
             ids = [m.user_id for m in db.scalars(select(GuildMember).where(GuildMember.guild_id == gid))]
             members = db.scalars(select(AiPersona).where(AiPersona.user_id.in_(ids), AiPersona.active.is_(True))).all()
