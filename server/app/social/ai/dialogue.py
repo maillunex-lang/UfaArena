@@ -1,5 +1,6 @@
 """Dialogue service: intent detection by keywords + style-specific templates + game context + short memory.
-No LLM per persona (weak VPS): scenarios and templates, with repetition control."""
+No LLM per persona (weak VPS): scenarios and templates, with repetition control.
+Player words are echoed and the reply continues that meaning (agreement, question, story, "me too")."""
 from __future__ import annotations
 
 import random
@@ -20,10 +21,30 @@ INTENTS = [
     ("tournament", r"(турнир|кубок|сетк)"),
     ("help", r"(как |что делать|помоги|подскаж|совет|не могу|застрял)"),
     ("who", r"(ты (бот|ии|человек|кто)|ты настоящ|ai\b)"),
+    ("same", r"(я тоже|и я\b|мне тоже|у меня так же|так же|тоже тебя|тоже так)"),
+    ("agree", r"(соглас|точно|именно|верно|правильно|\bда\b|ага|угу|конечно|именно так)"),
+    ("disagree", r"(не соглас|не надо|не так|\bнет\b|неа|вообще не|неправда)"),
+    ("ask", r"(\?|почему|зачем|когда|где\b|куда|сколько|какой|какая|какие|что думаешь)"),
+    ("tell", r"(расскаж|слушай|короче|прикинь|представляешь|сегодня|вчера|было так|случилось)"),
 ]
 
 # Replies to real players: casual and friendly (no arguing or flirting with real players).
 STYLE_ALIAS = {"joker": "humorous", "grumpy": "laconic", "flirty": "friendly", "bro": "friendly"}
+
+_STOPWORDS = {
+    "это", "этот", "эта", "эти", "как", "что", "чтобы", "тебя", "тебе", "меня", "мне", "тоже",
+    "просто", "очень", "такой", "такая", "такие", "есть", "был", "была", "были", "будет",
+    "привет", "пока", "давай", "ладно", "хочу", "могу", "если", "только", "ещё", "еще",
+    "него", "неё", "них", "свой", "своя", "свои", "когда", "потом", "сейчас",
+    "сегодня", "вчера", "думаю", "про", "реально", "еле", "ушёл", "ушел", "ушла",
+    "слушай", "короче", "прикинь", "пожалуйста", "скинь", "кинь", "го", "ну", "вот",
+    "так", "такое", "тебя",
+}
+# Do not quote intimate wording back into a normal reply.
+_PRIVATE = re.compile(
+    r"(секс|раздев|голая|голый|поцел|целу|обним|фото|интим|постел|флирт)",
+    re.I,
+)
 
 LINES = {
     "greet": {
@@ -110,13 +131,61 @@ LINES = {
         "competitive": ["ИИ-персонаж. На рейтинговой арене с игроками не играю, так что не бойся 😏"],
         "shy": ["Я ИИ-персонаж 🙂 это написано в профиле"],
     },
+    "same": {
+        "friendly": ["Я тоже, {name}. «{echo}» — прямо про меня.", "О, и у меня так: «{echo}».", "Совпадаем. «{echo}» знакомо до боли 🙂",
+                     "Я тоже так. Расскажи, с чего у тебя «{echo}» началось.", "Ха, «{echo}» — мы с тобой на одной волне."],
+        "laconic": ["Я тоже. «{echo}».", "Ага. То же самое.", "«{echo}». Знакомо."],
+        "humorous": ["Я тоже! У нас с «{echo}» клуб по интересам 😄", "Официально: «{echo}» — теперь общее 😂"],
+        "wise": ["И у меня так было. «{echo}» многих сводит.", "Совпадение не случайно: «{echo}»."],
+        "competitive": ["Я тоже. «{echo}» — но я всё равно впереди 😏", "Тоже. Потом сравним, у кого «{echo}» круче."],
+        "shy": ["Я тоже… «{echo}» 🙂", "Ой, и у меня так)"],
+    },
+    "agree": {
+        "friendly": ["Да, «{echo}» — в точку.", "Согласен. «{echo}» именно так и есть.", "Точно, {name}. Про «{echo}» спорить нечего.",
+                     "Ага. «{echo}» — и я бы так сказал.", "Верно подметил: «{echo}»."],
+        "laconic": ["Да. «{echo}».", "Точно.", "Согласен."],
+        "humorous": ["Подписываюсь под «{echo}» обеими руками 😄", "«{echo}» — занесу в устав гильдии 😂"],
+        "wise": ["Верно. «{echo}» — короткая правда.", "Соглашусь: «{echo}»."],
+        "competitive": ["Да. «{echo}». Дальше дело, не слова.", "Согласен. Теперь проверим это в бою 😏"],
+        "shy": ["Да, наверное… «{echo}» 🙂", "Согласен)"],
+    },
+    "disagree": {
+        "friendly": ["Хм, насчёт «{echo}» я бы поспорил.", "Не совсем. «{echo}» у меня иначе выходит.", "Понимаю, но «{echo}» — не вся история.",
+                     "Слушай, «{echo}» звучит резко. Я вижу по-другому.", "Не, {name}. «{echo}» я бы так не сказал."],
+        "laconic": ["Не. «{echo}» не так.", "Сомневаюсь.", "Нет."],
+        "humorous": ["«{echo}»? Мой отряд с этим не согласен, а он редко ошибается 😂", "Оспорю «{echo}». Вежливо. Почти 😄"],
+        "wise": ["Не спеши. «{echo}» — только одна сторона.", "Я видел иначе, чем «{echo}»."],
+        "competitive": ["Неа. «{echo}» слабовато. Есть вариант сильнее.", "Не согласен. Проверим на арене?"],
+        "shy": ["Эм… я не уверен насчёт «{echo}» 😅", "Может, не совсем так)"],
+    },
+    "ask": {
+        "friendly": ["Про «{echo}»… я бы начал с отряда и ежедневных заданий.", "Хороший вопрос. «{echo}» зависит от того, кого ты качаешь.",
+                     "Если коротко про «{echo}»: смотри фракции и не лезь без танка.", "«{echo}» — давай по порядку. Что уже пробовал?",
+                     "{name}, «{echo}» лучше проверить в бою, чем гадать."],
+        "laconic": ["«{echo}». Качай отряд.", "Смотри фракции.", "Попробуй и скажи."],
+        "humorous": ["«{echo}»? Спроси ещё раз, я как раз делал вид, что знаю 😄", "Ответ на «{echo}»: не ставь лекаря вперёд. Остальное — детали 😂"],
+        "wise": ["«{echo}» решается не спешкой. Сначала отряд, потом бой.", "Вопрос про «{echo}» старый. Ответ всё тот же: синергия."],
+        "competitive": ["«{echo}»? Делай, потом смотри рейтинг.", "Коротко: «{echo}» не заменит прокачку."],
+        "shy": ["Про «{echo}» я не эксперт… но отряд помогает 🙂", "Хм, «{echo}»… я бы спросил в гильдии)"],
+    },
+    "tell": {
+        "friendly": ["«{echo}» — живо. И что было дальше?", "Слушаю. «{echo}» уже зацепило.", "Ого. «{echo}» и чем кончилось?",
+                     "Рассказывай, {name}. Я на «{echo}» остановился.", "«{echo}» звучит как начало байки. Продолжай 🙂"],
+        "laconic": ["Дальше.", "«{echo}». Итог?", "Слушаю."],
+        "humorous": ["«{echo}» — я уже вижу, чем это пахнет 😄 Давай концовку.", "Записал «{echo}» в летопись. Жду серию вторую 😂"],
+        "wise": ["«{echo}» многое говорит о пути. Что ты из этого вынес?", "История про «{echo}» стоит того, чтобы её дослушать."],
+        "competitive": ["«{echo}» принял. Это помогло в бою или нет?", "Коротко и по делу: «{echo}». Что дальше по плану?"],
+        "shy": ["«{echo}»… интересно. Можно ещё чуть-чуть? 🙂", "Я слушаю)"],
+    },
     "unknown": {
-        "friendly": ["Интересно! Расскажи подробнее 🙂", "Понимаю. А ты давно в Уралии?", "Ага, бывает 😄", "Хах, жизненно",
-                     "Слушай, а ты в какой гильдии?", "Ну ты даёшь 😂"],
-        "laconic": ["Ясно.", "Понял.", "Ага.", "Бывает."],
-        "humorous": ["Звучит как начало легенды 😄", "Записал в летопись Уралии 📜😂", "Это сильно, бро"],
-        "wise": ["Каждый путь начинается с одного шага.", "Интересная мысль."],
-        "competitive": ["Ладно. Пойду ещё бой сделаю 😎", "Окей. А на арене ты как?"], "shy": ["Ага 🙂", "Понятно)"],
+        "friendly": ["Интересно! «{echo}» — расскажи подробнее 🙂", "«{echo}» поймал. А ты давно в Уралии?", "Ага, «{echo}» бывает 😄",
+                     "Хах, «{echo}» — жизненно", "«{echo}». И как ты сам к этому относишься?", "Продолжай, я на «{echo}» завис.",
+                     "«{echo}» звучит живо. Что дальше?", "Понял ход: «{echo}». Давай ещё."],
+        "laconic": ["«{echo}». Ясно.", "Понял.", "Ага. «{echo}».", "Дальше."],
+        "humorous": ["«{echo}» звучит как начало легенды 😄", "Записал «{echo}» в летопись Уралии 📜😂", "«{echo}» — это сильно"],
+        "wise": ["«{echo}» — мысль не пустая.", "Слышу «{echo}». Куда она тебя ведёт?"],
+        "competitive": ["«{echo}» принял. А на арене ты как?", "Окей. «{echo}». Пойду ещё бой сделаю 😎"],
+        "shy": ["«{echo}»… ага 🙂", "Понятно)"],
     },
     "ambient": {
         "friendly": ["Всем хорошего вечера в Курултае! 🏔️", "Кто идёт на босса гильдии? Давайте вместе!", "Только что поднял героя до {lvl} уровня, ура!"],
@@ -134,7 +203,18 @@ LINES = {
 }
 
 
-SPECIFIC_FIRST = ["who", "arena", "raid", "guild", "hero", "event", "tournament", "help", "thanks", "bye", "greet"]
+_CONTINUE = {
+    "friendly": ["И да — «{echo}» я тоже держу в голове.", "Кстати, про «{echo}»: расскажи, чем кончилось.",
+                 "«{echo}» как раз к этому.", "Если «{echo}» ещё актуально — пиши, не теряй мысль."],
+    "laconic": ["«{echo}». Учту.", "Про «{echo}» понял."],
+    "humorous": ["И «{echo}» я занесу на поля 😄", "«{echo}» — отдельная серия, не забудь 😂"],
+    "wise": ["«{echo}» тоже часть пути.", "Не упускай «{echo}»."],
+    "competitive": ["«{echo}» потом проверим делом.", "Записал «{echo}»."],
+    "shy": ["«{echo}»… ладно, я запомнил 🙂", "Про «{echo}» ещё можно)"],
+}
+
+SPECIFIC_FIRST = ["who", "arena", "raid", "guild", "hero", "event", "tournament", "help",
+                  "same", "agree", "disagree", "ask", "tell", "thanks", "bye", "greet"]
 
 
 def intents(text: str) -> list[str]:
@@ -149,11 +229,32 @@ def intent(text: str) -> str:
     return found[0] if found else "unknown"
 
 
+def echo_phrase(text: str) -> str:
+    """2–4 content words from the player, so the reply can continue that meaning.
+    Intimate wording is not quoted back into a normal chat line."""
+    raw = _PRIVATE.sub(" ", text or "")
+    words = re.findall(r"[А-Яа-яЁёA-Za-z0-9]{3,}", raw)
+    keep = [w for w in words if w.lower() not in _STOPWORDS]
+    if not keep:
+        return ""
+    # Prefer the tail: that is usually what the player just added.
+    chunk = keep[-4:]
+    if len(chunk) > 2 and len(chunk[0]) < 4:
+        chunk = chunk[1:]
+    return " ".join(chunk)[:48]
+
+
 def reply(rng: random.Random, text: str, style: str, ctx: dict) -> tuple[str, str]:
-    """Answer the main topic; a greeting in the same message gets a short greeting first."""
+    """Answer the main topic and, when possible, continue from the player's own words."""
     found = intents(text)
     kind = found[0] if found else "unknown"
+    ctx = dict(ctx)
+    echo = echo_phrase(text)
+    ctx["echo"] = echo
     out = line(rng, kind, style, ctx)
+    if echo and f"«{echo}»" not in out and kind not in ("who",):
+        pool = _CONTINUE.get(style) or _CONTINUE.get(STYLE_ALIAS.get(style, ""), _CONTINUE["friendly"])
+        out = f"{out} {rng.choice(pool).format(echo=echo)}"
     if kind != "greet" and "greet" in found:
         hello = {"laconic": "Ку.", "grumpy": "Ну привет.", "wise": "Здравствуй.", "shy": "Привет 🙂"}.get(style, "Здарова!")
         out = f"{hello} {out}"
@@ -165,6 +266,9 @@ def reply(rng: random.Random, text: str, style: str, ctx: dict) -> tuple[str, st
 def line(rng: random.Random, kind: str, style: str, ctx: dict) -> str:
     opts = LINES.get(kind, LINES["unknown"])
     pool = opts.get(style) or opts.get(STYLE_ALIAS.get(style, "")) or next(iter(opts.values()))
+    if not ctx.get("echo"):
+        plain = [x for x in pool if "{echo}" not in x]
+        pool = plain or ["Ага.", "Понял.", "Слышу тебя."]
     fresh = [x for x in pool if x not in _recent_lines] or pool
     tpl = rng.choice(fresh)
     _recent_lines.append(tpl)

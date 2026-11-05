@@ -45,7 +45,8 @@ def profile_view(p: PlayerProfile, u: User | None = None) -> dict:
     return {"account_kind": (u.kind if u else "guest"), "email_masked": _mask_email(u.email if u else None),
             "uralia_id": p.uralia_id, "nickname": p.nickname, "level": p.level, "exp": p.exp,
             "onboarding_step": p.onboarding_step, "is_ai": p.is_ai, "settings": p.settings or {},
-            "age_group": p.age_group, "needs_setup": p.age_group is None and not p.is_ai,
+            "age_group": p.age_group, "gender": p.gender,
+            "needs_setup": p.age_group is None and not p.is_ai,
             "vip_level": p.vip_level or 0, "vip_xp": p.vip_xp or 0, "battle_speeds": VIP.battle_speeds(p.vip_level or 0),
             "vip_speed_table": [{"vip": int(k), "speeds": s} for k, s in MCFG()["vip"]["battle_speeds"].items()],
             "created_at": as_utc(p.created_at).isoformat(), "ui_mapper": _ui_mapper(p)}
@@ -108,6 +109,7 @@ def onboarding(body: OnboardingIn, user: CurrentUser = Depends(player), db: Sess
 class SetupIn(BaseModel):
     nickname: str | None = Field(default=None, min_length=3, max_length=20, pattern=r"^[\w\- А-Яа-яЁё]+$")
     adult: bool
+    gender: str | None = Field(default=None, pattern=r"^[mf]$")  # m | f, who flirts with the player
 
 
 @router.post("/player/setup")
@@ -124,6 +126,8 @@ def player_setup(body: SetupIn, user: CurrentUser = Depends(player), db: Session
     first = p.age_group is None
     p.age_group = "adult" if body.adult else "minor"
     p.age_set_at = utcnow()
+    if body.gender in ("m", "f"):
+        p.gender = body.gender
     prefs = player_prefs(p)
     if not body.adult:
         prefs["adult_content"] = False

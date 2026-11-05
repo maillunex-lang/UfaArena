@@ -242,12 +242,13 @@ def consider(db: Session, player: PlayerProfile, rng: random.Random, s: dict) ->
         return None
     if trigger == "flirt":
         from . import adult as ADULT
-        cands = [p for p in db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).order_by(func.random()).limit(30))
+        cands = [p for p in db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).order_by(func.random()).limit(40))
                  if ADULT.flirt_persona_ok(p) and may_contact(db, player, p)[0]]
         if not cands:
             return None
-        persona = cands[0]
-        send(db, persona, player, "flirt", ADULT.opener(rng, player.nickname), rng)
+        pref = [p for p in cands if ADULT.prefer_for(player.gender, p)]
+        persona = (pref or cands)[0]
+        send(db, persona, player, "flirt", ADULT.opener(rng, player.nickname, player.gender), rng)
         fl = dict(w.flags or {})
         fl["flirt_week"] = {"week": w.week, "n": int((fl.get("flirt_week") or {}).get("n", 0)) + 1 if (fl.get("flirt_week") or {}).get("week") == w.week else 1}
         fl["flirt_unanswered"] = int(fl.get("flirt_unanswered", 0)) + 1

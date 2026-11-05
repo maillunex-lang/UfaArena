@@ -293,17 +293,27 @@ def handle_dm(db: Session, ai_uid: str, to_user: str, channel: str | None, text:
         return False  # decision D-C1: never write privately to minors / unknown age
     ctx = _context(db, persona, to_user)
     from ...ai import adult as ADULT
-    if text != "__welcome__" and ADULT.is_flirt(text) and not ADULT.is_stop(text):
+    if text != "__welcome__" and (ADULT.is_flirt(text) or ADULT.heat_of(text) > 0) and not ADULT.is_stop(text):
         if adult_ok(target) and ADULT.flirt_persona_ok(persona):
-            reply = SP.stylize(_rng, persona, ADULT.reply(_rng), {**SP.SECTION.get(db), "length": "medium", "emotions": False})
+            from ...models import AiPlayerWatch
+            w = db.get(AiPlayerWatch, to_user)
+            prev = int((w.flags or {}).get("flirt_heat", 0)) if w is not None else 0
+            heat = ADULT.heat_of(text, prev)
+            reply = ADULT.reply(_rng, text, target.gender if target else None, heat)
             kind, source = "flirt", "template"
-            llm_text = None
-            s_ = SP.SECTION.get(db)
-            if int(s_["intelligence"]) >= 5 and s_.get("llm_enabled"):
-                from ...ai import llm as LLM
-                llm_text = LLM.reply(db, persona, text, s_, to_user=to_user, adult=True)
-            if llm_text and ADULT.safe(llm_text):
-                reply, source = llm_text, "llm"
+            if w is not None:
+                fl = dict(w.flags or {})
+                fl["flirt_heat"] = heat
+                fl["flirt_unanswered"] = 0
+                w.flags = fl
+            # LLM only for light flirt; explicit stays on varied templates (safer and more consistent)
+            if heat == 0:
+                s_ = SP.SECTION.get(db)
+                if int(s_["intelligence"]) >= 5 and s_.get("llm_enabled"):
+                    from ...ai import llm as LLM
+                    llm_text = LLM.reply(db, persona, text, s_, to_user=to_user, adult=True)
+                    if llm_text and ADULT.safe(llm_text):
+                        reply, source = llm_text, "llm"
         else:
             reply, kind, source = ADULT.deflect(_rng), "flirt_deflect", "template"
         from ..chat import dm_channel

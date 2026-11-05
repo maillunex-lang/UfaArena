@@ -310,7 +310,9 @@ func _ai() -> void:
 	var age := str(Game.profile.get("age_group", ""))
 	var arow := HBoxContainer.new()
 	arow.add_theme_constant_override("separation", 12)
-	var al := UI.label("Возраст: " + ("18+" if age == "adult" else ("младше 18" if age == "minor" else "не указан")), 28, UI.TEXT)
+	var gend := str(Game.profile.get("gender", ""))
+	var glabel := " · пол: " + ("мужчина" if gend == "m" else ("женщина" if gend == "f" else "не указан"))
+	var al := UI.label("Возраст: " + ("18+" if age == "adult" else ("младше 18" if age == "minor" else "не указан")) + glabel, 28, UI.TEXT)
 	al.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	arow.add_child(al)
 	var ab := UI.button("Изменить", "glass", 0, 72)
