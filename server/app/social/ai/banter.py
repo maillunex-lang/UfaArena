@@ -418,9 +418,7 @@ def pause_left_s(db: Session, channel: str) -> int:
 def _set_pause(db: Session, channel: str) -> None:
     from datetime import timedelta
     from ...models import ServerSetting
-    sp = _speech(db)
-    lo, hi = int(sp.get("chat_pause_min", 5)), int(sp.get("chat_pause_max", 15))
-    minutes = _rng.uniform(min(lo, hi), max(lo, hi))
+    seconds = _rng.uniform(50, 90)  # rest under two minutes; a five-minute hole feels like a dead chat
     row = db.get(ServerSetting, PAUSE_KEY)
     if row is None:
         row = ServerSetting(key=PAUSE_KEY, value={})
@@ -428,7 +426,7 @@ def _set_pause(db: Session, channel: str) -> None:
     now = utcnow()
     from datetime import datetime
     cur = {k: v for k, v in (row.value or {}).items() if _iso_after(v, now)}  # drop expired pauses
-    cur[channel] = (now + timedelta(minutes=minutes)).isoformat()
+    cur[channel] = (now + timedelta(seconds=seconds)).isoformat()
     row.value = cur
 
 
@@ -529,10 +527,10 @@ def _manner(persona: AiPersona, text: str) -> str:
     return text
 
 
-def say_reply(db: Session, persona: AiPersona, channel: str, text: str) -> None:
-    """A reply to a real player in a public channel: allowed during a pause (people answer when spoken to), but it
-    still keeps the minimum gap between AI messages."""
-    _queue.appendleft((time.monotonic() + _rng.uniform(3, 9), persona.user_id, channel, text))
+def say_reply(db: Session, persona: AiPersona, channel: str, text: str, delay_s: float | None = None) -> None:
+    """A reply to a real player. delay_s is the wait from now; bots in one burst are 5–15s apart."""
+    wait = delay_s if delay_s is not None else _rng.uniform(5, 15)
+    _queue.append((time.monotonic() + wait, persona.user_id, channel, text))
 
 
 def start_conversation(db: Session, channel: str = "global", candidates: list[AiPersona] | None = None) -> int:
@@ -600,6 +598,8 @@ def start_conversation(db: Session, channel: str = "global", candidates: list[Ai
             turns.append((role, _rng.choice(fresh or options)))
     if not turns:
         return 0
+    if len(turns) > 2:
+        turns = turns[:2]  # two voices, then quiet — not a wall of messages
     raw_lines = [text for _, text in turns]
     life = _life_line(cast["A"])
     if life:
@@ -734,10 +734,8 @@ def keep_alive(db: Session, cfg: dict) -> dict:
     from .. import channels as _CHN
     if pending == 0 and freq > 0 and _CHN.ai_may_post(db, "global") and \
             ai_messages_last_hour(db) < cfg.get("chat_ai_per_hour", 45) * freq:
-        quiet = minutes_since_last(db) >= cfg.get("quiet_minutes", 3)
-        since_start = time.monotonic() - _last_start
-        if quiet or since_start > cfg.get("conversation_every_s", 200) or _rng.random() < 0.2:
-            if _rng.random() < 0.8:
+        if minutes_since_last(db) >= 0.8 and not in_pause(db, "global"):
+            if _rng.random() < 0.65:
                 stats["started"] = start_conversation(db)
             else:
                 p = db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).order_by(func.random()).limit(1)).first()

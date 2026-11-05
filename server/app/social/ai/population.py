@@ -340,20 +340,66 @@ def handle_dm(db: Session, ai_uid: str, to_user: str, channel: str | None, text:
     return True
 
 
+def _pick_speakers(db: Session, channel: str, n: int, skip: set[str] | None = None) -> list[AiPersona]:
+    from .. import channels as CHN
+    if not CHN.ai_may_post(db, channel) or n <= 0:
+        return []
+    ids = CHN.ai_member_ids(db, channel)
+    if ids is not None:
+        cands = list(db.scalars(select(AiPersona).where(AiPersona.user_id.in_(ids), AiPersona.active.is_(True)).limit(80)))
+    elif channel.startswith("region:"):
+        code = channel.split(":", 1)[1]
+        cands = [p for p in db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).limit(200)) if CHN.ai_region(p) == code]
+    else:
+        cands = list(db.scalars(select(AiPersona).where(AiPersona.active.is_(True)).limit(80)))
+    skip = skip or set()
+    cands = [c for c in cands if c.user_id not in skip]
+    awake = [c for c in cands if _awake(c)]
+    pool = awake or cands
+    _rng.shuffle(pool)
+    # different manners, so three answers don't sound like one person
+    picked: list[AiPersona] = []
+    seen: set[str] = set()
+    for p in pool:
+        if p.style in seen and len(picked) + (len(pool) - len(picked)) > n:
+            continue
+        picked.append(p)
+        seen.add(p.style or "")
+        if len(picked) >= n:
+            break
+    if len(picked) < n:
+        for p in pool:
+            if p not in picked:
+                picked.append(p)
+            if len(picked) >= n:
+                break
+    return picked[:n]
+
+
 def handle_mention(db: Session, channel: str, user_id: str, text: str) -> bool:
-    """In public channels at most one persona answers, only sometimes, with a cooldown."""
+    """A real player's line gets 1–3 different bots, 5–15s apart, only when it matches a script."""
     from ...ai import speech as SP
     kind = DLG.intent(text)
-    if kind == "unknown" or _rng.random() > AI()["reply_chance"] * SP.frequency(db) or not _chat_allowed(db):
+    if kind == "unknown" or not _chat_allowed(db):
         return False
-    persona = _pick_speaker(db, channel)
-    if persona is None:
+    n = _rng.randint(1, 3)
+    speakers = _pick_speakers(db, channel, n, {user_id})
+    if not speakers:
         return False
-    base = DLG.line(_rng, kind, persona.style, _context(db, persona, user_id))
+    stances = ["like", "meh", "new"]
+    _rng.shuffle(stances)
+    delay = 0.0
     from . import banter
-    banter.say_reply(db, persona, channel, SP.compose(db, _rng, persona, base, to_user=user_id, user_text=text,
-                                                      kind=kind, public=True)[0])  # paced like the chat
-    log(db, persona, "chat_reply", channel=channel, intent=kind)
+    for i, persona in enumerate(speakers):
+        delay += _rng.uniform(5, 15)
+        ctx = _context(db, persona, user_id)
+        if kind == "game":
+            base = DLG.opinion(_rng, stances[i], ctx)
+        else:
+            base = DLG.line(_rng, kind, persona.style, ctx)
+        reply, _source = SP.compose(db, _rng, persona, base, to_user=user_id, user_text=text, kind=kind, public=True)
+        banter.say_reply(db, persona, channel, reply, delay_s=delay)
+        log(db, persona, "chat_reply", channel=channel, intent=kind)
     return True
 
 
@@ -390,9 +436,10 @@ def _chat_allowed(db: Session) -> bool:
     recent = db.scalars(select(AiActivityLog.created_at).where(AiActivityLog.activity == "chat_reply",
                                                                AiActivityLog.created_at >= since)
                         .order_by(AiActivityLog.id.desc()).limit(AI()["chat_global_per_hour"])).all()
-    if len(recent) >= AI()["chat_global_per_hour"]:
+    if len(recent) >= max(60, int(AI()["chat_global_per_hour"])):
         return False
-    return not recent or (utcnow() - as_utc(recent[0])).total_seconds() >= AI()["chat_cooldown_s"] / 4
+    # Player replies come as a short burst (5–15s). Do not also demand minutes between them.
+    return True
 
 
 def _pick_speaker(db: Session, channel: str) -> AiPersona | None:
