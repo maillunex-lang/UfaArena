@@ -1013,7 +1013,7 @@
       "bitch"
     ],
     "dm_ai_per_day": 2,
-    "keep_per_channel": 100
+    "keep_per_channel": 50
   },
   "events": {
     "templates": {

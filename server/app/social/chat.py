@@ -161,12 +161,16 @@ def _avatar_hero(db: Session, user_id: str) -> str:
 
 
 def prune(db: Session) -> int:
-    """Keeps the newest N messages per channel (older ones are deleted), except messages under open reports."""
-    keep = int(C().get("keep_per_channel", 100))
+    """Drops old lines from public chats (global, guild, region, events) once a channel
+    has more than keep_per_channel messages. Private messages stay. AI memory lives in
+    its own tables and is not touched here."""
+    keep = int(C().get("keep_per_channel", 50))
     reported = set(db.scalars(select(ChatReport.message_id).where(ChatReport.status == "open", ChatReport.message_id.is_not(None))))
     removed = 0
     for (ch,) in db.execute(select(ChatMessage.channel).group_by(ChatMessage.channel)
                             .having(func.count() > keep)).all():
+        if str(ch).startswith("dm:"):
+            continue
         border = db.scalar(select(ChatMessage.id).where(ChatMessage.channel == ch).order_by(ChatMessage.id.desc())
                            .offset(keep - 1).limit(1))
         if border is None:

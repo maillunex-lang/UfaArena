@@ -596,15 +596,20 @@ def test_chat_retention_and_ai_chat_toggle(newplayer):
     from app.models import ChatMessage, PlayerProfile
     from app.social import chat as CH
     p = newplayer()
-    ch = "dm:test:" + uuid.uuid4().hex[:8]
+    dm = "dm:test:" + uuid.uuid4().hex[:8]
+    pub = "guild:prune-" + uuid.uuid4().hex[:8]
     with session() as db:
         for i in range(130):
-            db.add(ChatMessage(channel=ch, user_id=uid(p), text=f"msg {i}", reactions={}))
+            db.add(ChatMessage(channel=dm, user_id=uid(p), text=f"dm {i}", reactions={}))
+        for i in range(80):
+            db.add(ChatMessage(channel=pub, user_id=uid(p), text=f"msg {i}", reactions={}))
     with session() as db:
         CH.prune(db)
     with session() as db:
-        left = db.scalars(select(ChatMessage).where(ChatMessage.channel == ch).order_by(ChatMessage.id)).all()
-        assert len(left) == 100 and left[0].text == "msg 30"
+        dms = db.scalars(select(ChatMessage).where(ChatMessage.channel == dm)).all()
+        assert len(dms) == 130  # private messages are kept
+        left = db.scalars(select(ChatMessage).where(ChatMessage.channel == pub).order_by(ChatMessage.id)).all()
+        assert len(left) == 50 and left[0].text == "msg 30"
     # hide AI messages in the global chat for this player only
     with session() as db:
         ai = db.scalar(select(PlayerProfile).where(PlayerProfile.is_ai.is_(True)))
